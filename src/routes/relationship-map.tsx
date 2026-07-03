@@ -60,7 +60,7 @@ function RelationshipMap() {
             {nodes.map(n => {
               const to = n.kind === "founder" ? "/founders/$id" : n.kind === "company" ? "/companies/$id" : "/ecosystem";
               return (
-                <Link key={`${n.kind}:${n.id}`} to={to as any} params={n.kind === "founder" || n.kind === "company" ? { id: n.id } : undefined}>
+                <Link key={`${n.kind}:${n.id}`} to={to as any} params={(n.kind === "founder" || n.kind === "company" ? { id: n.id } : {}) as any}>
                   <g onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(null)} className="cursor-pointer">
                     <circle cx={n.x} cy={n.y} r={n.kind === "founder" ? 6 : 4} fill={colors[n.kind]} />
                   </g>
