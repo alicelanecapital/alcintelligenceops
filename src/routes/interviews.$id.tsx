@@ -29,7 +29,9 @@ function InterviewWorkspace() {
   if (!interview.data) return <div className="p-10">Not found. <Link to="/interviews" className="underline">Back</Link></div>;
 
   const iv = interview.data;
-  const stage = iv.status === "completed" ? "report" : (iv.status === "live" ? "live" : "brief");
+  const defaultTab = iv.status === "completed" ? "report" : (iv.status === "live" ? "live" : "brief");
+  const [tab, setTab] = useState(defaultTab);
+  useEffect(() => { setTab(defaultTab); }, [defaultTab]);
 
   return (
     <div className="min-h-screen">
