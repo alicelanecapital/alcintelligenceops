@@ -1283,6 +1283,14 @@ export type Database = {
           company_id: string | null
           created_at: string
           current_stage: string | null
+          diagnostic: Json | null
+          diagnostic_recommendation: string | null
+          diagnostic_score: number | null
+          diagnostic_summary: string | null
+          diligence_checklist: Json | null
+          diligence_output: Json | null
+          diligence_recommendation: string | null
+          diligence_stop_points: Json | null
           estimated_investment: number | null
           founder_id: string | null
           id: string
@@ -1305,6 +1313,14 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           current_stage?: string | null
+          diagnostic?: Json | null
+          diagnostic_recommendation?: string | null
+          diagnostic_score?: number | null
+          diagnostic_summary?: string | null
+          diligence_checklist?: Json | null
+          diligence_output?: Json | null
+          diligence_recommendation?: string | null
+          diligence_stop_points?: Json | null
           estimated_investment?: number | null
           founder_id?: string | null
           id?: string
@@ -1327,6 +1343,14 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           current_stage?: string | null
+          diagnostic?: Json | null
+          diagnostic_recommendation?: string | null
+          diagnostic_score?: number | null
+          diagnostic_summary?: string | null
+          diligence_checklist?: Json | null
+          diligence_output?: Json | null
+          diligence_recommendation?: string | null
+          diligence_stop_points?: Json | null
           estimated_investment?: number | null
           founder_id?: string | null
           id?: string

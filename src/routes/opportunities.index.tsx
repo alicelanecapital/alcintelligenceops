@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,17 +98,24 @@ export function OpportunityProfile() {
           {opportunity.estimated_investment && <Badge variant="outline">R{Number(opportunity.estimated_investment).toLocaleString()}</Badge>}
           {opportunity.mess_classification && <Badge className={cn("border", MESS_BADGE_CLASS[opportunity.mess_classification])}>{opportunity.mess_classification} mess</Badge>}
           {opportunity.screening_outcome && <Badge variant="outline">Screening · {opportunity.screening_outcome}</Badge>}
+          {opportunity.diagnostic_score != null && <Badge variant="outline">Diagnostic · {opportunity.diagnostic_score}/5</Badge>}
+          {opportunity.diligence_stop_points && Object.values(opportunity.diligence_stop_points).some(Boolean) && (
+            <Badge className="bg-destructive text-destructive-foreground border-destructive">Stop point triggered</Badge>
+          )}
+          {opportunity.diligence_recommendation && <Badge variant="outline">Diligence · {opportunity.diligence_recommendation}</Badge>}
         </div>
       </CardContent></Card>
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","screening","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
+          {["overview","screening","diagnostic","diligence","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <Card><CardContent className="p-4 text-sm">{opportunity.summary ?? "No summary yet."}</CardContent></Card>
         </TabsContent>
         <TabsContent value="screening"><ScreeningTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="diagnostic"><DiagnosticTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="diligence"><DiligenceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -235,6 +242,256 @@ function ScreeningTab({ opportunity, opportunityId }: { opportunity: any; opport
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+const REVENUE_QUALITY_RATINGS = [
+  { value: "A", label: "A: Durable — repeat customers, low volatility" },
+  { value: "B", label: "B: Promising — strong demand, still variable" },
+  { value: "C", label: "C: Fragile — concentrated, seasonal, founder-dependent" },
+  { value: "D", label: "D: Unproven — cannot be verified or repeated" },
+];
+
+const PROFIT_QUALITY_RATINGS = [
+  { value: "Clean profit", label: "Clean profit — attractive after normalising costs" },
+  { value: "Hidden profit", label: "Hidden profit — real but obscured by poor records" },
+  { value: "Inflated profit", label: "Inflated profit — strong only because costs excluded" },
+  { value: "False profit", label: "False profit — disappears with proper costs" },
+];
+
+const DIAGNOSTIC_FREE_TEXT_CATEGORIES = [
+  { key: "cash_discipline", label: "Cash Discipline", question: "Can cash be tracked and protected?" },
+  { key: "debt_obligations", label: "Debt & Obligations", question: "What claims exist on future cash flow?" },
+  { key: "tax_vat_readiness", label: "Tax/VAT Readiness", question: "What compliance obligations are approaching or unresolved?" },
+  { key: "founder_dependency", label: "Founder Dependency", question: "Can the business operate beyond founder heroics?" },
+  { key: "operational_maturity", label: "Operational Maturity", question: "Are systems sufficient for growth?" },
+  { key: "capital_fit", label: "Capital Fit", question: "Will R100k–R500k change trajectory?" },
+  { key: "value_creation_path", label: "Value Creation Path", question: "What are the highest leverage improvements?" },
+] as const;
+
+const DIAGNOSTIC_RECOMMENDATIONS = ["Decline", "Observe", "Diligence", "Invest subject to conditions"] as const;
+
+function DiagnosticTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const existing = opportunity.diagnostic ?? {};
+  const [revenueRating, setRevenueRating] = useState(existing.revenue_quality?.rating ?? "");
+  const [revenueEvidence, setRevenueEvidence] = useState(existing.revenue_quality?.evidence ?? "");
+  const [profitRating, setProfitRating] = useState(existing.profit_quality?.rating ?? "");
+  const [profitNotes, setProfitNotes] = useState(existing.profit_quality?.notes ?? "");
+  const [freeText, setFreeText] = useState<Record<string, string>>(() =>
+    Object.fromEntries(DIAGNOSTIC_FREE_TEXT_CATEGORIES.map(c => [c.key, existing[c.key]?.notes ?? ""])),
+  );
+  const [score, setScore] = useState<number | null>(opportunity.diagnostic_score ?? null);
+  const [recommendation, setRecommendation] = useState<string>(opportunity.diagnostic_recommendation ?? "");
+  const [summary, setSummary] = useState<string>(opportunity.diagnostic_summary ?? "");
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityDiagnostic(opportunityId, {
+      diagnostic: {
+        revenue_quality: { rating: revenueRating, evidence: revenueEvidence },
+        profit_quality: { rating: profitRating, notes: profitNotes },
+        ...Object.fromEntries(DIAGNOSTIC_FREE_TEXT_CATEGORIES.map(c => [c.key, { notes: freeText[c.key] }])),
+      },
+      diagnostic_score: score,
+      diagnostic_recommendation: recommendation || null,
+      diagnostic_summary: summary || null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-6 space-y-6">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Revenue Quality</div>
+            <Select value={revenueRating} onValueChange={setRevenueRating}>
+              <SelectTrigger><SelectValue placeholder="Select rating…" /></SelectTrigger>
+              <SelectContent>{REVENUE_QUALITY_RATINGS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Textarea className="mt-2" rows={2} placeholder="Evidence…" value={revenueEvidence} onChange={e => setRevenueEvidence(e.target.value)} />
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Profit Quality</div>
+            <Select value={profitRating} onValueChange={setProfitRating}>
+              <SelectTrigger><SelectValue placeholder="Select rating…" /></SelectTrigger>
+              <SelectContent>{PROFIT_QUALITY_RATINGS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Textarea className="mt-2" rows={2} placeholder="Notes…" value={profitNotes} onChange={e => setProfitNotes(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {DIAGNOSTIC_FREE_TEXT_CATEGORIES.map(c => (
+            <div key={c.key}>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{c.label} <span className="normal-case text-muted-foreground/70">— {c.question}</span></div>
+              <Textarea rows={2} value={freeText[c.key]} onChange={e => setFreeText(s => ({ ...s, [c.key]: e.target.value }))} />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 items-start">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Diagnostic Score (§8.4)</div>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" onClick={() => setScore(n)} className={cn(
+                  "h-8 w-8 rounded-full border text-xs flex items-center justify-center transition-colors",
+                  score === n ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50",
+                )}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Recommendation</div>
+            <Select value={recommendation} onValueChange={setRecommendation}>
+              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{DIAGNOSTIC_RECOMMENDATIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">One-Page Business Summary (§8.5)</div>
+          <Textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="Revenue quality, profit quality, founder dependency, mess classification, capital-fit conclusion, top five value creation levers, key diligence questions…" />
+        </div>
+
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save diagnostic"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const STOP_POINTS = [
+  { key: "founder_lied", label: "Founder lies during diligence" },
+  { key: "revenue_unverifiable", label: "Revenue cannot be verified in any reasonable way" },
+  { key: "undisclosed_debt", label: "Undisclosed debt materially changes the business picture" },
+  { key: "illegal_profitability", label: "Profitability depends on illegal or abusive practices" },
+  { key: "refuses_visibility", label: "Founder refuses financial visibility" },
+  { key: "liabilities_exceed_recovery", label: "Liabilities exceed the ability of the business to recover" },
+  { key: "funds_old_holes", label: "Capital will mainly fund old holes without a credible reset" },
+] as const;
+
+const DILIGENCE_AREAS = [
+  { key: "legal_existence", label: "Legal existence", items: "Registration, ownership, directors, trading name, licences", question: "Who owns and controls the business?" },
+  { key: "founder_identity", label: "Founder identity", items: "ID, address, background, business history, references", question: "Is the founder who they say they are?" },
+  { key: "banking", label: "Banking", items: "6–12 months statements, all business accounts", question: "Can cash flow be reconstructed?" },
+  { key: "revenue", label: "Revenue", items: "Card statements, invoices, receipts, cash logs", question: "Is revenue real and repeatable?" },
+  { key: "costs", label: "Costs", items: "Rent, wages, suppliers, utilities, repairs", question: "What does the business truly cost to run?" },
+  { key: "owner_drawings", label: "Owner drawings", items: "Salary, drawings, personal expenses, family payments", question: "What is true business profit?" },
+  { key: "debt", label: "Debt", items: "Loans, merchant advances, family/friend debt, repayment terms", question: "What claims exist on future cash flow?" },
+  { key: "tax_vat", label: "Tax/VAT", items: "Registration, SARS status, VAT threshold, arrears", question: "Is there a quantifiable compliance exposure?" },
+  { key: "staff", label: "Staff", items: "Employee list, pay, hours, obligations, disputes", question: "Are labour obligations understood?" },
+  { key: "customers", label: "Customers", items: "Repeat customers, concentration, contracts, reviews", question: "How durable is demand?" },
+  { key: "suppliers", label: "Suppliers", items: "Key suppliers, terms, arrears, alternatives", question: "Can the business keep operating smoothly?" },
+  { key: "assets", label: "Assets", items: "Equipment, stock, vehicles, ownership, condition", question: "What assets exist and who owns them?" },
+  { key: "premises", label: "Premises", items: "Lease, rent arrears, renewal risk", question: "Can the business keep trading from its base?" },
+  { key: "compliance", label: "Compliance", items: "Permits, health/safety, insurance, licences", question: "Could regulation shut the business down?" },
+  { key: "disputes", label: "Disputes", items: "Legal claims, landlord issues, staff disputes", question: "Are there hidden liabilities?" },
+  { key: "use_of_funds", label: "Use of funds", items: "Budget, milestones, expected impact", question: "Will the cheque change the business?" },
+] as const;
+
+const DILIGENCE_STATUSES = ["Not started", "In progress", "Reviewed", "Flagged"] as const;
+const DILIGENCE_RECOMMENDATIONS = ["Decline", "Proceed", "Invest subject to conditions"] as const;
+
+const DILIGENCE_OUTPUT_FIELDS = [
+  { key: "verified_revenue_estimate", label: "Verified revenue estimate" },
+  { key: "normalised_profit_estimate", label: "Normalised profit estimate" },
+  { key: "debt_liabilities_schedule", label: "Debt & liabilities schedule" },
+  { key: "tax_vat_exposure_note", label: "Tax/VAT exposure note" },
+  { key: "founder_integrity_assessment", label: "Founder integrity assessment" },
+  { key: "guardrails_required", label: "Guardrails required" },
+  { key: "valuation_range", label: "Valuation range" },
+  { key: "proposed_structure", label: "Proposed structure" },
+] as const;
+
+function DiligenceTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const [stopPoints, setStopPoints] = useState<Record<string, boolean>>(opportunity.diligence_stop_points ?? {});
+  const [checklist, setChecklist] = useState<Record<string, { status?: string; notes?: string }>>(opportunity.diligence_checklist ?? {});
+  const [output, setOutput] = useState<Record<string, string>>(opportunity.diligence_output ?? {});
+  const [recommendation, setRecommendation] = useState<string>(opportunity.diligence_recommendation ?? "");
+
+  const anyStopPoint = Object.values(stopPoints).some(Boolean);
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityDiligence(opportunityId, {
+      diligence_stop_points: stopPoints,
+      diligence_checklist: checklist,
+      diligence_output: output,
+      diligence_recommendation: recommendation || null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card className={cn(anyStopPoint && "border-destructive")}>
+        <CardContent className="p-6">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Automatic Stop Points (§9.3)</div>
+          {anyStopPoint && <div className="text-sm font-medium text-destructive mb-3">Stop point triggered — default is decline.</div>}
+          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+            {STOP_POINTS.map(sp => (
+              <label key={sp.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox checked={!!stopPoints[sp.key]} onCheckedChange={(v) => setStopPoints(s => ({ ...s, [sp.key]: !!v }))} />
+                {sp.label}
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">15-Area Checklist (§9.2)</div>
+          <div className="space-y-4">
+            {DILIGENCE_AREAS.map(a => {
+              const row = checklist[a.key] ?? {};
+              return (
+                <div key={a.key} className="grid sm:grid-cols-[160px_1fr_160px] gap-3 items-start border-b border-border last:border-0 pb-4 last:pb-0">
+                  <div>
+                    <div className="text-sm font-medium">{a.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{a.items}</div>
+                    <div className="text-xs text-muted-foreground italic mt-0.5">{a.question}</div>
+                  </div>
+                  <Textarea rows={2} placeholder="Notes…" value={row.notes ?? ""} onChange={e => setChecklist(s => ({ ...s, [a.key]: { ...s[a.key], notes: e.target.value } }))} />
+                  <Select value={row.status ?? ""} onValueChange={(v) => setChecklist(s => ({ ...s, [a.key]: { ...s[a.key], status: v } }))}>
+                    <SelectTrigger><SelectValue placeholder="Status…" /></SelectTrigger>
+                    <SelectContent>{DILIGENCE_STATUSES.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Diligence Output (§9.4)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {DILIGENCE_OUTPUT_FIELDS.map(f => (
+              <div key={f.key}>
+                <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
+                <Textarea rows={2} value={output[f.key] ?? ""} onChange={e => setOutput(s => ({ ...s, [f.key]: e.target.value }))} />
+              </div>
+            ))}
+          </div>
+          <div className="max-w-xs">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Recommendation</div>
+            <Select value={recommendation} onValueChange={setRecommendation}>
+              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{DILIGENCE_RECOMMENDATIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save diligence"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

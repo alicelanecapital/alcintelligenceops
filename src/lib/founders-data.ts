@@ -130,6 +130,28 @@ export async function updateOpportunityScreening(id: string, payload: {
   return data;
 }
 
+export async function updateOpportunityDiagnostic(id: string, payload: {
+  diagnostic?: Record<string, { rating?: string; notes?: string; evidence?: string }>;
+  diagnostic_score?: number | null;
+  diagnostic_recommendation?: string | null;
+  diagnostic_summary?: string | null;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateOpportunityDiligence(id: string, payload: {
+  diligence_checklist?: Record<string, { status?: string; notes?: string }>;
+  diligence_stop_points?: Record<string, boolean>;
+  diligence_output?: Record<string, string>;
+  diligence_recommendation?: string | null;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),
