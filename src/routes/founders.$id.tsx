@@ -285,7 +285,7 @@ function OverviewTab({ founder }: { founder: any }) {
     ["Current challenges", founder.challenges],
     ["Current opportunities", founder.opportunities_text],
     ["Internal notes", founder.internal_notes],
-  ].filter(([, v]) => v);
+  ] as [string, any][]).filter(([, v]) => v);
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
