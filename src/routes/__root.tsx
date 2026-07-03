@@ -48,8 +48,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Alice Lane Operations · Origination Hub" },
-      { name: "description", content: "Alice Lane Operations — a repeatable origination and deal-flow engine." },
+      { title: "ALC" },
+      { name: "description", content: "ALC" },
+      { property: "og:title", content: "ALC" },
+      { name: "twitter:title", content: "ALC" },
+      { property: "og:description", content: "ALC" },
+      { name: "twitter:description", content: "ALC" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2c7ae943-06cd-4be7-874f-338d463970a3/id-preview-f2ee7f8a--11ff6cba-0e12-4f91-9089-4c2aaab66c8a.lovable.app-1783072916941.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2c7ae943-06cd-4be7-874f-338d463970a3/id-preview-f2ee7f8a--11ff6cba-0e12-4f91-9089-4c2aaab66c8a.lovable.app-1783072916941.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
