@@ -13,10 +13,11 @@ export const Route = createFileRoute("/api/transcribe")({
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("LOVABLE_API_KEY missing", { status: 500 });
         const inbound = await request.formData();
-        const file = inbound.get("file");
-        if (!(file instanceof File) && !(file instanceof Blob)) {
+        const raw = inbound.get("file");
+        if (!(raw && typeof (raw as Blob).arrayBuffer === "function")) {
           return new Response("file required", { status: 400 });
         }
+        const file = raw as File;
 
         // Preserve extension from the client-provided filename or MIME type
         // so the upstream can decode it.
