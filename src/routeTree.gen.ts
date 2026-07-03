@@ -17,6 +17,9 @@ import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InterviewsIndexRouteImport } from './routes/interviews.index'
+import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 
 const FoundersRoute = FoundersRouteImport.update({
   id: '/founders',
@@ -58,6 +61,21 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InterviewsIndexRoute = InterviewsIndexRouteImport.update({
+  id: '/interviews/',
+  path: '/interviews/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewsIdRoute = InterviewsIdRouteImport.update({
+  id: '/interviews/$id',
+  path: '/interviews/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +86,9 @@ export interface FileRoutesByFullPath {
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
+  '/interviews/': typeof InterviewsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +99,9 @@ export interface FileRoutesByTo {
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
+  '/interviews': typeof InterviewsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +113,9 @@ export interface FileRoutesById {
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
+  '/interviews/': typeof InterviewsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +128,9 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/api/transcribe'
+    | '/interviews/$id'
+    | '/interviews/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +141,9 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/api/transcribe'
+    | '/interviews/$id'
+    | '/interviews'
   id:
     | '__root__'
     | '/'
@@ -121,6 +154,9 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/api/transcribe'
+    | '/interviews/$id'
+    | '/interviews/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +168,9 @@ export interface RootRouteChildren {
   EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
   FoundersRoute: typeof FoundersRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
+  InterviewsIdRoute: typeof InterviewsIdRoute
+  InterviewsIndexRoute: typeof InterviewsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +231,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/interviews/': {
+      id: '/interviews/'
+      path: '/interviews'
+      fullPath: '/interviews/'
+      preLoaderRoute: typeof InterviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interviews/$id': {
+      id: '/interviews/$id'
+      path: '/interviews/$id'
+      fullPath: '/interviews/$id'
+      preLoaderRoute: typeof InterviewsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +264,9 @@ const rootRouteChildren: RootRouteChildren = {
   EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,
   FoundersRoute: FoundersRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
+  InterviewsIdRoute: InterviewsIdRoute,
+  InterviewsIndexRoute: InterviewsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -199,6 +199,41 @@ export type Database = {
           },
         ]
       }
+      document_requests: {
+        Row: {
+          created_at: string
+          doc_type: string
+          id: string
+          interview_id: string
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          id?: string
+          interview_id: string
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          id?: string
+          interview_id?: string
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_requests_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_attendees: {
         Row: {
           contact_id: string | null
@@ -415,6 +450,222 @@ export type Database = {
           },
         ]
       }
+      interview_analyses: {
+        Row: {
+          created_at: string
+          id: string
+          interview_id: string
+          kind: string
+          payload: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interview_id: string
+          kind: string
+          payload: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interview_id?: string
+          kind?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_analyses_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_notes: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          interview_id: string
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          interview_id: string
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          interview_id?: string
+          section?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_notes_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_reports: {
+        Row: {
+          body: Json
+          generated_at: string
+          id: string
+          interview_id: string
+        }
+        Insert: {
+          body: Json
+          generated_at?: string
+          id?: string
+          interview_id: string
+        }
+        Update: {
+          body?: Json
+          generated_at?: string
+          id?: string
+          interview_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_reports_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_utterances: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          edited: boolean
+          id: string
+          interview_id: string
+          speaker: string
+          text: string
+          ts_ms: number
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          edited?: boolean
+          id?: string
+          interview_id: string
+          speaker?: string
+          text: string
+          ts_ms: number
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          edited?: boolean
+          id?: string
+          interview_id?: string
+          speaker?: string
+          text?: string
+          ts_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_utterances_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interviews: {
+        Row: {
+          brief: Json | null
+          business_name: string | null
+          created_at: string
+          current_stage: string | null
+          deal_id: string | null
+          ended_at: string | null
+          founder_id: string | null
+          founder_name: string | null
+          id: string
+          industry: string | null
+          interviewer_name: string | null
+          organisation_id: string | null
+          started_at: string | null
+          status: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          brief?: Json | null
+          business_name?: string | null
+          created_at?: string
+          current_stage?: string | null
+          deal_id?: string | null
+          ended_at?: string | null
+          founder_id?: string | null
+          founder_name?: string | null
+          id?: string
+          industry?: string | null
+          interviewer_name?: string | null
+          organisation_id?: string | null
+          started_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brief?: Json | null
+          business_name?: string | null
+          created_at?: string
+          current_stage?: string | null
+          deal_id?: string | null
+          ended_at?: string | null
+          founder_id?: string | null
+          founder_name?: string | null
+          id?: string
+          industry?: string | null
+          interviewer_name?: string | null
+          organisation_id?: string | null
+          started_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisations: {
         Row: {
           ai_relationship_score: number | null
@@ -546,6 +797,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      question_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          interview_id: string
+          produced_signal: boolean
+          question: string
+          reason: string | null
+          stage: string | null
+          used: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interview_id: string
+          produced_signal?: boolean
+          question: string
+          reason?: string | null
+          stage?: string | null
+          used?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interview_id?: string
+          produced_signal?: boolean
+          question?: string
+          reason?: string | null
+          stage?: string | null
+          used?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_suggestions_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
