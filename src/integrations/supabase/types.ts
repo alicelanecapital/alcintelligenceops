@@ -14,6 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
+      communications: {
+        Row: {
+          body: string | null
+          created_at: string
+          direction: string | null
+          founder_id: string | null
+          id: string
+          kind: string | null
+          occurred_at: string | null
+          subject: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          direction?: string | null
+          founder_id?: string | null
+          id?: string
+          kind?: string | null
+          occurred_at?: string | null
+          subject?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          direction?: string | null
+          founder_id?: string | null
+          id?: string
+          kind?: string | null
+          occurred_at?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communications_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          address: string | null
+          business_model: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          current_funding: string | null
+          customers: string | null
+          employees: number | null
+          founded_year: number | null
+          id: string
+          industry: string | null
+          investment_stage: string | null
+          linkedin: string | null
+          logo_url: string | null
+          name: string
+          problem_solved: string | null
+          products: string | null
+          province: string | null
+          registration_number: string | null
+          relationship_owner: string | null
+          revenue_band: string | null
+          services: string | null
+          status: string | null
+          summary: string | null
+          updated_at: string
+          vat_number: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_model?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_funding?: string | null
+          customers?: string | null
+          employees?: number | null
+          founded_year?: number | null
+          id?: string
+          industry?: string | null
+          investment_stage?: string | null
+          linkedin?: string | null
+          logo_url?: string | null
+          name: string
+          problem_solved?: string | null
+          products?: string | null
+          province?: string | null
+          registration_number?: string | null
+          relationship_owner?: string | null
+          revenue_band?: string | null
+          services?: string | null
+          status?: string | null
+          summary?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_model?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_funding?: string | null
+          customers?: string | null
+          employees?: number | null
+          founded_year?: number | null
+          id?: string
+          industry?: string | null
+          investment_stage?: string | null
+          linkedin?: string | null
+          logo_url?: string | null
+          name?: string
+          problem_solved?: string | null
+          products?: string | null
+          province?: string | null
+          registration_number?: string | null
+          relationship_owner?: string | null
+          revenue_band?: string | null
+          services?: string | null
+          status?: string | null
+          summary?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           created_at: string
@@ -234,6 +365,115 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          ai_summary: string | null
+          company_id: string | null
+          created_at: string
+          doc_type: string | null
+          file_name: string | null
+          file_size: number | null
+          founder_id: string | null
+          id: string
+          mime_type: string | null
+          opportunity_id: string | null
+          storage_path: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string
+          uploaded_by: string | null
+          version: number | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          company_id?: string | null
+          created_at?: string
+          doc_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          founder_id?: string | null
+          id?: string
+          mime_type?: string | null
+          opportunity_id?: string | null
+          storage_path?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Update: {
+          ai_summary?: string | null
+          company_id?: string | null
+          created_at?: string
+          doc_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          founder_id?: string | null
+          id?: string
+          mime_type?: string | null
+          opportunity_id?: string | null
+          storage_path?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entity_merges: {
+        Row: {
+          candidate_ids: string[]
+          created_at: string
+          entity_type: string
+          id: string
+          reason: string | null
+          score: number | null
+          status: string | null
+        }
+        Insert: {
+          candidate_ids: string[]
+          created_at?: string
+          entity_type: string
+          id?: string
+          reason?: string | null
+          score?: number | null
+          status?: string | null
+        }
+        Update: {
+          candidate_ids?: string[]
+          created_at?: string
+          entity_type?: string
+          id?: string
+          reason?: string | null
+          score?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       event_attendees: {
         Row: {
           contact_id: string | null
@@ -351,83 +591,223 @@ export type Database = {
         }
         Relationships: []
       }
+      founder_companies: {
+        Row: {
+          company_id: string
+          created_at: string
+          founder_id: string
+          id: string
+          is_current: boolean | null
+          role: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          founder_id: string
+          id?: string
+          is_current?: boolean | null
+          role?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          founder_id?: string
+          id?: string
+          is_current?: boolean | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "founder_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "founder_companies_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      founder_intelligence: {
+        Row: {
+          founder_id: string
+          generated_at: string | null
+          knowledge_gaps: Json | null
+          next_best_actions: Json | null
+          open_commitments: Json | null
+          recent_developments: Json | null
+          relationship_health: Json | null
+          snapshot: string | null
+          source_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          founder_id: string
+          generated_at?: string | null
+          knowledge_gaps?: Json | null
+          next_best_actions?: Json | null
+          open_commitments?: Json | null
+          recent_developments?: Json | null
+          relationship_health?: Json | null
+          snapshot?: string | null
+          source_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          founder_id?: string
+          generated_at?: string | null
+          knowledge_gaps?: Json | null
+          next_best_actions?: Json | null
+          open_commitments?: Json | null
+          recent_developments?: Json | null
+          relationship_health?: Json | null
+          snapshot?: string | null
+          source_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "founder_intelligence_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: true
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       founders: {
         Row: {
+          achievements: string | null
           ai_investment_score: number | null
+          assigned_partner: string | null
+          awards: string | null
+          biography: string | null
+          challenges: string | null
           contact_id: string | null
           created_at: string
+          current_company_id: string | null
+          education: Json | null
+          email: string | null
           employees: number | null
+          experience: Json | null
+          first_met_date: string | null
           funding_sought: string | null
           id: string
+          industry: string | null
           internal_notes: string | null
           linkedin: string | null
           location: string | null
           name: string
+          opportunities_text: string | null
           organisation_id: string | null
           owner_id: string | null
+          phone: string | null
           photo_url: string | null
           pitch_deck_url: string | null
           problem: string | null
           referral_source: string | null
+          relationship_strength: number | null
           revenue: string | null
           sector: string | null
+          skills: string[] | null
+          socials: Json | null
           solution: string | null
           stage: string | null
           startup_name: string | null
+          status: string | null
           traction: string | null
           updated_at: string
           website: string | null
           why_interesting: string | null
         }
         Insert: {
+          achievements?: string | null
           ai_investment_score?: number | null
+          assigned_partner?: string | null
+          awards?: string | null
+          biography?: string | null
+          challenges?: string | null
           contact_id?: string | null
           created_at?: string
+          current_company_id?: string | null
+          education?: Json | null
+          email?: string | null
           employees?: number | null
+          experience?: Json | null
+          first_met_date?: string | null
           funding_sought?: string | null
           id?: string
+          industry?: string | null
           internal_notes?: string | null
           linkedin?: string | null
           location?: string | null
           name: string
+          opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
+          phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
           problem?: string | null
           referral_source?: string | null
+          relationship_strength?: number | null
           revenue?: string | null
           sector?: string | null
+          skills?: string[] | null
+          socials?: Json | null
           solution?: string | null
           stage?: string | null
           startup_name?: string | null
+          status?: string | null
           traction?: string | null
           updated_at?: string
           website?: string | null
           why_interesting?: string | null
         }
         Update: {
+          achievements?: string | null
           ai_investment_score?: number | null
+          assigned_partner?: string | null
+          awards?: string | null
+          biography?: string | null
+          challenges?: string | null
           contact_id?: string | null
           created_at?: string
+          current_company_id?: string | null
+          education?: Json | null
+          email?: string | null
           employees?: number | null
+          experience?: Json | null
+          first_met_date?: string | null
           funding_sought?: string | null
           id?: string
+          industry?: string | null
           internal_notes?: string | null
           linkedin?: string | null
           location?: string | null
           name?: string
+          opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
+          phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
           problem?: string | null
           referral_source?: string | null
+          relationship_strength?: number | null
           revenue?: string | null
           sector?: string | null
+          skills?: string[] | null
+          socials?: Json | null
           solution?: string | null
           stage?: string | null
           startup_name?: string | null
+          status?: string | null
           traction?: string | null
           updated_at?: string
           website?: string | null
@@ -666,6 +1046,285 @@ export type Database = {
           },
         ]
       }
+      investments: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          created_at: string
+          founder_id: string | null
+          id: string
+          instrument: string | null
+          invested_at: string | null
+          notes: string | null
+          opportunity_id: string | null
+          status: string | null
+          updated_at: string
+          valuation: number | null
+        }
+        Insert: {
+          amount?: number | null
+          company_id?: string | null
+          created_at?: string
+          founder_id?: string | null
+          id?: string
+          instrument?: string | null
+          invested_at?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          status?: string | null
+          updated_at?: string
+          valuation?: number | null
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string | null
+          created_at?: string
+          founder_id?: string | null
+          id?: string
+          instrument?: string | null
+          invested_at?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          status?: string | null
+          updated_at?: string
+          valuation?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investments_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investments_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          action_items: Json | null
+          agenda: string | null
+          attendees: Json | null
+          company_id: string | null
+          created_at: string
+          decisions: string | null
+          founder_id: string | null
+          id: string
+          location: string | null
+          meeting_date: string | null
+          opportunity_id: string | null
+          outcome: string | null
+          recording_url: string | null
+          summary: string | null
+          title: string | null
+          transcript: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_items?: Json | null
+          agenda?: string | null
+          attendees?: Json | null
+          company_id?: string | null
+          created_at?: string
+          decisions?: string | null
+          founder_id?: string | null
+          id?: string
+          location?: string | null
+          meeting_date?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
+          recording_url?: string | null
+          summary?: string | null
+          title?: string | null
+          transcript?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_items?: Json | null
+          agenda?: string | null
+          attendees?: Json | null
+          company_id?: string | null
+          created_at?: string
+          decisions?: string | null
+          founder_id?: string | null
+          id?: string
+          location?: string | null
+          meeting_date?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
+          recording_url?: string | null
+          summary?: string | null
+          title?: string | null
+          transcript?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          attachments: Json | null
+          author: string | null
+          body: string
+          company_id: string | null
+          created_at: string
+          founder_id: string | null
+          id: string
+          mentions: Json | null
+          opportunity_id: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          author?: string | null
+          body: string
+          company_id?: string | null
+          created_at?: string
+          founder_id?: string | null
+          id?: string
+          mentions?: Json | null
+          opportunity_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          author?: string | null
+          body?: string
+          company_id?: string | null
+          created_at?: string
+          founder_id?: string | null
+          id?: string
+          mentions?: Json | null
+          opportunity_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunities: {
+        Row: {
+          assigned_partner: string | null
+          company_id: string | null
+          created_at: string
+          current_stage: string | null
+          estimated_investment: number | null
+          founder_id: string | null
+          id: string
+          industry: string | null
+          name: string
+          priority: string | null
+          probability: number | null
+          source: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_partner?: string | null
+          company_id?: string | null
+          created_at?: string
+          current_stage?: string | null
+          estimated_investment?: number | null
+          founder_id?: string | null
+          id?: string
+          industry?: string | null
+          name: string
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_partner?: string | null
+          company_id?: string | null
+          created_at?: string
+          current_stage?: string | null
+          estimated_investment?: number | null
+          founder_id?: string | null
+          id?: string
+          industry?: string | null
+          name?: string
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisations: {
         Row: {
           ai_relationship_score: number | null
@@ -835,6 +1494,175 @@ export type Database = {
             columns: ["interview_id"]
             isOneToOne: false
             referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_signals: {
+        Row: {
+          days_since_last: number | null
+          founder_id: string
+          interactions_90d: number | null
+          last_contact_at: string | null
+          strength_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          days_since_last?: number | null
+          founder_id: string
+          interactions_90d?: number | null
+          last_contact_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          days_since_last?: number | null
+          founder_id?: string
+          interactions_90d?: number | null
+          last_contact_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_signals_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: true
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assignee: string | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          founder_id: string | null
+          id: string
+          opportunity_id: string | null
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          founder_id?: string | null
+          id?: string
+          opportunity_id?: string | null
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          founder_id?: string | null
+          id?: string
+          opportunity_id?: string | null
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeline_events: {
+        Row: {
+          actor: string | null
+          body: string | null
+          company_id: string | null
+          created_at: string
+          event_type: string
+          founder_id: string | null
+          id: string
+          occurred_at: string
+          opportunity_id: string | null
+          source_id: string | null
+          source_type: string | null
+          title: string | null
+        }
+        Insert: {
+          actor?: string | null
+          body?: string | null
+          company_id?: string | null
+          created_at?: string
+          event_type: string
+          founder_id?: string | null
+          id?: string
+          occurred_at?: string
+          opportunity_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          title?: string | null
+        }
+        Update: {
+          actor?: string | null
+          body?: string | null
+          company_id?: string | null
+          created_at?: string
+          event_type?: string
+          founder_id?: string | null
+          id?: string
+          occurred_at?: string
+          opportunity_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
             referencedColumns: ["id"]
           },
         ]
