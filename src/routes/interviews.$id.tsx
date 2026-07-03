@@ -51,7 +51,8 @@ function InterviewWorkspace() {
         </div>
       </div>
 
-      <Tabs value={stage} onValueChange={async (v) => {
+      <Tabs value={tab} onValueChange={async (v) => {
+        setTab(v);
         if (v === "live" && iv.status !== "live") {
           await setInterviewStatus(id, { status: "live", started_at: new Date().toISOString() });
           qc.invalidateQueries({ queryKey: ["iv", id] });
