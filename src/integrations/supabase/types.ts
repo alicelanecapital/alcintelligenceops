@@ -688,6 +688,8 @@ export type Database = {
           awards: string | null
           biography: string | null
           challenges: string | null
+          coachability_score: number | null
+          commercial_instinct_score: number | null
           contact_id: string | null
           created_at: string
           current_company_id: string | null
@@ -696,7 +698,9 @@ export type Database = {
           employees: number | null
           experience: Json | null
           first_met_date: string | null
+          founder_archetype: string | null
           funding_sought: string | null
+          assessment_notes: string | null
           id: string
           industry: string | null
           internal_notes: string | null
@@ -706,6 +710,7 @@ export type Database = {
           opportunities_text: string | null
           organisation_id: string | null
           owner_id: string | null
+          owner_mentality_score: number | null
           phone: string | null
           photo_url: string | null
           pitch_deck_url: string | null
@@ -721,6 +726,7 @@ export type Database = {
           startup_name: string | null
           status: string | null
           traction: string | null
+          truthfulness_score: number | null
           updated_at: string
           website: string | null
           why_interesting: string | null
@@ -732,6 +738,8 @@ export type Database = {
           awards?: string | null
           biography?: string | null
           challenges?: string | null
+          coachability_score?: number | null
+          commercial_instinct_score?: number | null
           contact_id?: string | null
           created_at?: string
           current_company_id?: string | null
@@ -740,7 +748,9 @@ export type Database = {
           employees?: number | null
           experience?: Json | null
           first_met_date?: string | null
+          founder_archetype?: string | null
           funding_sought?: string | null
+          assessment_notes?: string | null
           id?: string
           industry?: string | null
           internal_notes?: string | null
@@ -750,6 +760,7 @@ export type Database = {
           opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
+          owner_mentality_score?: number | null
           phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
@@ -765,6 +776,7 @@ export type Database = {
           startup_name?: string | null
           status?: string | null
           traction?: string | null
+          truthfulness_score?: number | null
           updated_at?: string
           website?: string | null
           why_interesting?: string | null
@@ -776,6 +788,8 @@ export type Database = {
           awards?: string | null
           biography?: string | null
           challenges?: string | null
+          coachability_score?: number | null
+          commercial_instinct_score?: number | null
           contact_id?: string | null
           created_at?: string
           current_company_id?: string | null
@@ -784,7 +798,9 @@ export type Database = {
           employees?: number | null
           experience?: Json | null
           first_met_date?: string | null
+          founder_archetype?: string | null
           funding_sought?: string | null
+          assessment_notes?: string | null
           id?: string
           industry?: string | null
           internal_notes?: string | null
@@ -794,6 +810,7 @@ export type Database = {
           opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
+          owner_mentality_score?: number | null
           phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
@@ -809,6 +826,7 @@ export type Database = {
           startup_name?: string | null
           status?: string | null
           traction?: string | null
+          truthfulness_score?: number | null
           updated_at?: string
           website?: string | null
           why_interesting?: string | null
@@ -1269,9 +1287,15 @@ export type Database = {
           founder_id: string | null
           id: string
           industry: string | null
+          investment_criteria: Json | null
+          mess_classification: string | null
+          mess_notes: string | null
           name: string
           priority: string | null
           probability: number | null
+          screening_outcome: string | null
+          screening_outcome_reason: string | null
+          screening_step: number | null
           source: string | null
           summary: string | null
           updated_at: string
@@ -1285,9 +1309,15 @@ export type Database = {
           founder_id?: string | null
           id?: string
           industry?: string | null
+          investment_criteria?: Json | null
+          mess_classification?: string | null
+          mess_notes?: string | null
           name: string
           priority?: string | null
           probability?: number | null
+          screening_outcome?: string | null
+          screening_outcome_reason?: string | null
+          screening_step?: number | null
           source?: string | null
           summary?: string | null
           updated_at?: string
@@ -1301,9 +1331,15 @@ export type Database = {
           founder_id?: string | null
           id?: string
           industry?: string | null
+          investment_criteria?: Json | null
+          mess_classification?: string | null
+          mess_notes?: string | null
           name?: string
           priority?: string | null
           probability?: number | null
+          screening_outcome?: string | null
+          screening_outcome_reason?: string | null
+          screening_step?: number | null
           source?: string | null
           summary?: string | null
           updated_at?: string

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchFounderProfile, addFounderNote, addFounderTask, addFounderMeeting, addCompanyForFounder, addOpportunity } from "@/lib/founders-data";
+import { fetchFounderProfile, addFounderNote, addFounderTask, addFounderMeeting, addCompanyForFounder, addOpportunity, updateFounderAssessment } from "@/lib/founders-data";
 import { refreshFounderIntelligence } from "@/lib/founders-intel.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Sparkles, RefreshCw, CalendarPlus, StickyNote, ListTodo, Building2, Target, FileText, Users, Mic, Mail, Phone, Linkedin, MapPin, ArrowLeft, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/founders/$id")({
   component: () => (
@@ -53,12 +55,13 @@ function FounderProfile() {
 
           <Tabs defaultValue="overview" className="mt-6">
             <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-              {["overview","timeline","companies","meetings","interviews","documents","contacts","tasks","notes","opportunities","communications","investments"].map(t => (
+              {["overview","assessment","timeline","companies","meetings","interviews","documents","contacts","tasks","notes","opportunities","communications","investments"].map(t => (
                 <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>
               ))}
             </TabsList>
 
             <TabsContent value="overview"><OverviewTab founder={founder} /></TabsContent>
+            <TabsContent value="assessment"><AssessmentTab founder={founder} founderId={id} /></TabsContent>
             <TabsContent value="timeline"><TimelineTab events={timeline} /></TabsContent>
             <TabsContent value="companies"><CompaniesTab companies={companies} founderId={id} /></TabsContent>
             <TabsContent value="meetings"><MeetingsTab meetings={meetings} founderId={id} /></TabsContent>
@@ -95,6 +98,7 @@ function ProfileHeader({ founder }: { founder: any }) {
               {founder.industry && <Badge variant="outline">{founder.industry}</Badge>}
               {founder.location && <Badge variant="outline"><MapPin className="h-3 w-3 mr-1" />{founder.location}</Badge>}
               {founder.assigned_partner && <Badge variant="outline">Partner · {founder.assigned_partner}</Badge>}
+              {founder.founder_archetype && <Badge variant="outline">{founder.founder_archetype}</Badge>}
             </div>
             <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
               {founder.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{founder.email}</span>}
@@ -294,6 +298,88 @@ function OverviewTab({ founder }: { founder: any }) {
         <Card key={k}><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{k}</div><div className="text-sm">{String(v)}</div></CardContent></Card>
       ))}
     </div>
+  );
+}
+
+const TRAITS = [
+  { key: "truthfulness_score", label: "Truthfulness" },
+  { key: "commercial_instinct_score", label: "Commercial instinct" },
+  { key: "coachability_score", label: "Coachability" },
+  { key: "owner_mentality_score", label: "Owner mentality" },
+] as const;
+
+const ARCHETYPES = ["Investable", "Potentially Investable", "High-Risk", "Not Investable"] as const;
+
+function AssessmentTab({ founder, founderId }: { founder: any; founderId: string }) {
+  const qc = useQueryClient();
+  const [scores, setScores] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(TRAITS.map(t => [t.key, founder[t.key] ?? null])),
+  );
+  const [archetype, setArchetype] = useState<string>(founder.founder_archetype ?? "");
+  const [notes, setNotes] = useState<string>(founder.assessment_notes ?? "");
+
+  const saveMut = useMutation({
+    mutationFn: () => updateFounderAssessment(founderId, {
+      ...scores,
+      founder_archetype: archetype || null,
+      assessment_notes: notes || null,
+    } as any),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["founder", founderId] }),
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-6 space-y-6">
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Four Core Traits</div>
+          <div className="space-y-3">
+            {TRAITS.map(t => (
+              <div key={t.key} className="flex items-center justify-between gap-4">
+                <div className="text-sm">{t.label}</div>
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setScores(s => ({ ...s, [t.key]: n }))}
+                      className={cn(
+                        "h-7 w-7 rounded-full border text-xs flex items-center justify-center transition-colors",
+                        scores[t.key] === n
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:border-primary/50",
+                      )}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Archetype</div>
+          <Select value={archetype} onValueChange={setArchetype}>
+            <SelectTrigger className="w-64"><SelectValue placeholder="Select archetype…" /></SelectTrigger>
+            <SelectContent>
+              {ARCHETYPES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Notes</div>
+          <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Reference checks, credit history context, behaviour signals…" />
+        </div>
+
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+            {saveMut.isPending ? "Saving…" : "Save assessment"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

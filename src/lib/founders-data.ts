@@ -104,6 +104,32 @@ export async function fetchOpportunities() {
   return data ?? [];
 }
 
+export async function updateFounderAssessment(id: string, payload: {
+  truthfulness_score?: number | null;
+  commercial_instinct_score?: number | null;
+  coachability_score?: number | null;
+  owner_mentality_score?: number | null;
+  founder_archetype?: string | null;
+  assessment_notes?: string | null;
+}) {
+  const { data, error } = await supabase.from("founders").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateOpportunityScreening(id: string, payload: {
+  mess_classification?: string | null;
+  mess_notes?: string | null;
+  screening_step?: number | null;
+  screening_outcome?: string | null;
+  screening_outcome_reason?: string | null;
+  investment_criteria?: Record<string, boolean>;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),
