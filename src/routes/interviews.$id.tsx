@@ -228,12 +228,12 @@ function LiveView({ interview }: { interview: any }) {
     finally { setFinalizing(false); }
   }
 
-  const analyses = ana.data ?? [];
+  const analyses: any[] = ana.data ?? [];
   const risks = analyses.filter(a => a.kind === "risk").slice(0, 8);
   const contradictions = analyses.filter(a => a.kind === "contradiction").slice(0, 6);
   const missing = analyses.filter(a => a.kind === "missing_evidence").slice(0, 6);
   const followUps = analyses.filter(a => a.kind === "follow_up").slice(0, 6);
-  const scores = analyses.find(a => a.kind === "score")?.payload;
+  const scores: any = analyses.find(a => a.kind === "score")?.payload;
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
