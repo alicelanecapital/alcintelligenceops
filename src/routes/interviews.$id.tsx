@@ -76,7 +76,7 @@ function InterviewWorkspace() {
 /* ---------------- Brief ---------------- */
 
 function BriefView({ interview }: { interview: any }) {
-  const b = interview.brief ?? {};
+  const b: any = interview.brief ?? {};
   const kv = (label: string, value: string | undefined) => (
     <div className="border-b border-border py-3">
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
