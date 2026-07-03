@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Cormorant Garamond", Georgia, serif;
+  --font-serif: "Montserrat", system-ui, sans-serif;
+  --font-sans: "Montserrat", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
