@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare } from "lucide-react";
+import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare, Building2, Target, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -9,6 +9,9 @@ const nav = [
   { to: "/events", label: "Events", icon: Calendar },
   { to: "/deals", label: "Deal Flow", icon: Kanban },
   { to: "/founders", label: "Founders", icon: Users },
+  { to: "/companies", label: "Companies", icon: Building2 },
+  { to: "/opportunities", label: "Opportunities", icon: Target },
+  { to: "/relationship-map", label: "Relationship Map", icon: Network },
   { to: "/ecosystem", label: "Ecosystem Map", icon: Map },
   { to: "/contacts", label: "Contacts", icon: Contact2 },
   { to: "/analytics", label: "Pipeline Analytics", icon: BarChart3 },
