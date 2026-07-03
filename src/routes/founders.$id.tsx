@@ -266,7 +266,7 @@ function QuickActions({ founderId }: { founderId: string }) {
 }
 
 function OverviewTab({ founder }: { founder: any }) {
-  const rows: [string, any][] = [
+  const rows = ([
     ["Biography", founder.biography],
     ["Sector", founder.sector],
     ["Stage", founder.stage],

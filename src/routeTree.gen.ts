@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RelationshipMapRouteImport } from './routes/relationship-map'
 import { Route as FoundersRouteImport } from './routes/founders'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
@@ -17,10 +18,20 @@ import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OpportunitiesIndexRouteImport } from './routes/opportunities.index'
 import { Route as InterviewsIndexRouteImport } from './routes/interviews.index'
+import { Route as CompaniesIndexRouteImport } from './routes/companies.index'
+import { Route as OpportunitiesIdRouteImport } from './routes/opportunities.$id'
 import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
+import { Route as FoundersIdRouteImport } from './routes/founders.$id'
+import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 
+const RelationshipMapRoute = RelationshipMapRouteImport.update({
+  id: '/relationship-map',
+  path: '/relationship-map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FoundersRoute = FoundersRouteImport.update({
   id: '/founders',
   path: '/founders',
@@ -61,14 +72,39 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OpportunitiesIndexRoute = OpportunitiesIndexRouteImport.update({
+  id: '/opportunities/',
+  path: '/opportunities/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InterviewsIndexRoute = InterviewsIndexRouteImport.update({
   id: '/interviews/',
   path: '/interviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompaniesIndexRoute = CompaniesIndexRouteImport.update({
+  id: '/companies/',
+  path: '/companies/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpportunitiesIdRoute = OpportunitiesIdRouteImport.update({
+  id: '/opportunities/$id',
+  path: '/opportunities/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InterviewsIdRoute = InterviewsIdRouteImport.update({
   id: '/interviews/$id',
   path: '/interviews/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FoundersIdRoute = FoundersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => FoundersRoute,
+} as any)
+const CompaniesIdRoute = CompaniesIdRouteImport.update({
+  id: '/companies/$id',
+  path: '/companies/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
@@ -85,10 +121,16 @@ export interface FileRoutesByFullPath {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
-  '/founders': typeof FoundersRoute
+  '/founders': typeof FoundersRouteWithChildren
+  '/relationship-map': typeof RelationshipMapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/companies/$id': typeof CompaniesIdRoute
+  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
+  '/opportunities/$id': typeof OpportunitiesIdRoute
+  '/companies/': typeof CompaniesIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
+  '/opportunities/': typeof OpportunitiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,10 +140,16 @@ export interface FileRoutesByTo {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
-  '/founders': typeof FoundersRoute
+  '/founders': typeof FoundersRouteWithChildren
+  '/relationship-map': typeof RelationshipMapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/companies/$id': typeof CompaniesIdRoute
+  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
+  '/opportunities/$id': typeof OpportunitiesIdRoute
+  '/companies': typeof CompaniesIndexRoute
   '/interviews': typeof InterviewsIndexRoute
+  '/opportunities': typeof OpportunitiesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,10 +160,16 @@ export interface FileRoutesById {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
-  '/founders': typeof FoundersRoute
+  '/founders': typeof FoundersRouteWithChildren
+  '/relationship-map': typeof RelationshipMapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/companies/$id': typeof CompaniesIdRoute
+  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
+  '/opportunities/$id': typeof OpportunitiesIdRoute
+  '/companies/': typeof CompaniesIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
+  '/opportunities/': typeof OpportunitiesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,9 +182,15 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/relationship-map'
     | '/api/transcribe'
+    | '/companies/$id'
+    | '/founders/$id'
     | '/interviews/$id'
+    | '/opportunities/$id'
+    | '/companies/'
     | '/interviews/'
+    | '/opportunities/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -141,9 +201,15 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/relationship-map'
     | '/api/transcribe'
+    | '/companies/$id'
+    | '/founders/$id'
     | '/interviews/$id'
+    | '/opportunities/$id'
+    | '/companies'
     | '/interviews'
+    | '/opportunities'
   id:
     | '__root__'
     | '/'
@@ -154,9 +220,15 @@ export interface FileRouteTypes {
     | '/ecosystem'
     | '/events'
     | '/founders'
+    | '/relationship-map'
     | '/api/transcribe'
+    | '/companies/$id'
+    | '/founders/$id'
     | '/interviews/$id'
+    | '/opportunities/$id'
+    | '/companies/'
     | '/interviews/'
+    | '/opportunities/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -167,14 +239,26 @@ export interface RootRouteChildren {
   DealsRoute: typeof DealsRoute
   EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
-  FoundersRoute: typeof FoundersRoute
+  FoundersRoute: typeof FoundersRouteWithChildren
+  RelationshipMapRoute: typeof RelationshipMapRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  CompaniesIdRoute: typeof CompaniesIdRoute
   InterviewsIdRoute: typeof InterviewsIdRoute
+  OpportunitiesIdRoute: typeof OpportunitiesIdRoute
+  CompaniesIndexRoute: typeof CompaniesIndexRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
+  OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/relationship-map': {
+      id: '/relationship-map'
+      path: '/relationship-map'
+      fullPath: '/relationship-map'
+      preLoaderRoute: typeof RelationshipMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/founders': {
       id: '/founders'
       path: '/founders'
@@ -231,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/opportunities/': {
+      id: '/opportunities/'
+      path: '/opportunities'
+      fullPath: '/opportunities/'
+      preLoaderRoute: typeof OpportunitiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/interviews/': {
       id: '/interviews/'
       path: '/interviews'
@@ -238,11 +329,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/companies/': {
+      id: '/companies/'
+      path: '/companies'
+      fullPath: '/companies/'
+      preLoaderRoute: typeof CompaniesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/opportunities/$id': {
+      id: '/opportunities/$id'
+      path: '/opportunities/$id'
+      fullPath: '/opportunities/$id'
+      preLoaderRoute: typeof OpportunitiesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/interviews/$id': {
       id: '/interviews/$id'
       path: '/interviews/$id'
       fullPath: '/interviews/$id'
       preLoaderRoute: typeof InterviewsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/founders/$id': {
+      id: '/founders/$id'
+      path: '/$id'
+      fullPath: '/founders/$id'
+      preLoaderRoute: typeof FoundersIdRouteImport
+      parentRoute: typeof FoundersRoute
+    }
+    '/companies/$id': {
+      id: '/companies/$id'
+      path: '/companies/$id'
+      fullPath: '/companies/$id'
+      preLoaderRoute: typeof CompaniesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/transcribe': {
@@ -255,6 +374,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface FoundersRouteChildren {
+  FoundersIdRoute: typeof FoundersIdRoute
+}
+
+const FoundersRouteChildren: FoundersRouteChildren = {
+  FoundersIdRoute: FoundersIdRoute,
+}
+
+const FoundersRouteWithChildren = FoundersRoute._addFileChildren(
+  FoundersRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -263,10 +394,15 @@ const rootRouteChildren: RootRouteChildren = {
   DealsRoute: DealsRoute,
   EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,
-  FoundersRoute: FoundersRoute,
+  FoundersRoute: FoundersRouteWithChildren,
+  RelationshipMapRoute: RelationshipMapRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  CompaniesIdRoute: CompaniesIdRoute,
   InterviewsIdRoute: InterviewsIdRoute,
+  OpportunitiesIdRoute: OpportunitiesIdRoute,
+  CompaniesIndexRoute: CompaniesIndexRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
+  OpportunitiesIndexRoute: OpportunitiesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
