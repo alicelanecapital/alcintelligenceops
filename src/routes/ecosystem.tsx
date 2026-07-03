@@ -103,19 +103,17 @@ function Ecosystem() {
             <div className="grid" style={{ gridTemplateColumns: `160px repeat(${categories.length}, minmax(120px, 1fr))` }}>
               <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">Fit ↓ / Category →</div>
               {categories.map(c => <div key={c} className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-l border-border truncate">{c}</div>)}
-              {["High","Medium-High","Medium","Low"].map(fitBand => (
-                <>
-                  <div key={fitBand+"h"} className="p-3 text-xs font-medium border-t border-border">{fitBand}</div>
-                  {categories.map(c => {
-                    const items = filtered.filter(o => (o.category === c) && (o.fit_rating ?? "").toLowerCase().startsWith(fitBand.toLowerCase()));
-                    return (
-                      <div key={fitBand+c} className="p-2 border-t border-l border-border text-[11px] space-y-1 min-h-16">
-                        {items.map(i => <div key={i.id} className="truncate" title={i.name}>{i.name}</div>)}
-                      </div>
-                    );
-                  })}
-                </>
-              ))}
+              {["High","Medium-High","Medium","Low"].flatMap(fitBand => [
+                <div key={fitBand+"h"} className="p-3 text-xs font-medium border-t border-border">{fitBand}</div>,
+                ...categories.map(c => {
+                  const items = filtered.filter(o => (o.category === c) && (o.fit_rating ?? "").toLowerCase().startsWith(fitBand.toLowerCase()));
+                  return (
+                    <div key={fitBand+c} className="p-2 border-t border-l border-border text-[11px] space-y-1 min-h-16">
+                      {items.map(i => <div key={i.id} className="truncate" title={i.name}>{i.name}</div>)}
+                    </div>
+                  );
+                })
+              ])}
             </div>
           </div>
         </TabsContent>
