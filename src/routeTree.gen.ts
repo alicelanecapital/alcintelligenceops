@@ -18,6 +18,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InterviewsIndexRouteImport } from './routes/interviews.index'
+import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 
 const FoundersRoute = FoundersRouteImport.update({
@@ -65,6 +66,11 @@ const InterviewsIndexRoute = InterviewsIndexRouteImport.update({
   path: '/interviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InterviewsIdRoute = InterviewsIdRouteImport.update({
+  id: '/interviews/$id',
+  path: '/interviews/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
   '/interviews/': typeof InterviewsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
   '/interviews': typeof InterviewsIndexRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/interviews/$id': typeof InterviewsIdRoute
   '/interviews/': typeof InterviewsIndexRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/api/transcribe'
+    | '/interviews/$id'
     | '/interviews/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/api/transcribe'
+    | '/interviews/$id'
     | '/interviews'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/api/transcribe'
+    | '/interviews/$id'
     | '/interviews/'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FoundersRoute: typeof FoundersRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  InterviewsIdRoute: typeof InterviewsIdRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/interviews/$id': {
+      id: '/interviews/$id'
+      path: '/interviews/$id'
+      fullPath: '/interviews/$id'
+      preLoaderRoute: typeof InterviewsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transcribe': {
       id: '/api/transcribe'
       path: '/api/transcribe'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FoundersRoute: FoundersRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  InterviewsIdRoute: InterviewsIdRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
 }
 export const routeTree = rootRouteImport

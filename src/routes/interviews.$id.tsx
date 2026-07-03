@@ -285,13 +285,16 @@ function LiveView({ interview }: { interview: any }) {
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Suggested follow-ups</div>
             {followUps.length === 0 ? <div className="text-xs text-muted-foreground italic">Waiting for signal…</div> :
-              followUps.map((a, i) => (
-                <div key={i} className="border-b border-border last:border-0 py-2">
-                  <div className="text-sm font-medium">{a.payload.question}</div>
-                  {a.payload.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {a.payload.reason}</div>}
-                  {a.payload.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {a.payload.alternative}</div>}
-                </div>
-              ))}
+              followUps.map((a: any, i: number) => {
+                const p: any = a.payload ?? {};
+                return (
+                  <div key={i} className="border-b border-border last:border-0 py-2">
+                    <div className="text-sm font-medium">{p.question}</div>
+                    {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
+                    {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
+                  </div>
+                );
+              })}
           </CardContent></Card>
         </aside>
 
