@@ -1,10 +1,11 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "Daily Briefing", icon: LayoutDashboard },
+  { to: "/interviews", label: "Interviews", icon: MessagesSquare },
   { to: "/events", label: "Events", icon: Calendar },
   { to: "/deals", label: "Deal Flow", icon: Kanban },
   { to: "/founders", label: "Founders", icon: Users },
