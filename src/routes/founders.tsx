@@ -27,7 +27,7 @@ function Founders() {
                   <div className="font-serif text-lg leading-tight">{f.name}</div>
                   <div className="text-xs text-muted-foreground mt-1">{f.startup_name}</div>
                 </div>
-                {f.ai_investment_score && <Badge className="bg-[var(--gold)] text-[var(--ink)]">{f.ai_investment_score}</Badge>}
+                {f.ai_investment_score && <Badge className="bg-primary text-primary-foreground">{f.ai_investment_score}</Badge>}
               </div>
               <div className="mt-3 flex flex-wrap gap-1">
                 {f.sector && <Badge variant="outline" className="text-[10px]">{f.sector}</Badge>}

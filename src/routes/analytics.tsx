@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, 
 
 export const Route = createFileRoute("/analytics")({ component: () => <AppShell><Analytics /></AppShell> });
 
-const COLORS = ["#0B1F3A", "#B7873B", "#6B8E4E", "#B25E3D", "#8896A6"];
+const COLORS = ["#0F766E", "#14B8A6", "#5EEAD4", "#94A3B8", "#334155"];
 
 function Analytics() {
   const deals = useQuery({ queryKey: ["deals"], queryFn: fetchDeals });
@@ -30,7 +30,7 @@ function Analytics() {
             <ResponsiveContainer><BarChart data={byStage}>
               <XAxis dataKey="stage" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={80} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip /><Bar dataKey="count" fill="#B7873B" />
+              <Tooltip /><Bar dataKey="count" fill="#0F766E" />
             </BarChart></ResponsiveContainer>
           </CardContent>
         </Card>

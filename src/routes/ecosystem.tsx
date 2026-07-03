@@ -53,7 +53,7 @@ function Ecosystem() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-serif text-lg leading-tight">{o.name}</div>
-                    {o.fit_rating && <Badge className="bg-[var(--gold)] text-[var(--ink)] shrink-0">{o.fit_rating}</Badge>}
+                    {o.fit_rating && <Badge className="bg-primary text-primary-foreground shrink-0">{o.fit_rating}</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">{o.category}</div>
                   {o.purpose && <p className="text-xs text-foreground/80 mt-3 line-clamp-3">{o.purpose}</p>}
@@ -92,7 +92,7 @@ function Ecosystem() {
                 <YAxis type="number" dataKey="fit" name="Strategic fit" domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <ZAxis type="number" dataKey="size" range={[80, 400]} />
                 <Tooltip cursor={{ strokeDasharray: "3 3" }} formatter={(v: any, n: any, p: any) => [v, p.payload.name]} />
-                <Scatter data={filtered.map((o: OrgRow) => ({ name: o.name, category: o.category ?? "Other", fit: fitScore(o.fit_rating), size: 50 }))} fill="#B7873B" />
+                <Scatter data={filtered.map((o: OrgRow) => ({ name: o.name, category: o.category ?? "Other", fit: fitScore(o.fit_rating), size: 50 }))} fill="#0F766E" />
               </ScatterChart>
             </ResponsiveContainer>
           </CardContent></Card>
@@ -134,16 +134,16 @@ function NetworkGraph({ orgs, categories }: { orgs: OrgRow[]; categories: string
   const catPos = categories.map((_, i) => ({ x: cx + Math.cos(catAngle(i)) * 200, y: cy + Math.sin(catAngle(i)) * 180 }));
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[520px]">
-      <circle cx={cx} cy={cy} r={40} fill="#0B1F3A" />
-      <text x={cx} y={cy+4} textAnchor="middle" fill="#FBF8F1" fontSize="11" fontFamily="Fraunces, serif">The Jungle</text>
+      <circle cx={cx} cy={cy} r={42} fill="#0F766E" />
+      <text x={cx} y={cy+4} textAnchor="middle" fill="#ffffff" fontSize="12" fontFamily="Cormorant Garamond, serif">Alice Lane</text>
       {categories.map((c, i) => (
         <g key={c}>
-          <line x1={cx} y1={cy} x2={catPos[i].x} y2={catPos[i].y} stroke="#B7873B" strokeWidth={1} opacity={0.5} />
-          <circle cx={catPos[i].x} cy={catPos[i].y} r={22} fill="#B7873B" />
-          <text x={catPos[i].x} y={catPos[i].y+3} textAnchor="middle" fill="#0B1F3A" fontSize="9">{c.slice(0,10)}</text>
+          <line x1={cx} y1={cy} x2={catPos[i].x} y2={catPos[i].y} stroke="#0F766E" strokeWidth={1} opacity={0.35} />
+          <circle cx={catPos[i].x} cy={catPos[i].y} r={22} fill="#14B8A6" />
+          <text x={catPos[i].x} y={catPos[i].y+3} textAnchor="middle" fill="#0f172a" fontSize="9">{c.slice(0,10)}</text>
         </g>
       ))}
-      {orgs.map((o, idx) => {
+      {orgs.map((o) => {
         const ci = Math.max(0, categories.indexOf(o.category ?? ""));
         const base = catPos[ci] ?? { x: cx, y: cy };
         const cluster = orgs.filter(x => x.category === o.category);
@@ -153,8 +153,8 @@ function NetworkGraph({ orgs, categories }: { orgs: OrgRow[]; categories: string
         const r = 4 + fitScore(o.fit_rating) / 25;
         return (
           <g key={o.id}>
-            <line x1={base.x} y1={base.y} x2={x} y2={y} stroke="#0B1F3A" strokeOpacity={0.15} strokeWidth={1} />
-            <circle cx={x} cy={y} r={r} fill="#6B8E4E"><title>{o.name} — {o.fit_rating ?? ""}</title></circle>
+            <line x1={base.x} y1={base.y} x2={x} y2={y} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth={1} />
+            <circle cx={x} cy={y} r={r} fill="#0F766E"><title>{o.name} — {o.fit_rating ?? ""}</title></circle>
           </g>
         );
       })}
