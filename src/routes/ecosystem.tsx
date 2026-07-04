@@ -66,29 +66,23 @@ function EcosystemCard({ org }: { org: OrgRow }) {
           {org.purpose && <p className="text-xs text-foreground/80 mt-2 line-clamp-2">{org.purpose}</p>}
           {org.who_they_serve && <p className="text-[11px] text-muted-foreground mt-1 italic line-clamp-1">{org.who_they_serve}</p>}
 
+          {/* Always show contacts - no expand/collapse */}
           {contacts.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(!expanded)}
-              className="mt-3 w-full text-xs h-auto py-1"
-            >
-              <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${expanded ? "rotate-180" : ""}`} />
-              {contacts.length} contact{contacts.length !== 1 ? "s" : ""}
-            </Button>
-          )}
-
-          {expanded && (
             <div className="mt-3 pt-3 border-t space-y-2">
+              <div className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">
+                {contacts.length} contact{contacts.length !== 1 ? "s" : ""}
+              </div>
               {contacts.map(c => (
                 <div key={c.id} className="text-xs p-3 bg-muted rounded space-y-2">
                   <div className="flex items-start justify-between">
-                    <div className="font-medium text-sm">{c.name}</div>
+                    <div>
+                      <div className="font-medium text-sm">{c.name}</div>
+                      {c.role && <div className="text-muted-foreground font-medium text-[11px]">{c.role}</div>}
+                    </div>
                     <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setEditingContact(c)}>
                       <Edit2 className="h-3 w-3" />
                     </Button>
                   </div>
-                  {c.role && <div className="text-muted-foreground font-medium text-[11px]">{c.role}</div>}
                   {c.call_status && (
                     <div>
                       <Badge className={`${CALL_STATUS_COLORS[c.call_status]?.bg || 'bg-gray-100'} ${CALL_STATUS_COLORS[c.call_status]?.text || 'text-gray-800'} border-0 text-[10px]`}>
@@ -97,12 +91,12 @@ function EcosystemCard({ org }: { org: OrgRow }) {
                     </div>
                   )}
                   <div className="space-y-1">
-                    {c.email && <div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /> <a href={`mailto:${c.email}`} className="text-primary hover:underline">{c.email}</a></div>}
-                    {c.phone && <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /> <span>{c.phone}</span></div>}
-                    {c.website && <div className="flex items-center gap-1"><a href={c.website} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate">{c.website}</a></div>}
-                    {c.linkedin && <div className="flex items-center gap-1"><Linkedin className="h-3 w-3 text-muted-foreground" /> <a href={c.linkedin} target="_blank" rel="noreferrer" className="text-primary hover:underline">LinkedIn</a></div>}
+                    {c.email && <div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /> <a href={`mailto:${c.email}`} className="text-primary hover:underline text-[10px]">{c.email}</a></div>}
+                    {c.phone && <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /> <span className="text-[10px]">{c.phone}</span></div>}
+                    {c.website && <div className="flex items-center gap-1"><a href={c.website} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate text-[10px]">{c.website}</a></div>}
+                    {c.linkedin && <div className="flex items-center gap-1"><Linkedin className="h-3 w-3 text-muted-foreground" /> <a href={c.linkedin} target="_blank" rel="noreferrer" className="text-primary hover:underline text-[10px]">LinkedIn</a></div>}
                   </div>
-                  {c.description && <div className="text-[11px] text-muted-foreground italic line-clamp-2 mt-2">{c.description}</div>}
+                  {c.description && <div className="text-[10px] text-muted-foreground italic line-clamp-2 mt-2">{c.description}</div>}
                 </div>
               ))}
             </div>

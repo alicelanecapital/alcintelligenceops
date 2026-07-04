@@ -12,7 +12,7 @@ import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
-const STAGES = ["Screening", "Assessment", "Diagnostic", "Diligence", "Decision", "Portfolio"];
+const STAGES = ["Opportunity", "Screening", "Assessment", "Diagnostic", "Diligence", "Decision", "Portfolio"];
 
 function DDEngine() {
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunities });

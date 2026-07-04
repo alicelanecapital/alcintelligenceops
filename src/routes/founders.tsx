@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Mail, Phone, Globe } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/founders")({ component: () => <AppShell><Founders /></AppShell> });
@@ -46,24 +47,33 @@ function Founders() {
                       {f.sector && <Badge variant="outline" className="text-[10px]">{f.sector}</Badge>}
                       {f.stage && <Badge variant="outline" className="text-[10px]">{f.stage}</Badge>}
                     </div>
-                    {f.referral_source && <div className="mt-3 text-[11px] text-muted-foreground">Referral: {f.referral_source}</div>}
+                    {f.referral_source && <div className="mt-2 text-[11px] text-muted-foreground">Referral: {f.referral_source}</div>}
+                    {/* Contact Details */}
+                    <div className="mt-3 pt-3 border-t space-y-1">
+                      {f.email && <div className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" /> <a href={`mailto:${f.email}`} className="text-primary hover:underline text-[10px]">{f.email}</a></div>}
+                      {f.phone && <div className="flex items-center gap-2"><Phone className="h-3 w-3 text-muted-foreground" /> <span className="text-[10px]">{f.phone}</span></div>}
+                      {f.website && <div className="flex items-center gap-2"><Globe className="h-3 w-3 text-muted-foreground" /> <a href={f.website} target="_blank" rel="noreferrer" className="text-primary hover:underline text-[10px] truncate">{f.website}</a></div>}
+                      {f.description && <div className="text-[10px] text-muted-foreground italic line-clamp-2 mt-2">{f.description}</div>}
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-border bg-card">
+          <div className="rounded-lg border border-border bg-card overflow-x-auto">
             <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Startup</TableHead><TableHead>Sector</TableHead><TableHead>Stage</TableHead><TableHead>Score</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Startup</TableHead><TableHead>Sector</TableHead><TableHead>Email</TableHead><TableHead>Phone</TableHead><TableHead>Stage</TableHead><TableHead>Score</TableHead></TableRow></TableHeader>
               <TableBody>
                 {list.map((f: any) => (
                   <TableRow key={f.id}>
                     <TableCell className="font-medium"><Link to="/founders/$id" params={{ id: f.id }} className="text-primary hover:underline">{f.name}</Link></TableCell>
-                    <TableCell className="text-muted-foreground">{f.startup_name}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-[10px]">{f.sector}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className="text-[10px]">{f.stage}</Badge></TableCell>
-                    <TableCell>{f.ai_investment_score ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{f.startup_name}</TableCell>
+                    <TableCell className="text-xs">{f.sector ? <Badge variant="outline" className="text-[10px]">{f.sector}</Badge> : "—"}</TableCell>
+                    <TableCell className="text-xs">{f.email ? <a href={`mailto:${f.email}`} className="text-primary hover:underline">{f.email}</a> : "—"}</TableCell>
+                    <TableCell className="text-xs">{f.phone ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{f.stage ? <Badge variant="outline" className="text-[10px]">{f.stage}</Badge> : "—"}</TableCell>
+                    <TableCell className="text-xs">{f.ai_investment_score ?? "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
