@@ -1297,6 +1297,14 @@ export type Database = {
           hundred_day_cash_plan: number | null
           hundred_day_milestones: Json | null
           hundred_day_plan: Json | null
+          governance_approval_workflow: string | null
+          governance_board_observer: boolean | null
+          governance_board_seats: number | null
+          governance_covenants: Json | null
+          governance_founder_salary_cap: number | null
+          governance_personal_expense_approval_threshold: number | null
+          governance_reporting_frequency: string | null
+          governance_spending_guardrails: Json | null
           founder_id: string | null
           id: string
           industry: string | null
@@ -1336,6 +1344,14 @@ export type Database = {
           diligence_stop_points?: Json | null
           equity_stake_pct?: number | null
           estimated_investment?: number | null
+          governance_approval_workflow?: string | null
+          governance_board_observer?: boolean | null
+          governance_board_seats?: number | null
+          governance_covenants?: Json | null
+          governance_founder_salary_cap?: number | null
+          governance_personal_expense_approval_threshold?: number | null
+          governance_reporting_frequency?: string | null
+          governance_spending_guardrails?: Json | null
           hundred_day_approval_date?: string | null
           hundred_day_cash_plan?: number | null
           hundred_day_milestones?: Json | null
@@ -1379,6 +1395,14 @@ export type Database = {
           diligence_stop_points?: Json | null
           equity_stake_pct?: number | null
           estimated_investment?: number | null
+          governance_approval_workflow?: string | null
+          governance_board_observer?: boolean | null
+          governance_board_seats?: number | null
+          governance_covenants?: Json | null
+          governance_founder_salary_cap?: number | null
+          governance_personal_expense_approval_threshold?: number | null
+          governance_reporting_frequency?: string | null
+          governance_spending_guardrails?: Json | null
           hundred_day_approval_date?: string | null
           hundred_day_cash_plan?: number | null
           hundred_day_milestones?: Json | null

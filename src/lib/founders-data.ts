@@ -179,6 +179,21 @@ export async function updateOpportunityHundredDayPlan(id: string, payload: {
   return data;
 }
 
+export async function updateOpportunityGovernance(id: string, payload: {
+  governance_board_seats?: number | null;
+  governance_reporting_frequency?: string | null;
+  governance_board_observer?: boolean | null;
+  governance_founder_salary_cap?: number | null;
+  governance_personal_expense_approval_threshold?: number | null;
+  governance_spending_guardrails?: Record<string, string | number>;
+  governance_covenants?: { text: string; required: boolean }[];
+  governance_approval_workflow?: string | null;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),

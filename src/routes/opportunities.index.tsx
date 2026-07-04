@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan, updateOpportunityGovernance } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ export function OpportunityProfile() {
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","screening","diagnostic","diligence","structuring","hundred-day","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t.replace("-"," ")}</TabsTrigger>)}
+          {["overview","screening","diagnostic","diligence","structuring","hundred-day","governance","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t.replace("-"," ")}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <Card><CardContent className="p-4 text-sm">{opportunity.summary ?? "No summary yet."}</CardContent></Card>
@@ -121,6 +121,7 @@ export function OpportunityProfile() {
         <TabsContent value="diligence"><DiligenceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="structuring"><StructuringTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="hundred-day"><HundredDayPlanTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="governance"><GovernanceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -648,6 +649,140 @@ function StructuringTab({ opportunity, opportunityId }: { opportunity: any; oppo
 
           <div className="flex justify-end">
             <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save structuring"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const REPORTING_FREQUENCIES = ["Monthly", "Quarterly", "Bi-monthly", "Ad-hoc"] as const;
+const APPROVAL_WORKFLOWS = ["Business-as-usual", "Formal committee", "Escalation required"] as const;
+
+const DEFAULT_COVENANTS = [
+  { text: "Monthly P&L within 10% of budget", required: true },
+  { text: "Monthly cash position forecast", required: true },
+  { text: "No staff changes (CTO+) without 30-day notice", required: false },
+  { text: "Quarterly customer concentration review", required: false },
+  { text: "No new debt >R50k without approval", required: false },
+  { text: "Annual founder development plan review", required: false },
+  { text: "Unannounced site visits permitted", required: false },
+] as const;
+
+function GovernanceTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const [boardSeats, setBoardSeats] = useState<string>(opportunity.governance_board_seats ?? "");
+  const [reportingFreq, setReportingFreq] = useState<string>(opportunity.governance_reporting_frequency ?? "");
+  const [boardObserver, setBoardObserver] = useState<boolean>(opportunity.governance_board_observer ?? false);
+  const [salaryCap, setSalaryCap] = useState<string>(opportunity.governance_founder_salary_cap ?? "");
+  const [expenseThreshold, setExpenseThreshold] = useState<string>(opportunity.governance_personal_expense_approval_threshold ?? "");
+  const [approvalThreshold, setApprovalThreshold] = useState<string>(opportunity.governance_spending_guardrails?.approval_threshold ?? "");
+  const [notificationThreshold, setNotificationThreshold] = useState<string>(opportunity.governance_spending_guardrails?.notification_threshold ?? "");
+  const [reservePct, setReservePct] = useState<string>(opportunity.governance_spending_guardrails?.reserve_pct ?? "");
+  const [workflow, setWorkflow] = useState<string>(opportunity.governance_approval_workflow ?? "");
+  const [covenants, setCovenants] = useState<{ text: string; required: boolean }[]>(
+    opportunity.governance_covenants?.length ? opportunity.governance_covenants : DEFAULT_COVENANTS.map(c => ({ ...c })),
+  );
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityGovernance(opportunityId, {
+      governance_board_seats: boardSeats ? Number(boardSeats) : null,
+      governance_reporting_frequency: reportingFreq || null,
+      governance_board_observer: boardObserver,
+      governance_founder_salary_cap: salaryCap ? Number(salaryCap) : null,
+      governance_personal_expense_approval_threshold: expenseThreshold ? Number(expenseThreshold) : null,
+      governance_spending_guardrails: { approval_threshold: approvalThreshold, notification_threshold: notificationThreshold, reserve_pct: reservePct },
+      governance_covenants: covenants,
+      governance_approval_workflow: workflow || null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Board & Reporting (§14.1)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Board seats</div>
+              <Input type="number" value={boardSeats} onChange={e => setBoardSeats(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Reporting frequency</div>
+              <Select value={reportingFreq} onValueChange={setReportingFreq}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>{REPORTING_FREQUENCIES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={boardObserver} onCheckedChange={(v) => setBoardObserver(!!v)} />
+            Board observer seat
+          </label>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Founder Salary & Drawings Policy</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Monthly salary cap (R)</div>
+              <Input type="number" value={salaryCap} onChange={e => setSalaryCap(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Personal expense approvals (R)</div>
+              <Input type="number" value={expenseThreshold} onChange={e => setExpenseThreshold(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Spending Guardrails</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Non-negotiable approval threshold (&gt;R)</div>
+              <Input type="number" value={approvalThreshold} onChange={e => setApprovalThreshold(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Partner notification threshold (R)</div>
+              <Input type="number" value={notificationThreshold} onChange={e => setNotificationThreshold(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Reserved for unforeseen (%)</div>
+              <Input type="number" value={reservePct} onChange={e => setReservePct(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Approval workflow</div>
+              <Select value={workflow} onValueChange={setWorkflow}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>{APPROVAL_WORKFLOWS.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Performance Covenants (§14.2)</div>
+          <div className="space-y-2">
+            {covenants.map((c, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Checkbox checked={c.required} onCheckedChange={(v) => setCovenants(s => s.map((x, j) => j === i ? { ...x, required: !!v } : x))} className="mt-1" />
+                <Input className="flex-1" value={c.text} onChange={e => setCovenants(s => s.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => setCovenants(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setCovenants(s => [...s, { text: "", required: false }])}>
+              <Plus className="h-3 w-3 mr-1" /> Add covenant
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save governance"}</Button>
           </div>
         </CardContent>
       </Card>
