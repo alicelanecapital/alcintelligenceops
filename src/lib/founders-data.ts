@@ -243,6 +243,23 @@ export async function updateInvestmentMilestone(id: string, payload: { achieved?
   return data;
 }
 
+export async function updateOpportunityValueCreation(id: string, payload: {
+  current_valuation?: number | null;
+  valuation_history?: { date: string; valuation: number; basis: string }[];
+  value_creation_initiatives?: { initiative: string; target_impact: string; achieved: boolean }[];
+  exit_scenario?: string | null;
+  exit_multiple?: number | null;
+  projected_irr?: number | null;
+  realized_exit_date?: string | null;
+  realized_exit_amount?: number | null;
+  realized_irr?: number | null;
+  realized_multiple?: number | null;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),

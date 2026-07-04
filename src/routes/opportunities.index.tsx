@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan, updateOpportunityGovernance, addInvestmentReview, fetchInvestmentReviews, addInvestmentMilestone, fetchInvestmentMilestones, updateInvestmentMilestone } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan, updateOpportunityGovernance, addInvestmentReview, fetchInvestmentReviews, addInvestmentMilestone, fetchInvestmentMilestones, updateInvestmentMilestone, updateOpportunityValueCreation } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,6 +124,7 @@ export function OpportunityProfile() {
         <TabsContent value="governance"><GovernanceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="reviews"><ReviewsTab opportunityId={id} /></TabsContent>
         <TabsContent value="milestones"><MilestonesTab opportunityId={id} /></TabsContent>
+        <TabsContent value="value"><ValueCreationTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -813,6 +814,159 @@ function ReviewsTab({ opportunityId }: { opportunityId: string }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+const EXIT_SCENARIOS = ["IPO", "Strategic sale", "Secondary", "Writedown", "Continuation"] as const;
+
+function ValueCreationTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const [currentVal, setCurrentVal] = useState<string>(opportunity.current_valuation ?? "");
+  const [valuationHist, setValuationHist] = useState<{ date: string; valuation: number; basis: string }[]>(opportunity.valuation_history ?? []);
+  const [initiatives, setInitiatives] = useState<{ initiative: string; target_impact: string; achieved: boolean }[]>(opportunity.value_creation_initiatives ?? []);
+  const [exitScenario, setExitScenario] = useState<string>(opportunity.exit_scenario ?? "");
+  const [exitMultiple, setExitMultiple] = useState<string>(opportunity.exit_multiple ?? "");
+  const [projectedIrr, setProjectedIrr] = useState<string>(opportunity.projected_irr ?? "");
+  const [realizedDate, setRealizedDate] = useState<string>(opportunity.realized_exit_date ?? "");
+  const [realizedAmount, setRealizedAmount] = useState<string>(opportunity.realized_exit_amount ?? "");
+  const [realizedIrr, setRealizedIrr] = useState<string>(opportunity.realized_irr ?? "");
+  const [realizedMult, setRealizedMult] = useState<string>(opportunity.realized_multiple ?? "");
+
+  const projectedProfit = currentVal && opportunity.estimated_investment ?
+    (Number(currentVal) - Number(opportunity.estimated_investment)).toLocaleString() : "—";
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityValueCreation(opportunityId, {
+      current_valuation: currentVal ? Number(currentVal) : null,
+      valuation_history: valuationHist,
+      value_creation_initiatives: initiatives,
+      exit_scenario: exitScenario || null,
+      exit_multiple: exitMultiple ? Number(exitMultiple) : null,
+      projected_irr: projectedIrr ? Number(projectedIrr) : null,
+      realized_exit_date: realizedDate || null,
+      realized_exit_amount: realizedAmount ? Number(realizedAmount) : null,
+      realized_irr: realizedIrr ? Number(realizedIrr) : null,
+      realized_multiple: realizedMult ? Number(realizedMult) : null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Current Valuation &amp; History (§16)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Current valuation (R)</div>
+              <Input type="number" value={currentVal} onChange={e => setCurrentVal(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Unrealized profit (R)</div>
+              <div className="h-10 flex items-center text-sm font-medium">{projectedProfit}</div>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Valuation history</div>
+            <div className="space-y-2">
+              {valuationHist.map((v, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm p-2 bg-muted rounded">
+                  <div className="flex-1">{v.date} — R{Number(v.valuation).toLocaleString()} ({v.basis})</div>
+                  <Button type="button" size="icon" variant="ghost" onClick={() => setValuationHist(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Value Creation Initiatives (§16)</div>
+          <div className="space-y-2">
+            {initiatives.map((init, i) => (
+              <div key={i} className="flex items-start gap-2 p-2 bg-muted rounded">
+                <Checkbox checked={init.achieved} onCheckedChange={(v) => setInitiatives(s => s.map((x, j) => j === i ? { ...x, achieved: !!v } : x))} className="mt-1" />
+                <div className="flex-1 text-sm">
+                  <div className={init.achieved ? "line-through text-muted-foreground" : ""}>{init.initiative}</div>
+                  <div className="text-xs text-muted-foreground">Target: {init.target_impact}</div>
+                </div>
+                <Button type="button" size="icon" variant="ghost" onClick={() => setInitiatives(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setInitiatives(s => [...s, { initiative: "", target_impact: "", achieved: false }])}>
+              <Plus className="h-3 w-3 mr-1" /> Add initiative
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Exit Scenarios &amp; Projections (§17)</div>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Expected exit path</div>
+              <Select value={exitScenario} onValueChange={setExitScenario}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>{EXIT_SCENARIOS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Exit multiple (x revenue)</div>
+              <Input type="number" value={exitMultiple} onChange={e => setExitMultiple(e.target.value)} placeholder="0" step="0.1" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Projected IRR (%)</div>
+              <Input type="number" value={projectedIrr} onChange={e => setProjectedIrr(e.target.value)} placeholder="0" step="0.1" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {realizedDate && (
+        <Card className="border-green-200 bg-green-50/30">
+          <CardContent className="p-6 space-y-4">
+            <div className="text-[10px] uppercase tracking-widest text-green-700 font-medium">Realized Exit</div>
+            <div className="grid sm:grid-cols-4 gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Exit date</div>
+                <Input type="date" value={realizedDate} onChange={e => setRealizedDate(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Exit amount (R)</div>
+                <Input type="number" value={realizedAmount} onChange={e => setRealizedAmount(e.target.value)} placeholder="0" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Realized multiple (x)</div>
+                <Input type="number" value={realizedMult} onChange={e => setRealizedMult(e.target.value)} placeholder="0" step="0.1" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Realized IRR (%)</div>
+                <Input type="number" value={realizedIrr} onChange={e => setRealizedIrr(e.target.value)} placeholder="0" step="0.1" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!realizedDate && (
+        <Card className="border-blue-200 bg-blue-50/30">
+          <CardContent className="p-6 space-y-3">
+            <div className="text-sm">
+              <div className="font-medium mb-2">Add realized exit data</div>
+              <Button type="button" size="sm" variant="outline" onClick={() => { setRealizedDate(new Date().toISOString().split('T')[0]); }}>
+                Record exit event
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save value creation"}</Button>
+      </div>
     </div>
   );
 }

@@ -1328,6 +1328,16 @@ export type Database = {
           valuation_amount: number | null
           valuation_method: string | null
           valuation_notes: string | null
+          current_valuation: number | null
+          exit_multiple: number | null
+          exit_scenario: string | null
+          projected_irr: number | null
+          realized_exit_amount: number | null
+          realized_exit_date: string | null
+          realized_irr: number | null
+          realized_multiple: number | null
+          value_creation_initiatives: Json | null
+          valuation_history: Json | null
         }
         Insert: {
           assigned_partner?: string | null
@@ -1379,6 +1389,16 @@ export type Database = {
           valuation_amount?: number | null
           valuation_method?: string | null
           valuation_notes?: string | null
+          current_valuation?: number | null
+          exit_multiple?: number | null
+          exit_scenario?: string | null
+          projected_irr?: number | null
+          realized_exit_amount?: number | null
+          realized_exit_date?: string | null
+          realized_irr?: number | null
+          realized_multiple?: number | null
+          value_creation_initiatives?: Json | null
+          valuation_history?: Json | null
         }
         Update: {
           assigned_partner?: string | null
@@ -1430,6 +1450,16 @@ export type Database = {
           valuation_amount?: number | null
           valuation_method?: string | null
           valuation_notes?: string | null
+          current_valuation?: number | null
+          exit_multiple?: number | null
+          exit_scenario?: string | null
+          projected_irr?: number | null
+          realized_exit_amount?: number | null
+          realized_exit_date?: string | null
+          realized_irr?: number | null
+          realized_multiple?: number | null
+          value_creation_initiatives?: Json | null
+          valuation_history?: Json | null
         }
         Relationships: [
           {
