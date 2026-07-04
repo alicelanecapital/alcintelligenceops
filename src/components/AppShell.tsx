@@ -45,6 +45,10 @@ const navGroups = [
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const loc = useLocation();
+  const navigate = useNavigate();
+  const { session, loading, signOut, user } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+  if (!session) return <Navigate to="/auth" />;
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
