@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Target } from "lucide-react";
+import { ArrowLeft, Target, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/opportunities/")({
   component: () => <AppShell><OpportunitiesList /></AppShell>,
@@ -103,12 +104,14 @@ export function OpportunityProfile() {
             <Badge className="bg-destructive text-destructive-foreground border-destructive">Stop point triggered</Badge>
           )}
           {opportunity.diligence_recommendation && <Badge variant="outline">Diligence · {opportunity.diligence_recommendation}</Badge>}
+          {opportunity.proposed_instrument && <Badge variant="outline">{opportunity.proposed_instrument}</Badge>}
+          {opportunity.valuation_amount && <Badge variant="outline">Valuation R{Number(opportunity.valuation_amount).toLocaleString()}</Badge>}
         </div>
       </CardContent></Card>
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","screening","diagnostic","diligence","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
+          {["overview","screening","diagnostic","diligence","structuring","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <Card><CardContent className="p-4 text-sm">{opportunity.summary ?? "No summary yet."}</CardContent></Card>
@@ -116,6 +119,7 @@ export function OpportunityProfile() {
         <TabsContent value="screening"><ScreeningTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="diagnostic"><DiagnosticTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="diligence"><DiligenceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="structuring"><StructuringTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -488,6 +492,161 @@ function DiligenceTab({ opportunity, opportunityId }: { opportunity: any; opport
           </div>
           <div className="flex justify-end">
             <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save diligence"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const VALUATION_METHODS = [
+  "Normalised earnings multiple",
+  "Revenue multiple",
+  "Asset/replacement value",
+  "Dividend yield approach",
+  "Founder buyback formula",
+] as const;
+
+const INSTRUMENTS = ["Minority equity", "Structured debt", "Convertible", "Revenue share", "Hybrid"] as const;
+
+const PROTECTIVE_RIGHTS = [
+  { key: "no_new_debt", label: "No new debt or credit facilities without platform consent" },
+  { key: "no_related_party", label: "No related-party payments without disclosure and approval" },
+  { key: "no_major_capex", label: "No major capital expenditure outside the agreed budget" },
+  { key: "no_new_sites", label: "No new branches or site expansion without agreed unit economics" },
+  { key: "no_asset_sale", label: "No sale of material assets without consent" },
+  { key: "no_business_line_change", label: "No change in business line without discussion" },
+  { key: "monthly_reporting", label: "Monthly reporting obligation — non-negotiable" },
+  { key: "full_data_access", label: "Full access to accounting, banking, and operational data" },
+  { key: "owner_salary_policy", label: "Agreed owner salary or drawings policy" },
+] as const;
+
+const STAGED_RELEASE_DEFAULT = [
+  { tranche: "Tranche 1", focus: "Systems and urgent stabilisation", released: false },
+  { tranche: "Tranche 2", focus: "After reporting and use-of-funds compliance", released: false },
+  { tranche: "Tranche 3", focus: "After revenue or margin milestones", released: false },
+];
+
+function StructuringTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const [method, setMethod] = useState<string>(opportunity.valuation_method ?? "");
+  const [amount, setAmount] = useState<string>(opportunity.valuation_amount ?? "");
+  const [valuationNotes, setValuationNotes] = useState<string>(opportunity.valuation_notes ?? "");
+  const [instrument, setInstrument] = useState<string>(opportunity.proposed_instrument ?? "");
+  const [stakePct, setStakePct] = useState<string>(opportunity.equity_stake_pct ?? "");
+  const [rights, setRights] = useState<Record<string, boolean>>(opportunity.protective_rights ?? {});
+  const [allocations, setAllocations] = useState<{ use: string; amount: string; evidence: string }[]>(
+    opportunity.use_of_funds_allocations?.length ? opportunity.use_of_funds_allocations : [],
+  );
+  const [approvalNotes, setApprovalNotes] = useState<string>(opportunity.use_of_funds_approval_notes ?? "");
+  const [staged, setStaged] = useState<{ tranche: string; focus: string; released: boolean }[]>(
+    opportunity.staged_release?.length ? opportunity.staged_release : STAGED_RELEASE_DEFAULT,
+  );
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityStructuring(opportunityId, {
+      valuation_method: method || null,
+      valuation_amount: amount ? Number(amount) : null,
+      valuation_notes: valuationNotes || null,
+      proposed_instrument: instrument || null,
+      equity_stake_pct: stakePct ? Number(stakePct) : null,
+      protective_rights: rights,
+      use_of_funds_allocations: allocations,
+      use_of_funds_approval_notes: approvalNotes || null,
+      staged_release: staged,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Valuation (§10)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Method</div>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger><SelectValue placeholder="Select method…" /></SelectTrigger>
+                <SelectContent>{VALUATION_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Amount (R)</div>
+              <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+          <Textarea rows={3} placeholder="Inputs, normalising adjustments, entry-multiple discipline…" value={valuationNotes} onChange={e => setValuationNotes(e.target.value)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Structure (§11)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Instrument</div>
+              <Select value={instrument} onValueChange={setInstrument}>
+                <SelectTrigger><SelectValue placeholder="Select instrument…" /></SelectTrigger>
+                <SelectContent>{INSTRUMENTS.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Equity stake (%)</div>
+              <Input type="number" value={stakePct} onChange={e => setStakePct(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Protective Rights — Reserved Matters (§11.3)</div>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+              {PROTECTIVE_RIGHTS.map(r => (
+                <label key={r.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={!!rights[r.key]} onCheckedChange={(v) => setRights(s => ({ ...s, [r.key]: !!v }))} />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Use of Funds (§12)</div>
+          <div className="space-y-2">
+            {allocations.map((a, i) => (
+              <div key={i} className="grid sm:grid-cols-[1fr_140px_1fr_32px] gap-2 items-start">
+                <Input placeholder="Use (e.g. Equipment)" value={a.use} onChange={e => setAllocations(s => s.map((x, j) => j === i ? { ...x, use: e.target.value } : x))} />
+                <Input placeholder="Amount (R)" type="number" value={a.amount} onChange={e => setAllocations(s => s.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
+                <Input placeholder="Evidence" value={a.evidence} onChange={e => setAllocations(s => s.map((x, j) => j === i ? { ...x, evidence: e.target.value } : x))} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => setAllocations(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setAllocations(s => [...s, { use: "", amount: "", evidence: "" }])}>
+              <Plus className="h-3 w-3 mr-1" /> Add allocation
+            </Button>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Approval Test Notes (§12.3)</div>
+            <Textarea rows={3} value={approvalNotes} onChange={e => setApprovalNotes(e.target.value)} placeholder="What problem does this spend solve? How does it improve revenue, margin, cash flow, control or durability? What evidence supports the impact? What if it doesn't work? Can the business afford follow-on costs? Is this the highest leverage use of capital right now?" />
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Staged Release (§12.4)</div>
+            <div className="space-y-2">
+              {staged.map((s, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm">
+                  <Checkbox checked={s.released} onCheckedChange={(v) => setStaged(arr => arr.map((x, j) => j === i ? { ...x, released: !!v } : x))} />
+                  <div className="font-medium w-20 shrink-0">{s.tranche}</div>
+                  <Input className="flex-1" value={s.focus} onChange={e => setStaged(arr => arr.map((x, j) => j === i ? { ...x, focus: e.target.value } : x))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save structuring"}</Button>
           </div>
         </CardContent>
       </Card>

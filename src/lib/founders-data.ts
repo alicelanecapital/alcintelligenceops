@@ -152,6 +152,22 @@ export async function updateOpportunityDiligence(id: string, payload: {
   return data;
 }
 
+export async function updateOpportunityStructuring(id: string, payload: {
+  valuation_method?: string | null;
+  valuation_amount?: number | null;
+  valuation_notes?: string | null;
+  proposed_instrument?: string | null;
+  equity_stake_pct?: number | null;
+  protective_rights?: Record<string, boolean>;
+  use_of_funds_allocations?: { use: string; amount: string; evidence: string }[];
+  use_of_funds_approval_notes?: string | null;
+  staged_release?: { tranche: string; focus: string; released: boolean }[];
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),

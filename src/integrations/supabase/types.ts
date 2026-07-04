@@ -1291,6 +1291,7 @@ export type Database = {
           diligence_output: Json | null
           diligence_recommendation: string | null
           diligence_stop_points: Json | null
+          equity_stake_pct: number | null
           estimated_investment: number | null
           founder_id: string | null
           id: string
@@ -1301,12 +1302,20 @@ export type Database = {
           name: string
           priority: string | null
           probability: number | null
+          proposed_instrument: string | null
+          protective_rights: Json | null
           screening_outcome: string | null
           screening_outcome_reason: string | null
           screening_step: number | null
           source: string | null
+          staged_release: Json | null
           summary: string | null
           updated_at: string
+          use_of_funds_allocations: Json | null
+          use_of_funds_approval_notes: string | null
+          valuation_amount: number | null
+          valuation_method: string | null
+          valuation_notes: string | null
         }
         Insert: {
           assigned_partner?: string | null
@@ -1321,6 +1330,7 @@ export type Database = {
           diligence_output?: Json | null
           diligence_recommendation?: string | null
           diligence_stop_points?: Json | null
+          equity_stake_pct?: number | null
           estimated_investment?: number | null
           founder_id?: string | null
           id?: string
@@ -1331,12 +1341,20 @@ export type Database = {
           name: string
           priority?: string | null
           probability?: number | null
+          proposed_instrument?: string | null
+          protective_rights?: Json | null
           screening_outcome?: string | null
           screening_outcome_reason?: string | null
           screening_step?: number | null
           source?: string | null
+          staged_release?: Json | null
           summary?: string | null
           updated_at?: string
+          use_of_funds_allocations?: Json | null
+          use_of_funds_approval_notes?: string | null
+          valuation_amount?: number | null
+          valuation_method?: string | null
+          valuation_notes?: string | null
         }
         Update: {
           assigned_partner?: string | null
@@ -1351,6 +1369,7 @@ export type Database = {
           diligence_output?: Json | null
           diligence_recommendation?: string | null
           diligence_stop_points?: Json | null
+          equity_stake_pct?: number | null
           estimated_investment?: number | null
           founder_id?: string | null
           id?: string
@@ -1361,12 +1380,20 @@ export type Database = {
           name?: string
           priority?: string | null
           probability?: number | null
+          proposed_instrument?: string | null
+          protective_rights?: Json | null
           screening_outcome?: string | null
           screening_outcome_reason?: string | null
           screening_step?: number | null
           source?: string | null
+          staged_release?: Json | null
           summary?: string | null
           updated_at?: string
+          use_of_funds_allocations?: Json | null
+          use_of_funds_approval_notes?: string | null
+          valuation_amount?: number | null
+          valuation_method?: string | null
+          valuation_notes?: string | null
         }
         Relationships: [
           {
