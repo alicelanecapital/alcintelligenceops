@@ -1293,6 +1293,10 @@ export type Database = {
           diligence_stop_points: Json | null
           equity_stake_pct: number | null
           estimated_investment: number | null
+          hundred_day_approval_date: string | null
+          hundred_day_cash_plan: number | null
+          hundred_day_milestones: Json | null
+          hundred_day_plan: Json | null
           founder_id: string | null
           id: string
           industry: string | null
@@ -1332,6 +1336,10 @@ export type Database = {
           diligence_stop_points?: Json | null
           equity_stake_pct?: number | null
           estimated_investment?: number | null
+          hundred_day_approval_date?: string | null
+          hundred_day_cash_plan?: number | null
+          hundred_day_milestones?: Json | null
+          hundred_day_plan?: Json | null
           founder_id?: string | null
           id?: string
           industry?: string | null
@@ -1371,6 +1379,10 @@ export type Database = {
           diligence_stop_points?: Json | null
           equity_stake_pct?: number | null
           estimated_investment?: number | null
+          hundred_day_approval_date?: string | null
+          hundred_day_cash_plan?: number | null
+          hundred_day_milestones?: Json | null
+          hundred_day_plan?: Json | null
           founder_id?: string | null
           id?: string
           industry?: string | null

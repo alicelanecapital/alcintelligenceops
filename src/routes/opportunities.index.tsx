@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ export function OpportunityProfile() {
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","screening","diagnostic","diligence","structuring","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
+          {["overview","screening","diagnostic","diligence","structuring","hundred-day","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t.replace("-"," ")}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <Card><CardContent className="p-4 text-sm">{opportunity.summary ?? "No summary yet."}</CardContent></Card>
@@ -120,6 +120,7 @@ export function OpportunityProfile() {
         <TabsContent value="diagnostic"><DiagnosticTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="diligence"><DiligenceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="structuring"><StructuringTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="hundred-day"><HundredDayPlanTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -647,6 +648,90 @@ function StructuringTab({ opportunity, opportunityId }: { opportunity: any; oppo
 
           <div className="flex justify-end">
             <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save structuring"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function HundredDayPlanTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
+  const qc = useQueryClient();
+  const [initiatives, setInitiatives] = useState<{ day_range: string; initiative: string; owner: string; expected_outcome: string }[]>(
+    opportunity.hundred_day_plan?.length ? opportunity.hundred_day_plan : [],
+  );
+  const [milestones, setMilestones] = useState<{ milestone: string; target_value: string; target_date: string }[]>(
+    opportunity.hundred_day_milestones?.length ? opportunity.hundred_day_milestones : [],
+  );
+  const [cashPlan, setCashPlan] = useState<string>(opportunity.hundred_day_cash_plan ?? "");
+  const [approvalDate, setApprovalDate] = useState<string>(opportunity.hundred_day_approval_date ?? "");
+
+  const saveMut = useMutation({
+    mutationFn: () => updateOpportunityHundredDayPlan(opportunityId, {
+      hundred_day_plan: initiatives,
+      hundred_day_milestones: milestones,
+      hundred_day_cash_plan: cashPlan ? Number(cashPlan) : null,
+      hundred_day_approval_date: approvalDate || null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opportunity", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Key Initiatives — First 100 Days (§13)</div>
+          <div className="space-y-2">
+            {initiatives.map((init, i) => (
+              <div key={i} className="grid sm:grid-cols-[120px_1fr_100px_1fr_32px] gap-2 items-start">
+                <Input placeholder="Day range" value={init.day_range} onChange={e => setInitiatives(s => s.map((x, j) => j === i ? { ...x, day_range: e.target.value } : x))} />
+                <Input placeholder="Initiative" value={init.initiative} onChange={e => setInitiatives(s => s.map((x, j) => j === i ? { ...x, initiative: e.target.value } : x))} />
+                <Input placeholder="Owner" value={init.owner} onChange={e => setInitiatives(s => s.map((x, j) => j === i ? { ...x, owner: e.target.value } : x))} />
+                <Input placeholder="Expected outcome" value={init.expected_outcome} onChange={e => setInitiatives(s => s.map((x, j) => j === i ? { ...x, expected_outcome: e.target.value } : x))} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => setInitiatives(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setInitiatives(s => [...s, { day_range: "", initiative: "", owner: "", expected_outcome: "" }])}>
+              <Plus className="h-3 w-3 mr-1" /> Add initiative
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">5–7 Key Milestones</div>
+          <div className="space-y-2">
+            {milestones.map((m, i) => (
+              <div key={i} className="grid sm:grid-cols-[1fr_100px_100px_32px] gap-2 items-start">
+                <Input placeholder="Milestone (e.g. Revenue proof point)" value={m.milestone} onChange={e => setMilestones(s => s.map((x, j) => j === i ? { ...x, milestone: e.target.value } : x))} />
+                <Input placeholder="Target value" value={m.target_value} onChange={e => setMilestones(s => s.map((x, j) => j === i ? { ...x, target_value: e.target.value } : x))} />
+                <Input placeholder="Date (MM/DD)" value={m.target_date} onChange={e => setMilestones(s => s.map((x, j) => j === i ? { ...x, target_date: e.target.value } : x))} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => setMilestones(s => s.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setMilestones(s => [...s, { milestone: "", target_value: "", target_date: "" }])}>
+              <Plus className="h-3 w-3 mr-1" /> Add milestone
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">100-Day Cash Plan</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Total drawdown authority (R)</div>
+              <Input type="number" value={cashPlan} onChange={e => setCashPlan(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Plan approval date</div>
+              <Input type="date" value={approvalDate} onChange={e => setApprovalDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>{saveMut.isPending ? "Saving…" : "Save plan"}</Button>
           </div>
         </CardContent>
       </Card>

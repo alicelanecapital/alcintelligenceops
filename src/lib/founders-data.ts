@@ -168,6 +168,17 @@ export async function updateOpportunityStructuring(id: string, payload: {
   return data;
 }
 
+export async function updateOpportunityHundredDayPlan(id: string, payload: {
+  hundred_day_plan?: { day_range: string; initiative: string; owner: string; expected_outcome: string }[];
+  hundred_day_milestones?: { milestone: string; target_value: string; target_date: string }[];
+  hundred_day_cash_plan?: number | null;
+  hundred_day_approval_date?: string | null;
+}) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),
