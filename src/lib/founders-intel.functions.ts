@@ -3,19 +3,10 @@
 // and asks Gemini for a structured relationship snapshot.
 
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
-
-function server() {
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-  return createClient<Database>(url, key, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-}
 
 async function callAI(system: string, user: string): Promise<any> {
   const key = process.env.LOVABLE_API_KEY;
@@ -41,7 +32,7 @@ async function callAI(system: string, user: string): Promise<any> {
 const SYSTEM = `You are the Founder Intelligence engine for Alice Lane Capital's internal investment platform.
 Read the founder record and every recent interaction, then return STRICT JSON:
 {
-  "snapshot": string,                // 3-5 sentence narrative summary of who this founder is and where the relationship stands
+  "snapshot": string,
   "recent_developments": [{ "title": string, "detail": string, "when": string }],
   "relationship_health": { "rating": "Cold"|"Warming"|"Warm"|"Hot", "score": number, "reason": string },
   "open_commitments": [{ "party": "us"|"them", "commitment": string, "due": string }],
@@ -51,9 +42,10 @@ Read the founder record and every recent interaction, then return STRICT JSON:
 Be concrete. Reference specific meetings/notes/documents by name. If data is sparse, say so — never invent.`;
 
 export const refreshFounderIntelligence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { founderId: string }) => d)
-  .handler(async ({ data }) => {
-    const db = server();
+  .handler(async ({ data, context }) => {
+    const db = context.supabase;
     const [founder, companies, timeline, meetings, notes, tasks, interviews, docs] = await Promise.all([
       db.from("founders").select("*, organisation:organisations(name, industry, category)").eq("id", data.founderId).single(),
       db.from("founder_companies").select("*, company:companies(*)").eq("founder_id", data.founderId),
@@ -66,7 +58,7 @@ export const refreshFounderIntelligence = createServerFn({ method: "POST" })
     ]);
     if (founder.error) throw founder.error;
 
-    const context = {
+    const ctx = {
       founder: founder.data,
       companies: companies.data ?? [],
       recent_timeline: timeline.data ?? [],
@@ -77,7 +69,7 @@ export const refreshFounderIntelligence = createServerFn({ method: "POST" })
       documents: docs.data ?? [],
     };
 
-    const result = await callAI(SYSTEM, JSON.stringify(context));
+    const result = await callAI(SYSTEM, JSON.stringify(ctx));
 
     const now = new Date().toISOString();
     const source_hash = `${timeline.data?.[0]?.id ?? ""}:${notes.data?.[0]?.id ?? ""}:${meetings.data?.[0]?.id ?? ""}`;
@@ -98,21 +90,22 @@ export const refreshFounderIntelligence = createServerFn({ method: "POST" })
   });
 
 export const summariseDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { documentId: string; excerpt: string }) => d)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const summary = await callAI(
       "You are an investment analyst. Summarise the following document in <=6 bullet points, calling out numbers, risks, and asks. Return JSON {\"summary\": string, \"bullets\": string[], \"key_numbers\": string[], \"risks\": string[]}",
       data.excerpt.slice(0, 12000),
     );
-    const db = server();
-    await db.from("documents").update({ ai_summary: JSON.stringify(summary) }).eq("id", data.documentId);
+    await context.supabase.from("documents").update({ ai_summary: JSON.stringify(summary) }).eq("id", data.documentId);
     return summary;
   });
 
 export const generateFounderReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { founderId: string; kind: "founder_summary" | "relationship" | "timeline" }) => d)
-  .handler(async ({ data }) => {
-    const db = server();
+  .handler(async ({ data, context }) => {
+    const db = context.supabase;
     const [founder, timeline, meetings, notes, intel] = await Promise.all([
       db.from("founders").select("*, organisation:organisations(name)").eq("id", data.founderId).single(),
       db.from("timeline_events").select("*").eq("founder_id", data.founderId).order("occurred_at", { ascending: false }).limit(100),
