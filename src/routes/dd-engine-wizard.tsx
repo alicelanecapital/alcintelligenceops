@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useParams } from "@tanstack/react-router";
+import { useParams, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Mic, Pause, Save, ChevronRight, ChevronLeft, Upload } from "lucide-react";
+import { Mic, Pause, Save, ChevronRight, ChevronLeft, Upload, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { saveWorkflowResponse, updateWorkflowStep } from "@/lib/dd-workflow-api";
 
 export const Route = createFileRoute("/dd-engine-wizard")({ component: () => <DDEngineWizard /> });
 
@@ -99,6 +100,7 @@ const WORKFLOW_STEPS = [
 
 function DDEngineWizard() {
   const { oppId } = useParams({ from: "/dd-engine/wizard/$oppId" });
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [isRecording, setIsRecording] = useState(false);
@@ -111,11 +113,22 @@ function DDEngineWizard() {
   // Auto-save responses
   const autoSaveMutation = useMutation({
     mutationFn: async (data: any) => {
-      // TODO: Call API to save workflow responses
+      await saveWorkflowResponse(
+        oppId,
+        data.step,
+        data.stepName,
+        data.responses,
+        data.transcripts,
+        data.status || "in_progress"
+      );
+      await updateWorkflowStep(oppId, data.step, data.status || "in_progress");
       return data;
     },
     onSuccess: () => {
-      toast.success("Progress saved");
+      // Silently save without toast spam
+    },
+    onError: (error) => {
+      console.error("Auto-save failed:", error);
     },
   });
 
@@ -157,12 +170,44 @@ function DDEngineWizard() {
   };
 
   const handlePause = async () => {
-    setIsPaused(true);
-    await autoSaveMutation.mutateAsync({ oppId, step: currentStep, responses, status: "paused" });
+    try {
+      await autoSaveMutation.mutateAsync({
+        oppId,
+        step: currentStep,
+        stepName: stepData.name,
+        responses,
+        status: "paused",
+      });
+      setIsPaused(true);
+      toast.info("Progress saved. You can resume later.");
+    } catch (err) {
+      toast.error("Failed to save. Please try again.");
+    }
+  };
+
+  const handleExit = async () => {
+    await handlePause();
+    navigate({ to: "/dd-engine" });
   };
 
   const handleResume = () => {
     setIsPaused(false);
+  };
+
+  const handleComplete = async () => {
+    try {
+      await autoSaveMutation.mutateAsync({
+        oppId,
+        step: currentStep,
+        stepName: stepData.name,
+        responses,
+        status: "completed",
+      });
+      toast.success("Workflow completed!");
+      navigate({ to: "/dd-engine" });
+    } catch (err) {
+      toast.error("Failed to complete workflow. Please try again.");
+    }
   };
 
   return (
@@ -240,12 +285,18 @@ function DDEngineWizard() {
         </Button>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePause}>
-            <Pause className="h-4 w-4 mr-2" /> Pause & Exit
+          <Button variant="outline" onClick={handleExit} className="text-destructive">
+            <X className="h-4 w-4 mr-2" /> Exit
           </Button>
-          <Button onClick={() => setCurrentStep(Math.min(WORKFLOW_STEPS.length, currentStep + 1))}>
-            {currentStep === WORKFLOW_STEPS.length ? "Complete" : "Next"} <ChevronRight className="h-4 w-4 ml-2" />
-          </Button>
+          {currentStep === WORKFLOW_STEPS.length ? (
+            <Button onClick={handleComplete}>
+              Complete & Submit <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={() => setCurrentStep(Math.min(WORKFLOW_STEPS.length, currentStep + 1))}>
+              Next <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          )}
         </div>
       </div>
 
