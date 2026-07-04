@@ -347,6 +347,12 @@ export async function deleteFounder(id: string) {
   if (error) throw error;
 }
 
+export async function fetchContactsByOrg(org_id: any) {
+  const { data, error } = await supabase.from("contacts").select("*").eq("organisation_id", org_id);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchOrgs, type OrgRow } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, Mail, Phone, Linkedin, Edit2, Trash2 } from "lucide-react";
+import { fetchContactsByOrg, deleteCompany } from "@/lib/founders-data";
 
 export const Route = createFileRoute("/ecosystem")({ component: () => <AppShell><Ecosystem /></AppShell> });
 
@@ -22,6 +25,72 @@ const fitScore = (f: string | null) => {
   if (s.startsWith("low")) return 30;
   return 40;
 };
+
+function EcosystemCard({ org }: { org: OrgRow }) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const contactsQuery = useQuery({
+    queryKey: ["contacts", org.id],
+    queryFn: () => fetchContactsByOrg(org.id),
+    enabled: expanded,
+  });
+  const deleteMut = useMutation({
+    mutationFn: () => deleteCompany(org.id as any),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] }),
+  });
+
+  const contacts = contactsQuery.data ?? [];
+
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="font-serif text-lg leading-tight">{org.name}</div>
+          <div className="flex gap-1">
+            {org.fit_rating && <Badge className="bg-primary text-primary-foreground shrink-0">{org.fit_rating}</Badge>}
+            <Button size="icon" variant="ghost" className="h-6 w-6">
+              <Edit2 className="h-3 w-3" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteMut.mutate()}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">{org.category}</div>
+        {org.purpose && <p className="text-xs text-foreground/80 mt-2 line-clamp-2">{org.purpose}</p>}
+        {org.who_they_serve && <p className="text-[11px] text-muted-foreground mt-1 italic line-clamp-1">{org.who_they_serve}</p>}
+
+        {contacts.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setExpanded(!expanded)}
+            className="mt-3 w-full text-xs h-auto py-1"
+          >
+            <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            {contacts.length} contact{contacts.length !== 1 ? "s" : ""}
+          </Button>
+        )}
+
+        {expanded && (
+          <div className="mt-3 pt-3 border-t space-y-2">
+            {contacts.map(c => (
+              <div key={c.id} className="text-xs p-2 bg-muted rounded">
+                <div className="font-medium">{c.name}</div>
+                {c.role && <div className="text-muted-foreground">{c.role}</div>}
+                <div className="mt-1 flex gap-2">
+                  {c.email && <a href={`mailto:${c.email}`} className="text-primary text-[10px] flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</a>}
+                </div>
+                {c.phone && <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1"><Phone className="h-3 w-3" /> {c.phone}</div>}
+                {c.linkedin && <a href={c.linkedin} target="_blank" rel="noreferrer" className="text-primary text-[10px] flex items-center gap-1 mt-1"><Linkedin className="h-3 w-3" /> LinkedIn</a>}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function Ecosystem() {
   const q = useQuery({ queryKey: ["orgs","ecosystem"], queryFn: () => fetchOrgs("ecosystem") });
@@ -49,17 +118,7 @@ function Ecosystem() {
         <TabsContent value="cards" className="mt-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(o => (
-              <Card key={o.id}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="font-serif text-lg leading-tight">{o.name}</div>
-                    {o.fit_rating && <Badge className="bg-primary text-primary-foreground shrink-0">{o.fit_rating}</Badge>}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">{o.category}</div>
-                  {o.purpose && <p className="text-xs text-foreground/80 mt-3 line-clamp-3">{o.purpose}</p>}
-                  {o.who_they_serve && <p className="text-[11px] text-muted-foreground mt-2 italic line-clamp-2">{o.who_they_serve}</p>}
-                </CardContent>
-              </Card>
+              <EcosystemCard key={o.id} org={o} />
             ))}
           </div>
         </TabsContent>
