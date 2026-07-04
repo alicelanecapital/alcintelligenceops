@@ -92,8 +92,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-sidebar-border text-[11px] text-muted-foreground">
-          Alice Lane · Internal
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          <div className="text-[11px] text-sidebar-foreground/60 truncate">{user?.email}</div>
+          <button
+            onClick={async () => { await signOut(); navigate({ to: "/auth" }); }}
+            className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          >
+            <LogOut className="h-3 w-3" /> Sign out
+          </button>
         </div>
       </aside>
       <main className="flex-1 min-w-0 overflow-x-hidden">
