@@ -44,7 +44,7 @@ function EcosystemCard({ org }: { org: OrgRow }) {
     },
   });
 
-  const contacts = contactsQuery.data ?? [];
+  const contacts = (contactsQuery.data ?? []) as any[];
 
   return (
     <>
