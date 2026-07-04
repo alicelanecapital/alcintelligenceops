@@ -688,8 +688,6 @@ export type Database = {
           awards: string | null
           biography: string | null
           challenges: string | null
-          coachability_score: number | null
-          commercial_instinct_score: number | null
           contact_id: string | null
           created_at: string
           current_company_id: string | null
@@ -698,9 +696,7 @@ export type Database = {
           employees: number | null
           experience: Json | null
           first_met_date: string | null
-          founder_archetype: string | null
           funding_sought: string | null
-          assessment_notes: string | null
           id: string
           industry: string | null
           internal_notes: string | null
@@ -710,7 +706,6 @@ export type Database = {
           opportunities_text: string | null
           organisation_id: string | null
           owner_id: string | null
-          owner_mentality_score: number | null
           phone: string | null
           photo_url: string | null
           pitch_deck_url: string | null
@@ -726,7 +721,6 @@ export type Database = {
           startup_name: string | null
           status: string | null
           traction: string | null
-          truthfulness_score: number | null
           updated_at: string
           website: string | null
           why_interesting: string | null
@@ -738,8 +732,6 @@ export type Database = {
           awards?: string | null
           biography?: string | null
           challenges?: string | null
-          coachability_score?: number | null
-          commercial_instinct_score?: number | null
           contact_id?: string | null
           created_at?: string
           current_company_id?: string | null
@@ -748,9 +740,7 @@ export type Database = {
           employees?: number | null
           experience?: Json | null
           first_met_date?: string | null
-          founder_archetype?: string | null
           funding_sought?: string | null
-          assessment_notes?: string | null
           id?: string
           industry?: string | null
           internal_notes?: string | null
@@ -760,7 +750,6 @@ export type Database = {
           opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
-          owner_mentality_score?: number | null
           phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
@@ -776,7 +765,6 @@ export type Database = {
           startup_name?: string | null
           status?: string | null
           traction?: string | null
-          truthfulness_score?: number | null
           updated_at?: string
           website?: string | null
           why_interesting?: string | null
@@ -788,8 +776,6 @@ export type Database = {
           awards?: string | null
           biography?: string | null
           challenges?: string | null
-          coachability_score?: number | null
-          commercial_instinct_score?: number | null
           contact_id?: string | null
           created_at?: string
           current_company_id?: string | null
@@ -798,9 +784,7 @@ export type Database = {
           employees?: number | null
           experience?: Json | null
           first_met_date?: string | null
-          founder_archetype?: string | null
           funding_sought?: string | null
-          assessment_notes?: string | null
           id?: string
           industry?: string | null
           internal_notes?: string | null
@@ -810,7 +794,6 @@ export type Database = {
           opportunities_text?: string | null
           organisation_id?: string | null
           owner_id?: string | null
-          owner_mentality_score?: number | null
           phone?: string | null
           photo_url?: string | null
           pitch_deck_url?: string | null
@@ -826,7 +809,6 @@ export type Database = {
           startup_name?: string | null
           status?: string | null
           traction?: string | null
-          truthfulness_score?: number | null
           updated_at?: string
           website?: string | null
           why_interesting?: string | null
@@ -1283,183 +1265,48 @@ export type Database = {
           company_id: string | null
           created_at: string
           current_stage: string | null
-          diagnostic: Json | null
-          diagnostic_recommendation: string | null
-          diagnostic_score: number | null
-          diagnostic_summary: string | null
-          diligence_checklist: Json | null
-          diligence_output: Json | null
-          diligence_recommendation: string | null
-          diligence_stop_points: Json | null
-          equity_stake_pct: number | null
           estimated_investment: number | null
-          hundred_day_approval_date: string | null
-          hundred_day_cash_plan: number | null
-          hundred_day_milestones: Json | null
-          hundred_day_plan: Json | null
-          governance_approval_workflow: string | null
-          governance_board_observer: boolean | null
-          governance_board_seats: number | null
-          governance_covenants: Json | null
-          governance_founder_salary_cap: number | null
-          governance_personal_expense_approval_threshold: number | null
-          governance_reporting_frequency: string | null
-          governance_spending_guardrails: Json | null
           founder_id: string | null
           id: string
           industry: string | null
-          investment_criteria: Json | null
-          mess_classification: string | null
-          mess_notes: string | null
           name: string
           priority: string | null
           probability: number | null
-          proposed_instrument: string | null
-          protective_rights: Json | null
-          screening_outcome: string | null
-          screening_outcome_reason: string | null
-          screening_step: number | null
           source: string | null
-          staged_release: Json | null
           summary: string | null
           updated_at: string
-          use_of_funds_allocations: Json | null
-          use_of_funds_approval_notes: string | null
-          valuation_amount: number | null
-          valuation_method: string | null
-          valuation_notes: string | null
-          current_valuation: number | null
-          exit_multiple: number | null
-          exit_scenario: string | null
-          projected_irr: number | null
-          realized_exit_amount: number | null
-          realized_exit_date: string | null
-          realized_irr: number | null
-          realized_multiple: number | null
-          value_creation_initiatives: Json | null
-          valuation_history: Json | null
         }
         Insert: {
           assigned_partner?: string | null
           company_id?: string | null
           created_at?: string
           current_stage?: string | null
-          diagnostic?: Json | null
-          diagnostic_recommendation?: string | null
-          diagnostic_score?: number | null
-          diagnostic_summary?: string | null
-          diligence_checklist?: Json | null
-          diligence_output?: Json | null
-          diligence_recommendation?: string | null
-          diligence_stop_points?: Json | null
-          equity_stake_pct?: number | null
           estimated_investment?: number | null
-          governance_approval_workflow?: string | null
-          governance_board_observer?: boolean | null
-          governance_board_seats?: number | null
-          governance_covenants?: Json | null
-          governance_founder_salary_cap?: number | null
-          governance_personal_expense_approval_threshold?: number | null
-          governance_reporting_frequency?: string | null
-          governance_spending_guardrails?: Json | null
-          hundred_day_approval_date?: string | null
-          hundred_day_cash_plan?: number | null
-          hundred_day_milestones?: Json | null
-          hundred_day_plan?: Json | null
           founder_id?: string | null
           id?: string
           industry?: string | null
-          investment_criteria?: Json | null
-          mess_classification?: string | null
-          mess_notes?: string | null
           name: string
           priority?: string | null
           probability?: number | null
-          proposed_instrument?: string | null
-          protective_rights?: Json | null
-          screening_outcome?: string | null
-          screening_outcome_reason?: string | null
-          screening_step?: number | null
           source?: string | null
-          staged_release?: Json | null
           summary?: string | null
           updated_at?: string
-          use_of_funds_allocations?: Json | null
-          use_of_funds_approval_notes?: string | null
-          valuation_amount?: number | null
-          valuation_method?: string | null
-          valuation_notes?: string | null
-          current_valuation?: number | null
-          exit_multiple?: number | null
-          exit_scenario?: string | null
-          projected_irr?: number | null
-          realized_exit_amount?: number | null
-          realized_exit_date?: string | null
-          realized_irr?: number | null
-          realized_multiple?: number | null
-          value_creation_initiatives?: Json | null
-          valuation_history?: Json | null
         }
         Update: {
           assigned_partner?: string | null
           company_id?: string | null
           created_at?: string
           current_stage?: string | null
-          diagnostic?: Json | null
-          diagnostic_recommendation?: string | null
-          diagnostic_score?: number | null
-          diagnostic_summary?: string | null
-          diligence_checklist?: Json | null
-          diligence_output?: Json | null
-          diligence_recommendation?: string | null
-          diligence_stop_points?: Json | null
-          equity_stake_pct?: number | null
           estimated_investment?: number | null
-          governance_approval_workflow?: string | null
-          governance_board_observer?: boolean | null
-          governance_board_seats?: number | null
-          governance_covenants?: Json | null
-          governance_founder_salary_cap?: number | null
-          governance_personal_expense_approval_threshold?: number | null
-          governance_reporting_frequency?: string | null
-          governance_spending_guardrails?: Json | null
-          hundred_day_approval_date?: string | null
-          hundred_day_cash_plan?: number | null
-          hundred_day_milestones?: Json | null
-          hundred_day_plan?: Json | null
           founder_id?: string | null
           id?: string
           industry?: string | null
-          investment_criteria?: Json | null
-          mess_classification?: string | null
-          mess_notes?: string | null
           name?: string
           priority?: string | null
           probability?: number | null
-          proposed_instrument?: string | null
-          protective_rights?: Json | null
-          screening_outcome?: string | null
-          screening_outcome_reason?: string | null
-          screening_step?: number | null
           source?: string | null
-          staged_release?: Json | null
           summary?: string | null
           updated_at?: string
-          use_of_funds_allocations?: Json | null
-          use_of_funds_approval_notes?: string | null
-          valuation_amount?: number | null
-          valuation_method?: string | null
-          valuation_notes?: string | null
-          current_valuation?: number | null
-          exit_multiple?: number | null
-          exit_scenario?: string | null
-          projected_irr?: number | null
-          realized_exit_amount?: number | null
-          realized_exit_date?: string | null
-          realized_irr?: number | null
-          realized_multiple?: number | null
-          value_creation_initiatives?: Json | null
-          valuation_history?: Json | null
         }
         Relationships: [
           {

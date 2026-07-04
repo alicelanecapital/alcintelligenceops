@@ -84,7 +84,8 @@ export function OpportunityProfile() {
   const q = useQuery({ queryKey: ["opportunity", id], queryFn: () => fetchOpportunityProfile(id) });
   if (q.isLoading) return <div className="p-10 text-muted-foreground">Loading…</div>;
   if (q.error || !q.data) return <div className="p-10 text-destructive">Could not load.</div>;
-  const { opportunity, meetings, notes, tasks, documents } = q.data;
+  const { opportunity: opportunityRaw, meetings, notes, tasks, documents } = q.data;
+  const opportunity = opportunityRaw as any;
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <Link to="/opportunities" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4"><ArrowLeft className="h-3 w-3" />Opportunities</Link>
