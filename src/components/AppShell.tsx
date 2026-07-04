@@ -15,16 +15,12 @@ const navGroups = [
     label: "Sourcing",
     items: [
       { to: "/events", label: "Events", icon: Calendar },
-      { to: "/relationship-map", label: "Relationship Map", icon: Network },
-      { to: "/ecosystem", label: "Ecosystem", icon: Map },
-      { to: "/contacts", label: "Contacts", icon: Contact2 },
     ],
   },
   {
     label: "Screening & Assessment",
     items: [
       { to: "/opportunities", label: "Opportunities", icon: Target },
-      { to: "/founders", label: "Founders", icon: Users },
     ],
   },
   {
@@ -35,8 +31,10 @@ const navGroups = [
     ],
   },
   {
-    label: "Procurement",
+    label: "Contacts",
     items: [
+      { to: "/ecosystem", label: "Ecosystem", icon: Map },
+      { to: "/founders", label: "Founders", icon: Users },
       { to: "/vendors", label: "Vendors", icon: Building2 },
     ],
   },

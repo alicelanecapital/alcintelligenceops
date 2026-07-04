@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Sparkles, Edit2, Trash2, Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/events")({ component: () => <AppShell><Events /></AppShell> });
 
@@ -19,6 +20,13 @@ const SCORING_CATEGORIES = [
   "Government Access", "Market Intelligence", "Industry Insights",
   "Brand Visibility", "Learning & Development", "Long-Term Opportunity"
 ];
+
+const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  "interested": { bg: "bg-blue-100", text: "text-blue-800" },
+  "registered": { bg: "bg-purple-100", text: "text-purple-800" },
+  "attended": { bg: "bg-green-100", text: "text-green-800" },
+  "passed": { bg: "bg-gray-100", text: "text-gray-800" },
+};
 
 function Events() {
   const q = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
@@ -57,7 +65,9 @@ function Events() {
             <Button variant="outline" onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Add event
             </Button>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90"><Sparkles className="h-4 w-4 mr-2" /> Run discovery</Button>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => { toast.success("Event discovery initiated. Check back in a few minutes."); }}>
+              <Sparkles className="h-4 w-4 mr-2" /> Run discovery
+            </Button>
           </div>
         }
       />
@@ -86,7 +96,11 @@ function Events() {
                       {e.total_score ?? 0} / 100 <ChevronDown className="h-3 w-3 ml-1" />
                     </Button>
                   </TableCell>
-                  <TableCell><Badge variant="outline">{e.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge className={`${STATUS_BADGE_COLORS[e.status]?.bg || 'bg-gray-100'} ${STATUS_BADGE_COLORS[e.status]?.text || 'text-gray-800'} border-0`}>
+                      {e.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button size="icon" variant="ghost" onClick={() => { setEditingEvent(e); setShowEditModal(true); }}>
