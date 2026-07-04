@@ -1,7 +1,8 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare, Building2, Target, Network } from "lucide-react";
+import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare, Building2, Target, Network, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const navGroups = [
   {
