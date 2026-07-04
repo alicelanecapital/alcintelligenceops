@@ -1,7 +1,8 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare, Building2, Target, Network } from "lucide-react";
+import { LayoutDashboard, Calendar, Kanban, Users, Map, Contact2, BarChart3, MessagesSquare, Building2, Target, Network, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const navGroups = [
   {
@@ -44,6 +45,10 @@ const navGroups = [
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const loc = useLocation();
+  const navigate = useNavigate();
+  const { session, loading, signOut, user } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+  if (!session) return <Navigate to="/auth" />;
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
@@ -87,8 +92,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-sidebar-border text-[11px] text-muted-foreground">
-          Alice Lane · Internal
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          <div className="text-[11px] text-sidebar-foreground/60 truncate">{user?.email}</div>
+          <button
+            onClick={async () => { await signOut(); navigate({ to: "/auth" }); }}
+            className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          >
+            <LogOut className="h-3 w-3" /> Sign out
+          </button>
         </div>
       </aside>
       <main className="flex-1 min-w-0 overflow-x-hidden">
