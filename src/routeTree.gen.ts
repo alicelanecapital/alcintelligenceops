@@ -14,6 +14,7 @@ import { Route as FoundersRouteImport } from './routes/founders'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DealsRouteImport } from './routes/deals'
+import { Route as DdEngineRouteImport } from './routes/dd-engine'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
@@ -49,6 +50,11 @@ const EcosystemRoute = EcosystemRouteImport.update({
 const DealsRoute = DealsRouteImport.update({
   id: '/deals',
   path: '/deals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DdEngineRoute = DdEngineRouteImport.update({
+  id: '/dd-engine',
+  path: '/dd-engine',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
+    | '/dd-engine'
     | '/deals'
     | '/ecosystem'
     | '/events'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
+    | '/dd-engine'
     | '/deals'
     | '/ecosystem'
     | '/events'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
+    | '/dd-engine'
     | '/deals'
     | '/ecosystem'
     | '/events'
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
+  DdEngineRoute: typeof DdEngineRoute
   DealsRoute: typeof DealsRoute
   EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/deals'
       fullPath: '/deals'
       preLoaderRoute: typeof DealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dd-engine': {
+      id: '/dd-engine'
+      path: '/dd-engine'
+      fullPath: '/dd-engine'
+      preLoaderRoute: typeof DdEngineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
+  DdEngineRoute: DdEngineRoute,
   DealsRoute: DealsRoute,
   EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,

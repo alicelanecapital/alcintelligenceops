@@ -19,24 +19,18 @@ const navGroups = [
     ],
   },
   {
-    label: "Screening & Assessment",
-    items: [
-      { to: "/opportunities", label: "Opportunities", icon: Target },
-    ],
-  },
-  {
-    label: "Diligence & Portfolio",
-    items: [
-      { to: "/deals", label: "Deal Flow", icon: Kanban },
-      { to: "/interviews", label: "Interviews", icon: MessagesSquare },
-    ],
-  },
-  {
     label: "Contacts",
     items: [
       { to: "/ecosystem", label: "Ecosystem", icon: Map },
       { to: "/founders", label: "Founders", icon: Users },
       { to: "/vendors", label: "Vendors", icon: Building2 },
+    ],
+  },
+  {
+    label: "DD Engine",
+    items: [
+      { to: "/dd-engine", label: "Pipeline", icon: Kanban },
+      { to: "/interviews", label: "Interviews", icon: MessagesSquare },
     ],
   },
 ];

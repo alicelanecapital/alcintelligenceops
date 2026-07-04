@@ -81,26 +81,28 @@ function EcosystemCard({ org }: { org: OrgRow }) {
           {expanded && (
             <div className="mt-3 pt-3 border-t space-y-2">
               {contacts.map(c => (
-                <div key={c.id} className="text-xs p-2 bg-muted rounded">
+                <div key={c.id} className="text-xs p-3 bg-muted rounded space-y-2">
                   <div className="flex items-start justify-between">
-                    <div className="font-medium">{c.name}</div>
+                    <div className="font-medium text-sm">{c.name}</div>
                     <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setEditingContact(c)}>
                       <Edit2 className="h-3 w-3" />
                     </Button>
                   </div>
-                  {c.role && <div className="text-muted-foreground">{c.role}</div>}
+                  {c.role && <div className="text-muted-foreground font-medium text-[11px]">{c.role}</div>}
                   {c.call_status && (
-                    <div className="mt-1">
+                    <div>
                       <Badge className={`${CALL_STATUS_COLORS[c.call_status]?.bg || 'bg-gray-100'} ${CALL_STATUS_COLORS[c.call_status]?.text || 'text-gray-800'} border-0 text-[10px]`}>
                         {c.call_status}
                       </Badge>
                     </div>
                   )}
-                  <div className="mt-1 flex gap-2">
-                    {c.email && <a href={`mailto:${c.email}`} className="text-primary text-[10px] flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</a>}
+                  <div className="space-y-1">
+                    {c.email && <div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /> <a href={`mailto:${c.email}`} className="text-primary hover:underline">{c.email}</a></div>}
+                    {c.phone && <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /> <span>{c.phone}</span></div>}
+                    {c.website && <div className="flex items-center gap-1"><a href={c.website} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate">{c.website}</a></div>}
+                    {c.linkedin && <div className="flex items-center gap-1"><Linkedin className="h-3 w-3 text-muted-foreground" /> <a href={c.linkedin} target="_blank" rel="noreferrer" className="text-primary hover:underline">LinkedIn</a></div>}
                   </div>
-                  {c.phone && <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1"><Phone className="h-3 w-3" /> {c.phone}</div>}
-                  {c.linkedin && <a href={c.linkedin} target="_blank" rel="noreferrer" className="text-primary text-[10px] flex items-center gap-1 mt-1"><Linkedin className="h-3 w-3" /> LinkedIn</a>}
+                  {c.description && <div className="text-[11px] text-muted-foreground italic line-clamp-2 mt-2">{c.description}</div>}
                 </div>
               ))}
             </div>
