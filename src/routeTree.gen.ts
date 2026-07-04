@@ -10,12 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorsRouteImport } from './routes/vendors'
-import { Route as RelationshipMapRouteImport } from './routes/relationship-map'
 import { Route as FoundersRouteImport } from './routes/founders'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DealsRouteImport } from './routes/deals'
-import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
@@ -31,11 +29,6 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 const VendorsRoute = VendorsRouteImport.update({
   id: '/vendors',
   path: '/vendors',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RelationshipMapRoute = RelationshipMapRouteImport.update({
-  id: '/relationship-map',
-  path: '/relationship-map',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FoundersRoute = FoundersRouteImport.update({
@@ -56,11 +49,6 @@ const EcosystemRoute = EcosystemRouteImport.update({
 const DealsRoute = DealsRouteImport.update({
   id: '/deals',
   path: '/deals',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactsRoute = ContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -123,12 +111,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/contacts': typeof ContactsRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
-  '/relationship-map': typeof RelationshipMapRoute
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -143,12 +129,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/contacts': typeof ContactsRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
-  '/relationship-map': typeof RelationshipMapRoute
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -164,12 +148,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/contacts': typeof ContactsRoute
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
-  '/relationship-map': typeof RelationshipMapRoute
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -186,12 +168,10 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
-    | '/contacts'
     | '/deals'
     | '/ecosystem'
     | '/events'
     | '/founders'
-    | '/relationship-map'
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
@@ -206,12 +186,10 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
-    | '/contacts'
     | '/deals'
     | '/ecosystem'
     | '/events'
     | '/founders'
-    | '/relationship-map'
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
@@ -226,12 +204,10 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/auth'
-    | '/contacts'
     | '/deals'
     | '/ecosystem'
     | '/events'
     | '/founders'
-    | '/relationship-map'
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
@@ -247,12 +223,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
-  ContactsRoute: typeof ContactsRoute
   DealsRoute: typeof DealsRoute
   EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
   FoundersRoute: typeof FoundersRouteWithChildren
-  RelationshipMapRoute: typeof RelationshipMapRoute
   VendorsRoute: typeof VendorsRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
@@ -270,13 +244,6 @@ declare module '@tanstack/react-router' {
       path: '/vendors'
       fullPath: '/vendors'
       preLoaderRoute: typeof VendorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/relationship-map': {
-      id: '/relationship-map'
-      path: '/relationship-map'
-      fullPath: '/relationship-map'
-      preLoaderRoute: typeof RelationshipMapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/founders': {
@@ -305,13 +272,6 @@ declare module '@tanstack/react-router' {
       path: '/deals'
       fullPath: '/deals'
       preLoaderRoute: typeof DealsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contacts': {
-      id: '/contacts'
-      path: '/contacts'
-      fullPath: '/contacts'
-      preLoaderRoute: typeof ContactsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -410,12 +370,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
-  ContactsRoute: ContactsRoute,
   DealsRoute: DealsRoute,
   EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,
   FoundersRoute: FoundersRouteWithChildren,
-  RelationshipMapRoute: RelationshipMapRoute,
   VendorsRoute: VendorsRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
@@ -428,3 +386,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

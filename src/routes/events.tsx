@@ -81,16 +81,23 @@ function Events() {
         <div className="rounded-lg border border-border bg-card">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Event</TableHead><TableHead>Location</TableHead><TableHead>Date</TableHead>
-              <TableHead>Cost</TableHead><TableHead>Score</TableHead><TableHead>Status</TableHead><TableHead />
-            </TableRow></TableHeader>
+              <TableHead>Event</TableHead><TableHead>Description</TableHead><TableHead>Date</TableHead>
+              <TableHead>Cost</TableHead><TableHead>Score</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
               {futureEvents.map((e: any) => (
                 <TableRow key={e.id}>
-                  <TableCell className="font-medium">{e.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.city}, {e.country}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-start gap-2">
+                      {e.is_new && <span className="text-lg">⭐</span>}
+                      <div>
+                        <div>{e.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{e.city}, {e.country}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-xs line-clamp-2">{e.description || e.who_you_meet || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{e.start_date}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.cost}</TableCell>
+                  <TableCell className="text-muted-foreground">${e.cost?.toLocaleString() || 0}</TableCell>
                   <TableCell>
                     <Button size="sm" variant="outline" onClick={() => { setSelectedEvent(e); setShowScoringModal(true); }}>
                       {e.total_score ?? 0} / 100 <ChevronDown className="h-3 w-3 ml-1" />
@@ -103,6 +110,9 @@ function Events() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => { /* TODO: Attend with Gmail OAuth */ }}>
+                        Attend
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => { setEditingEvent(e); setShowEditModal(true); }}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -199,11 +209,23 @@ function Events() {
               <div>
                 <label className="text-sm font-medium">Status</label>
                 <select value={editingEvent.status ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, status: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm">
-                  <option value="interested">Interested</option>
-                  <option value="registered">Registered</option>
-                  <option value="attended">Attended</option>
-                  <option value="passed">Passed</option>
+                  <option value="opportunistic">Opportunistic</option>
+                  <option value="priority">Priority</option>
+                  <option value="attend">Attend</option>
+                  <option value="selective">Selective</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <textarea value={editingEvent.description ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, description: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm" rows={2} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Who You'll Meet</label>
+                <textarea value={editingEvent.who_you_meet ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, who_you_meet: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm" rows={2} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={editingEvent.is_new ?? false} onChange={e => setEditingEvent((s: any) => ({ ...s, is_new: e.target.checked }))} className="rounded" />
+                <label className="text-sm font-medium">Mark as New (AI Discovered)</label>
               </div>
             </div>
           )}
