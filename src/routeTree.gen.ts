@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as RelationshipMapRouteImport } from './routes/relationship-map'
 import { Route as FoundersRouteImport } from './routes/founders'
 import { Route as EventsRouteImport } from './routes/events'
@@ -27,6 +28,11 @@ import { Route as FoundersIdRouteImport } from './routes/founders.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 
+const VendorsRoute = VendorsRouteImport.update({
+  id: '/vendors',
+  path: '/vendors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RelationshipMapRoute = RelationshipMapRouteImport.update({
   id: '/relationship-map',
   path: '/relationship-map',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
   '/relationship-map': typeof RelationshipMapRoute
+  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/founders/$id': typeof FoundersIdRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
   '/relationship-map': typeof RelationshipMapRoute
+  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/founders/$id': typeof FoundersIdRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/founders': typeof FoundersRouteWithChildren
   '/relationship-map': typeof RelationshipMapRoute
+  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/founders/$id': typeof FoundersIdRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/relationship-map'
+    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/founders/$id'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/relationship-map'
+    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/founders/$id'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/founders'
     | '/relationship-map'
+    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/founders/$id'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FoundersRoute: typeof FoundersRouteWithChildren
   RelationshipMapRoute: typeof RelationshipMapRoute
+  VendorsRoute: typeof VendorsRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
   InterviewsIdRoute: typeof InterviewsIdRoute
@@ -252,6 +265,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/vendors': {
+      id: '/vendors'
+      path: '/vendors'
+      fullPath: '/vendors'
+      preLoaderRoute: typeof VendorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/relationship-map': {
       id: '/relationship-map'
       path: '/relationship-map'
@@ -396,6 +416,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FoundersRoute: FoundersRouteWithChildren,
   RelationshipMapRoute: RelationshipMapRoute,
+  VendorsRoute: VendorsRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
   InterviewsIdRoute: InterviewsIdRoute,
