@@ -150,7 +150,15 @@ function EcosystemCard({ org }: { org: OrgRow }) {
               </div>
               <div>
                 <label className="text-sm font-medium">Call Notes</label>
-                <textarea value={editingContact.last_call_notes ?? ""} onChange={e => setEditingContact((s: any) => ({ ...s, last_call_notes: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm" rows={3} />
+                <textarea value={editingContact.last_call_notes ?? ""} onChange={e => setEditingContact((s: any) => ({ ...s, last_call_notes: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm" rows={2} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Website</label>
+                <Input value={editingContact.website ?? ""} onChange={e => setEditingContact((s: any) => ({ ...s, website: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <textarea value={editingContact.description ?? ""} onChange={e => setEditingContact((s: any) => ({ ...s, description: e.target.value }))} className="w-full px-3 py-2 border rounded-md text-sm" rows={2} placeholder="What does this company do?" />
               </div>
             </div>
           )}
