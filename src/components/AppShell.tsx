@@ -16,7 +16,7 @@ const navGroups = [
     items: [
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/relationship-map", label: "Relationship Map", icon: Network },
-      { to: "/ecosystem", label: "Ecosystem Map", icon: Map },
+      { to: "/ecosystem", label: "Ecosystem", icon: Map },
       { to: "/contacts", label: "Contacts", icon: Contact2 },
     ],
   },
@@ -32,7 +32,12 @@ const navGroups = [
     items: [
       { to: "/deals", label: "Deal Flow", icon: Kanban },
       { to: "/interviews", label: "Interviews", icon: MessagesSquare },
-      { to: "/companies", label: "Companies", icon: Building2 },
+    ],
+  },
+  {
+    label: "Procurement",
+    items: [
+      { to: "/vendors", label: "Vendors", icon: Building2 },
     ],
   },
 ];

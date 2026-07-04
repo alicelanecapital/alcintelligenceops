@@ -260,6 +260,93 @@ export async function updateOpportunityValueCreation(id: string, payload: {
   return data;
 }
 
+// === CRUD Operations ===
+
+export async function createEvent(payload: any) {
+  const { data, error } = await supabase.from("events").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateEvent(id: string, payload: any) {
+  const { data, error } = await supabase.from("events").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEvent(id: string) {
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createContact(payload: any) {
+  const { data, error } = await supabase.from("contacts").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateContact(id: string, payload: any) {
+  const { data, error } = await supabase.from("contacts").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteContact(id: string) {
+  const { error } = await supabase.from("contacts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createCompany(payload: any) {
+  const { data, error } = await supabase.from("companies").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCompany(id: string, payload: any) {
+  const { data, error } = await supabase.from("companies").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCompany(id: string) {
+  const { error } = await supabase.from("companies").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createOpportunity(payload: any) {
+  const { data, error } = await supabase.from("opportunities").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateOpportunity(id: string, payload: any) {
+  const { data, error } = await supabase.from("opportunities").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteOpportunity(id: string) {
+  const { error } = await supabase.from("opportunities").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createFounder(payload: any) {
+  const { data, error } = await supabase.from("founders").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateFounder(id: string, payload: any) {
+  const { data, error } = await supabase.from("founders").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFounder(id: string) {
+  const { error } = await supabase.from("founders").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),
