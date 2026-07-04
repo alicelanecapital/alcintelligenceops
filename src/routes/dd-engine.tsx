@@ -2,11 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { fetchOpportunities } from "@/lib/founders-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Plus } from "lucide-react";
+import { Edit2, Trash2, Plus, Play } from "lucide-react";
 import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
@@ -16,6 +17,7 @@ const STAGES = ["Screening", "Assessment", "Diagnostic", "Diligence", "Decision"
 function DDEngine() {
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunities });
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [draggedOpp, setDraggedOpp] = useState<any | null>(null);
 
   const opportunities = useMemo(() => {
@@ -42,6 +44,10 @@ function DDEngine() {
       // TODO: Update opportunity stage in database
       setDraggedOpp(null);
     }
+  };
+
+  const handleBeginWizard = (oppId: string) => {
+    navigate({ to: `/dd-engine/wizard/${oppId}` });
   };
 
   return (
@@ -93,6 +99,14 @@ function DDEngine() {
                       </Badge>
                     )}
                     {opp.screening_outcome && <div className="text-[11px] text-muted-foreground mt-2">{opp.screening_outcome}</div>}
+                    <Button
+                      size="sm"
+                      className="w-full mt-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={() => handleBeginWizard(opp.id)}
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      {opp.workflow_status === "completed" || opp.current_workflow_step ? "Resume" : "Begin"}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
