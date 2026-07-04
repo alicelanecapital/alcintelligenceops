@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan, updateOpportunityGovernance } from "@/lib/founders-data";
+import { fetchOpportunities, fetchOpportunityProfile, updateOpportunityScreening, updateOpportunityDiagnostic, updateOpportunityDiligence, updateOpportunityStructuring, updateOpportunityHundredDayPlan, updateOpportunityGovernance, addInvestmentReview, fetchInvestmentReviews, addInvestmentMilestone, fetchInvestmentMilestones, updateInvestmentMilestone } from "@/lib/founders-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ export function OpportunityProfile() {
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","screening","diagnostic","diligence","structuring","hundred-day","governance","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t.replace("-"," ")}</TabsTrigger>)}
+          {["overview","screening","diagnostic","diligence","structuring","hundred-day","governance","reviews","milestones","meetings","documents","notes","tasks","risks","value","committee","timeline","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t.replace("-"," ")}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <Card><CardContent className="p-4 text-sm">{opportunity.summary ?? "No summary yet."}</CardContent></Card>
@@ -122,6 +122,8 @@ export function OpportunityProfile() {
         <TabsContent value="structuring"><StructuringTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="hundred-day"><HundredDayPlanTab opportunity={opportunity} opportunityId={id} /></TabsContent>
         <TabsContent value="governance"><GovernanceTab opportunity={opportunity} opportunityId={id} /></TabsContent>
+        <TabsContent value="reviews"><ReviewsTab opportunityId={id} /></TabsContent>
+        <TabsContent value="milestones"><MilestonesTab opportunityId={id} /></TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
         <TabsContent value="documents"><Simple items={documents} render={(d: any) => `${d.title ?? d.file_name}`} /></TabsContent>
         <TabsContent value="notes"><Simple items={notes} render={(n: any) => n.body} /></TabsContent>
@@ -668,6 +670,228 @@ const DEFAULT_COVENANTS = [
   { text: "Annual founder development plan review", required: false },
   { text: "Unannounced site visits permitted", required: false },
 ] as const;
+
+const RED_FLAGS = [
+  "Missed revenue target",
+  "Churn spike",
+  "Key staff departure",
+  "Founder burnout/disengagement",
+  "Customer concentration risk",
+  "Margin pressure",
+  "Unplanned pivot",
+  "Cash runway concern",
+] as const;
+
+function ReviewsTab({ opportunityId }: { opportunityId: string }) {
+  const qc = useQueryClient();
+  const reviewsQuery = useQuery({ queryKey: ["reviews", opportunityId], queryFn: () => fetchInvestmentReviews(opportunityId) });
+  const [reviewDate, setReviewDate] = useState<string>("");
+  const [revActual, setRevActual] = useState<string>("");
+  const [revTarget, setRevTarget] = useState<string>("");
+  const [marginActual, setMarginActual] = useState<string>("");
+  const [marginTarget, setMarginTarget] = useState<string>("");
+  const [teamCount, setTeamCount] = useState<string>("");
+  const [founderHours, setFounderHours] = useState<string>("");
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [founderBehaviourScore, setFounderBehaviourScore] = useState<number | null>(null);
+  const [redFlags, setRedFlags] = useState<string[]>([]);
+
+  const addMut = useMutation({
+    mutationFn: () => addInvestmentReview(opportunityId, {
+      review_date: reviewDate || undefined,
+      revenue_actual: revActual ? Number(revActual) : null,
+      revenue_target: revTarget ? Number(revTarget) : null,
+      margin_actual: marginActual ? Number(marginActual) : null,
+      margin_target: marginTarget ? Number(marginTarget) : null,
+      team_count: teamCount ? Number(teamCount) : null,
+      founder_availability_hours: founderHours ? Number(founderHours) : null,
+      health_score: healthScore,
+      founder_behaviour_score: founderBehaviourScore,
+      red_flags: redFlags.map(f => ({ flag_text: f, severity: "medium" })),
+    }),
+    onSuccess: () => {
+      setReviewDate(""); setRevActual(""); setRevTarget(""); setMarginActual(""); setMarginTarget("");
+      setTeamCount(""); setFounderHours(""); setHealthScore(null); setFounderBehaviourScore(null); setRedFlags([]);
+      qc.invalidateQueries({ queryKey: ["reviews", opportunityId] });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Add Review (§15)</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Review date</div>
+              <Input type="date" value={reviewDate} onChange={e => setReviewDate(e.target.value)} />
+            </div>
+            <div />
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Revenue actual (R)</div>
+              <Input type="number" value={revActual} onChange={e => setRevActual(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Revenue target (R)</div>
+              <Input type="number" value={revTarget} onChange={e => setRevTarget(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Margin actual (%)</div>
+              <Input type="number" value={marginActual} onChange={e => setMarginActual(e.target.value)} placeholder="0" step="0.1" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Margin target (%)</div>
+              <Input type="number" value={marginTarget} onChange={e => setMarginTarget(e.target.value)} placeholder="0" step="0.1" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Team count</div>
+              <Input type="number" value={teamCount} onChange={e => setTeamCount(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Founder availability (h/wk)</div>
+              <Input type="number" value={founderHours} onChange={e => setFounderHours(e.target.value)} placeholder="0" step="0.5" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Health score (1–10)</div>
+              <div className="flex gap-1">
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <button key={n} type="button" onClick={() => setHealthScore(n)} className={cn(
+                    "h-8 w-6 text-xs rounded border transition-colors",
+                    healthScore === n ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/50"
+                  )}>{n}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Founder behaviour (1–10)</div>
+              <div className="flex gap-1">
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <button key={n} type="button" onClick={() => setFounderBehaviourScore(n)} className={cn(
+                    "h-8 w-6 text-xs rounded border transition-colors",
+                    founderBehaviourScore === n ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/50"
+                  )}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Red flags</div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {RED_FLAGS.map(f => (
+                <label key={f} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={redFlags.includes(f)} onCheckedChange={(v) => setRedFlags(s => v ? [...s, f] : s.filter(x => x !== f))} />
+                  {f}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}>{addMut.isPending ? "Adding…" : "Add review"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Recent Reviews</div>
+          {reviewsQuery.isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : reviewsQuery.data?.length ? (
+            <div className="space-y-3">
+              {reviewsQuery.data.map((r: any) => (
+                <div key={r.id} className="border border-border rounded-md p-3 text-sm space-y-1">
+                  <div className="font-medium">{r.review_date}</div>
+                  {r.revenue_actual != null && <div>Revenue: {Number(r.revenue_actual).toLocaleString()} / {Number(r.revenue_target).toLocaleString()} ({r.revenue_target ? ((r.revenue_actual / r.revenue_target) * 100).toFixed(0) : "—"}%)</div>}
+                  {r.margin_actual != null && <div>Margin: {r.margin_actual}% / {r.margin_target}%</div>}
+                  {r.team_count != null && <div>Team: {r.team_count} headcount</div>}
+                  {r.founder_availability_hours != null && <div>Founder: {r.founder_availability_hours}h/wk</div>}
+                  {r.health_score && <div>Health: {r.health_score}/10 · Behaviour: {r.founder_behaviour_score}/10</div>}
+                  {r.red_flags?.length > 0 && <div className="text-xs text-destructive">🚩 {r.red_flags.map((f: any) => f.flag_text).join(", ")}</div>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No reviews yet.</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function MilestonesTab({ opportunityId }: { opportunityId: string }) {
+  const qc = useQueryClient();
+  const milestonesQuery = useQuery({ queryKey: ["milestones", opportunityId], queryFn: () => fetchInvestmentMilestones(opportunityId) });
+  const [milestoneText, setMilestoneText] = useState<string>("");
+  const [targetDate, setTargetDate] = useState<string>("");
+  const [targetValue, setTargetValue] = useState<string>("");
+
+  const addMut = useMutation({
+    mutationFn: () => addInvestmentMilestone(opportunityId, {
+      milestone_text: milestoneText,
+      target_date: targetDate || null,
+      target_value: targetValue ? Number(targetValue) : null,
+    }),
+    onSuccess: () => {
+      setMilestoneText(""); setTargetDate(""); setTargetValue("");
+      qc.invalidateQueries({ queryKey: ["milestones", opportunityId] });
+    },
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: (id: string) => updateInvestmentMilestone(id, { achieved: true, achieved_date: new Date().toISOString().split('T')[0] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["milestones", opportunityId] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Add Milestone</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <div className="text-xs text-muted-foreground mb-1">Milestone (e.g. Revenue proof point, Team hire)</div>
+              <Input value={milestoneText} onChange={e => setMilestoneText(e.target.value)} placeholder="Milestone description" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Target date</div>
+              <Input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Target value</div>
+              <Input value={targetValue} onChange={e => setTargetValue(e.target.value)} placeholder="e.g. R400k, 5 hires" />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending || !milestoneText}>{addMut.isPending ? "Adding…" : "Add milestone"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Milestones</div>
+          {milestonesQuery.isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : milestonesQuery.data?.length ? (
+            <div className="space-y-2">
+              {milestonesQuery.data.map((m: any) => (
+                <div key={m.id} className={cn("flex items-start gap-3 p-2 rounded border", m.achieved ? "bg-green-50/30 border-green-300" : "border-border")}>
+                  <Checkbox checked={!!m.achieved} onCheckedChange={(v) => !m.achieved && v && toggleMut.mutate(m.id)} className="mt-1" />
+                  <div className="flex-1 text-sm">
+                    <div className={cn(m.achieved && "line-through text-muted-foreground")}>{m.milestone_text}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Target: {m.target_date ?? "—"} {m.target_value ? `(${m.target_value})` : ""}
+                      {m.achieved && <span className="text-green-700 ml-2">✓ Achieved {m.achieved_date}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No milestones yet.</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function GovernanceTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
   const qc = useQueryClient();

@@ -194,6 +194,55 @@ export async function updateOpportunityGovernance(id: string, payload: {
   return data;
 }
 
+export async function addInvestmentReview(opportunity_id: string, payload: {
+  review_date?: string;
+  revenue_actual?: number | null;
+  revenue_target?: number | null;
+  margin_actual?: number | null;
+  margin_target?: number | null;
+  team_count?: number | null;
+  founder_availability_hours?: number | null;
+  health_score?: number | null;
+  founder_behaviour_score?: number | null;
+  red_flags?: { flag_text: string; severity: string }[];
+  notes?: string | null;
+}) {
+  const { data, error } = await (supabase.from("investment_reviews" as any) as any).insert({ opportunity_id, ...payload }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchInvestmentReviews(opportunity_id: string) {
+  const { data, error } = await (supabase.from("investment_reviews" as any) as any).select("*").eq("opportunity_id", opportunity_id).order("review_date", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addInvestmentMilestone(opportunity_id: string, payload: {
+  milestone_text: string;
+  target_date?: string | null;
+  target_value?: number | null;
+  achieved?: boolean | null;
+  achieved_date?: string | null;
+  notes?: string | null;
+}) {
+  const { data, error } = await (supabase.from("investment_milestones" as any) as any).insert({ opportunity_id, ...payload }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchInvestmentMilestones(opportunity_id: string) {
+  const { data, error } = await (supabase.from("investment_milestones" as any) as any).select("*").eq("opportunity_id", opportunity_id).order("target_date", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function updateInvestmentMilestone(id: string, payload: { achieved?: boolean; achieved_date?: string | null; notes?: string }) {
+  const { data, error } = await (supabase.from("investment_milestones" as any) as any).update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchOpportunityProfile(id: string) {
   const [opp, meetings, notes, tasks, docs] = await Promise.all([
     supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").eq("id", id).single(),
