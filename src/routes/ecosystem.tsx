@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Mail, Phone, Linkedin, Edit2, Trash2 } from "lucide-react";
-import { fetchContactsByOrg, deleteCompany, updateContact } from "@/lib/founders-data";
+import { fetchContactsByOrg, deleteOrganisation, updateContact } from "@/lib/founders-data";
 
 export const Route = createFileRoute("/ecosystem")({ component: () => <AppShell><Ecosystem /></AppShell> });
 
