@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Mail, Phone, Linkedin, Edit2, Trash2 } from "lucide-react";
-import { fetchContactsByOrg, deleteCompany, updateContact } from "@/lib/founders-data";
+import { fetchContactsByOrg, deleteOrganisation, updateContact } from "@/lib/founders-data";
 
 export const Route = createFileRoute("/ecosystem")({ component: () => <AppShell><Ecosystem /></AppShell> });
 
@@ -33,7 +33,7 @@ function EcosystemCard({ org }: { org: OrgRow }) {
     enabled: expanded,
   });
   const deleteMut = useMutation({
-    mutationFn: () => deleteCompany(org.id as any),
+    mutationFn: () => deleteOrganisation(org.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] }),
   });
   const updateMut = useMutation({
