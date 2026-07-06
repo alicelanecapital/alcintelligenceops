@@ -15,7 +15,7 @@ const navGroups = [
   {
     label: "Sourcing",
     items: [
-      { to: "/events", label: "Events", icon: Calendar },
+      { to: "/events", label: "Current Events", icon: Calendar },
     ],
   },
   {
