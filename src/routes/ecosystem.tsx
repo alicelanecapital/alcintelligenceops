@@ -33,7 +33,7 @@ function EcosystemCard({ org }: { org: OrgRow }) {
     enabled: expanded,
   });
   const deleteMut = useMutation({
-    mutationFn: () => deleteCompany(org.id as any),
+    mutationFn: () => deleteOrganisation(org.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] }),
   });
   const updateMut = useMutation({
