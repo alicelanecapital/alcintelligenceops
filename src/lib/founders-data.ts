@@ -313,6 +313,11 @@ export async function deleteCompany(id: string) {
   if (error) throw error;
 }
 
+export async function deleteOrganisation(id: string) {
+  const { error } = await supabase.from("organisations").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function createOpportunity(payload: any) {
   const { data, error } = await supabase.from("opportunities").insert(payload).select().single();
   if (error) throw error;
