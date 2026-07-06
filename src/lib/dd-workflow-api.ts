@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+const sb = supabase as any;
+
 
 export async function saveWorkflowResponse(
   opportunityId: string,
@@ -9,7 +11,7 @@ export async function saveWorkflowResponse(
   status: "in_progress" | "paused" | "completed" = "in_progress"
 ) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("dd_workflow_responses")
       .insert({
         opportunity_id: opportunityId,
@@ -31,7 +33,7 @@ export async function saveWorkflowResponse(
 
 export async function getWorkflowResponse(opportunityId: string, step: number) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("dd_workflow_responses")
       .select("*")
       .eq("opportunity_id", opportunityId)
@@ -52,7 +54,7 @@ export async function updateWorkflowStep(
   status: "in_progress" | "paused" | "completed" = "in_progress"
 ) {
   try {
-    const { error } = await supabase
+    const { error } = await sb
       .from("opportunities")
       .update({
         current_workflow_step: step,

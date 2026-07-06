@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { saveWorkflowResponse, updateWorkflowStep } from "@/lib/dd-workflow-api";
 
-export const Route = createFileRoute("/dd-engine-wizard")({ component: () => <DDEngineWizard /> });
+export const Route = createFileRoute("/dd-engine/wizard/$oppId")({ component: () => <DDEngineWizard /> });
 
 const WORKFLOW_STEPS = [
   {
