@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+const sb = supabase as any;
+
 
 export async function saveWorkflowResponse(
   opportunityId: string,
