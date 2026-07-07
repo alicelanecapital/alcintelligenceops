@@ -147,43 +147,82 @@ export type Database = {
       }
       contacts: {
         Row: {
+          ai_summary: string | null
+          category: string
+          company: string | null
           created_at: string
+          date_met: string | null
           email: string | null
           id: string
+          last_interaction_at: string | null
+          legacy_founder_id: string | null
+          legacy_org_id: string | null
           linkedin: string | null
           name: string
           notes: string | null
           organisation_id: string | null
           owner_id: string | null
           phone: string | null
+          position: string | null
+          relationship_score: number | null
           role: string | null
+          source_event_id: string | null
+          status: string | null
+          tags: string[] | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          ai_summary?: string | null
+          category?: string
+          company?: string | null
           created_at?: string
+          date_met?: string | null
           email?: string | null
           id?: string
+          last_interaction_at?: string | null
+          legacy_founder_id?: string | null
+          legacy_org_id?: string | null
           linkedin?: string | null
           name: string
           notes?: string | null
           organisation_id?: string | null
           owner_id?: string | null
           phone?: string | null
+          position?: string | null
+          relationship_score?: number | null
           role?: string | null
+          source_event_id?: string | null
+          status?: string | null
+          tags?: string[] | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          ai_summary?: string | null
+          category?: string
+          company?: string | null
           created_at?: string
+          date_met?: string | null
           email?: string | null
           id?: string
+          last_interaction_at?: string | null
+          legacy_founder_id?: string | null
+          legacy_org_id?: string | null
           linkedin?: string | null
           name?: string
           notes?: string | null
           organisation_id?: string | null
           owner_id?: string | null
           phone?: string | null
+          position?: string | null
+          relationship_score?: number | null
           role?: string | null
+          source_event_id?: string | null
+          status?: string | null
+          tags?: string[] | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: [
           {
@@ -191,6 +230,13 @@ export type Database = {
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_source_event_id_fkey"
+            columns: ["source_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -983,15 +1029,18 @@ export type Database = {
         Row: {
           brief: Json | null
           business_name: string | null
+          contact_id: string | null
           created_at: string
           current_stage: string | null
           deal_id: string | null
           ended_at: string | null
+          event_id: string | null
           founder_id: string | null
           founder_name: string | null
           id: string
           industry: string | null
           interviewer_name: string | null
+          meeting_type: string | null
           organisation_id: string | null
           started_at: string | null
           status: string
@@ -1001,15 +1050,18 @@ export type Database = {
         Insert: {
           brief?: Json | null
           business_name?: string | null
+          contact_id?: string | null
           created_at?: string
           current_stage?: string | null
           deal_id?: string | null
           ended_at?: string | null
+          event_id?: string | null
           founder_id?: string | null
           founder_name?: string | null
           id?: string
           industry?: string | null
           interviewer_name?: string | null
+          meeting_type?: string | null
           organisation_id?: string | null
           started_at?: string | null
           status?: string
@@ -1019,15 +1071,18 @@ export type Database = {
         Update: {
           brief?: Json | null
           business_name?: string | null
+          contact_id?: string | null
           created_at?: string
           current_stage?: string | null
           deal_id?: string | null
           ended_at?: string | null
+          event_id?: string | null
           founder_id?: string | null
           founder_name?: string | null
           id?: string
           industry?: string | null
           interviewer_name?: string | null
+          meeting_type?: string | null
           organisation_id?: string | null
           started_at?: string | null
           status?: string
@@ -1036,10 +1091,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "interviews_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interviews_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -1275,12 +1344,16 @@ export type Database = {
         Row: {
           assigned_partner: string | null
           company_id: string | null
+          contact_id: string | null
           created_at: string
           current_stage: string | null
+          description: string | null
           estimated_investment: number | null
+          event_id: string | null
           founder_id: string | null
           id: string
           industry: string | null
+          meeting_id: string | null
           name: string
           priority: string | null
           probability: number | null
@@ -1291,12 +1364,16 @@ export type Database = {
         Insert: {
           assigned_partner?: string | null
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           current_stage?: string | null
+          description?: string | null
           estimated_investment?: number | null
+          event_id?: string | null
           founder_id?: string | null
           id?: string
           industry?: string | null
+          meeting_id?: string | null
           name: string
           priority?: string | null
           probability?: number | null
@@ -1307,12 +1384,16 @@ export type Database = {
         Update: {
           assigned_partner?: string | null
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           current_stage?: string | null
+          description?: string | null
           estimated_investment?: number | null
+          event_id?: string | null
           founder_id?: string | null
           id?: string
           industry?: string | null
+          meeting_id?: string | null
           name?: string
           priority?: string | null
           probability?: number | null
@@ -1329,10 +1410,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "opportunities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "opportunities_founder_id_fkey"
             columns: ["founder_id"]
             isOneToOne: false
             referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
         ]
