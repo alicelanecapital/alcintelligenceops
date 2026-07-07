@@ -62,7 +62,7 @@ export async function fetchContact(id: string) {
   return data as unknown as ContactRow | null;
 }
 
-export async function createContact(input: Partial<ContactRow>) {
+export async function createContact(input: Partial<Omit<ContactRow, "source_event">>) {
   const payload: any = { ...input };
   if (!payload.name) throw new Error("Name is required");
   if (!payload.category) payload.category = "ecosystem";
