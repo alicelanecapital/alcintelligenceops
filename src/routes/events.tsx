@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Edit2, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -306,6 +306,11 @@ function EventsTable({ events, onEdit, onDelete, formatCurrency, formatDate }: E
             </TableCell>
             <TableCell className="text-right">
               <div className="flex gap-1 justify-end">
+                <Link to="/contacts" search={{}}>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" title={`Capture contacts from ${e.name}`}>
+                    <UserPlus className="h-3 w-3 mr-1" /> Capture
+                  </Button>
+                </Link>
                 {e.website && (
                   <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => window.open(e.website, '_blank')}>
                     <ExternalLink className="h-3 w-3 mr-1" /> Book
