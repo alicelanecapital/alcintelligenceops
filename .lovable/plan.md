@@ -1,47 +1,96 @@
-## Plan: Ecosystem/Founders/Vendors CRUD + Events overhaul
+## Phase 1 — Contacts + Meet + wiring into DD Engine
 
-### 1. Full CRUD
+Angel Assistant repo (SmartifyConsulting/angelassistant) is private — I can't clone it. Phase 1 rebuilds the Meeting Workspace on top of this app's existing interviews infrastructure (transcription, utterances, analyses, notes, reports, doc requests are already implemented in `src/lib/interviews.ts` + `src/routes/api/transcribe.ts`), which covers most of the Angel Assistant feature list. Live Meeting Intelligence, transcript upload polish, and richer stakeholder analytics come in phase 2 once we can see the Angel Assistant source (make repo public, or paste key files).
 
-**Ecosystem** (`src/routes/ecosystem.tsx`) — currently has Delete only. Add:
-- "Add organisation" button in header → opens Add/Edit dialog
-- Wire the existing Edit button (currently non-functional) → opens same dialog
-- New `createOrganisation` / `updateOrganisation` helpers in `src/lib/founders-data.ts`
-- Dialog covers: name, category, industry, purpose, who_they_serve, fit_rating, status, province, city, notes
+Email sending (Resend), the configurable DD checklist, and the polished Request Information flow are phase 2.
 
-**Founders** (`src/routes/founders.tsx`) — currently read-only. Add:
-- "Add founder" button → dialog (name, startup_name, sector, stage, email, phone, website, description, referral_source)
-- Edit + Delete buttons on each card / list row → dialog + confirm delete
-- Uses existing `createFounder`, `updateFounder`, `deleteFounder`
+### 1. Unified `contacts` table (migration)
 
-**Vendors** (`src/routes/vendors.tsx`) — already has CRUD. Verify Add/Edit/Delete work, no changes needed unless bugs surface.
+New table `public.contacts` replacing Ecosystem + Founders + Vendors:
 
-### 2. Events module
+- Core: `id`, `name`, `category` (enum-like text: `founder | investor | ecosystem | vendor`, extensible), `company`, `position`, `email`, `phone`, `linkedin`, `website`, `notes`, `status`, `tags text[]`
+- AI/relationship: `ai_summary`, `relationship_score int`, `last_interaction_at`
+- Provenance: `source_event_id uuid → events(id)`, `date_met`, `organisation_id uuid → organisations(id)` (nullable), `owner_id uuid → auth.users(id)`
+- `created_at`, `updated_at`
 
-`src/routes/events.tsx` + `src/lib/event-discovery.ts`:
+Data migration:
+- Copy `organisations` rows where `kind='ecosystem'` → `contacts` with `category='ecosystem'`
+- Copy `organisations` where category ~ vendor → `category='vendor'`
+- Copy `founders` → `contacts` with `category='founder'`, preserve foreign key mapping into a `legacy_founder_id`/`legacy_org_id` column for reference (kept nullable) so `opportunities.founder_id` / `.company_id` continue to resolve during transition
+- Backfill `date_met` from `created_at`
 
-- **Status filter**: already present — verify it filters within both region tabs correctly (bug: table shows all `futureEvents` in both tabs, not filtered per region). Fix by filtering table rows by region inside each `TabsContent`.
-- **Currency**: `formatCurrency` already returns `R…`. Audit the edit modal ("Cost (R)") and table cell — remove any duplicate "R" prefix if the stored value contains one. Ensure only `R{value}` shown.
-- **Additional info displayed**: table already has Dates + Attendees columns. Also expose Start / End / Who Will Attend prominently in a card-style expandable row or add explicit "Start" and "End" columns split from combined "Dates". Show `who_you_meet` truncated with tooltip full text.
-- **Book button**: already exists when `e.website` is set — keep, ensure it opens in new tab (already does).
-- **Remove Score column + scoring modal + `SCORING_CATEGORIES` + `total_score` field usage** from UI. Remove Score TableHead/TableCell, remove `onScore` prop, remove `showScoringModal` state and Dialog. Keep DB column intact.
+RLS: authenticated read/write; `GRANT` block for authenticated + service_role. No anon.
 
-**Fix AI Event Discovery** (`src/lib/event-discovery.ts` is broken):
-- File imports `openai` SDK but calls Anthropic-shaped API (`openai.messages.create`, model `claude-3-5-sonnet-…`) — this fails at runtime. Also runs client-side reading `process.env.OPENAI_API_KEY` (undefined in browser).
-- Rewrite as a **server function** `src/lib/event-discovery.functions.ts` using **Lovable AI Gateway** (`https://ai.gateway.lovable.dev/v1/chat/completions`, model `google/gemini-2.5-flash`, `LOVABLE_API_KEY` from `process.env`).
-- Server fn returns `{ sa: Conference[], global: Conference[] }`. Prompt asks for **two arrays**: 15 SA sector-specific conferences (Mining-Indaba-tier: prestige, senior attendees, deal-making, international influence) and 15 Global conferences matching the same criteria.
-- Delete broken `src/lib/event-discovery.ts`.
-- Update `events.tsx` "Run discovery" mutation to call the server fn via `useServerFn`, and insert results tagged with correct `region` ("SA" | "Global"). No longer sets `total_score`.
+Add `contact_id uuid → contacts(id)` to `interviews`, `opportunities`, `meetings` (new table below). Keep existing `founder_id` FK for one release for safety.
 
-### 3. Technical notes
+### 2. Meetings (reuse interviews)
 
-- No DB migration required (schema already supports needed columns).
-- Server fn is public (no auth needed) since events are org-wide utility data — mirrors existing pattern.
-- New helpers in `founders-data.ts`: `createOrganisation`, `updateOrganisation`.
+Rather than a parallel table, alias existing `interviews` as the meeting record. Add columns:
+- `contact_id uuid → contacts(id)`
+- `event_id uuid → events(id)` (nullable, inherited from contact)
+- `meeting_type text` ('intro' | 'follow-up' | 'diligence')
 
-### Files to edit
-- `src/lib/founders-data.ts` (add org create/update)
-- `src/lib/event-discovery.functions.ts` (new server fn)
-- `src/lib/event-discovery.ts` (delete)
-- `src/routes/ecosystem.tsx` (add + edit dialog, wire buttons)
-- `src/routes/founders.tsx` (add/edit/delete dialogs + buttons)
-- `src/routes/events.tsx` (remove scoring, fix region filter, wire new discovery fn)
+The "Meet" button on a Contact creates an interview row via existing `startInterview` server fn (extended to accept `contact_id`/`event_id`), then navigates to `/interviews/$id` which is the meeting workspace with live transcription, notes, analyses, and reports already wired. Rename UI label from "Interview" → "Meeting" project-wide.
+
+### 3. Routes & UI
+
+**New:**
+- `src/routes/contacts.tsx` — master list with Category filter tabs (Founder / Investor / Ecosystem / Vendor / All), search, Add/Edit/Delete dialog, "Meet" button per row
+- `src/routes/contacts.$id.tsx` — Contact profile: info panel, Meeting History (interviews filtered by `contact_id`), Documents (from `documents` table), Source Event card, primary action buttons: **Meet**, **Create Opportunity**, **Request Information** (phase-1 stub → opens a modal that composes the email body + checklist and copies to clipboard / opens `mailto:`; Resend wiring in phase 2)
+
+**Removed:**
+- `src/routes/ecosystem.tsx`
+- `src/routes/founders.tsx` + `src/routes/founders.$id.tsx`
+- `src/routes/vendors.tsx`
+
+**Updated:**
+- `src/components/AppShell.tsx` sidebar: replace Ecosystem/Founders/Vendors entries with single **Contacts** entry
+- `src/routes/events.tsx`: on an event row, add "Capture Contacts" action that opens the contacts add dialog pre-filled with `source_event_id`
+- `src/routes/interviews.index.tsx`: show linked contact + event on each card
+- `src/routes/opportunities.index.tsx`: new opportunities pre-populate `contact_id`, `event_id`, `meeting_id`, and copy latest AI meeting summary/notes into the opportunity description fields
+
+### 4. Create Opportunity flow
+
+On Contact page, **Create Opportunity** button:
+1. Server fn `createOpportunityFromContact({ contactId })` gathers: contact info, source event, latest interview (meeting) + its report/analyses/notes, existing documents
+2. Inserts `opportunities` row pre-filled with contact/org/event references + a `description` composed from the meeting AI summary, and `current_stage='Screening'`, `current_workflow_step=0`
+3. Navigates to `/dd-engine/wizard/{oppId}` (already exists) so the opportunity flows into the DD Engine kanban and wizard with all prior context inherited
+
+### 5. Request Information (phase-1 stub)
+
+Modal on Contact page with:
+- Editable email subject + body (auto-composed: greeting, meeting reference, DD progression note)
+- Hardcoded default DD checklist (24 items from spec) with checkboxes
+- Actions: **Copy to clipboard**, **Open in mail client** (`mailto:` with body), **Save draft** (persists a `document_requests` row linked to the contact/opportunity)
+- No Resend send yet, no response tracking yet — added in phase 2
+
+### Files to add / edit / remove
+
+**Add**
+- `supabase/migrations/<ts>_contacts_unification.sql` (create table, GRANTs, RLS, data migration, FK columns on interviews/opportunities)
+- `src/lib/contacts.ts` — fetch/create/update/delete helpers
+- `src/lib/contacts.functions.ts` — `createOpportunityFromContact`, `startMeetingForContact`
+- `src/routes/contacts.tsx`, `src/routes/contacts.$id.tsx`
+- `src/components/RequestInfoModal.tsx`
+
+**Edit**
+- `src/integrations/supabase/types.ts` (regenerated post-migration)
+- `src/components/AppShell.tsx` (nav)
+- `src/routes/events.tsx` (Capture Contacts button)
+- `src/routes/interviews.index.tsx` (show contact/event)
+- `src/routes/opportunities.index.tsx` (display new links)
+- `src/lib/interviews.functions.ts` (accept `contact_id`, `event_id` on start)
+
+**Delete**
+- `src/routes/ecosystem.tsx`
+- `src/routes/founders.tsx`, `src/routes/founders.$id.tsx`
+- `src/routes/vendors.tsx`
+- `src/lib/founders-data.ts` org helpers (moved into `contacts.ts`)
+
+### Deferred to phase 2
+- Live Meeting Intelligence (streaming AI insights during recording)
+- Transcript file upload path (audio + text file → new interview)
+- Resend integration + Request Information send + response tracking + saved sent-email log
+- Configurable DD checklist (admin UI)
+- Stakeholder Intelligence dashboard, relationship-signal scoring visualisations
+- Any Angel-Assistant-specific UI patterns (needs repo access)
