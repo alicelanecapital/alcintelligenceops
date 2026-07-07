@@ -306,6 +306,11 @@ function EventsTable({ events, onEdit, onDelete, formatCurrency, formatDate }: E
             </TableCell>
             <TableCell className="text-right">
               <div className="flex gap-1 justify-end">
+                <Link to="/contacts" search={{}}>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" title={`Capture contacts from ${e.name}`}>
+                    <UserPlus className="h-3 w-3 mr-1" /> Capture
+                  </Button>
+                </Link>
                 {e.website && (
                   <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => window.open(e.website, '_blank')}>
                     <ExternalLink className="h-3 w-3 mr-1" /> Book
