@@ -26,6 +26,7 @@ import { Route as CompaniesIndexRouteImport } from './routes/companies.index'
 import { Route as OpportunitiesIdRouteImport } from './routes/opportunities.$id'
 import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
 import { Route as FoundersIdRouteImport } from './routes/founders.$id'
+import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as DdEngineWizardOppIdRouteImport } from './routes/dd-engine.wizard.$oppId'
@@ -115,6 +116,11 @@ const FoundersIdRoute = FoundersIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => FoundersRoute,
 } as any)
+const ContactsIdRoute = ContactsIdRouteImport.update({
+  id: '/contacts/$id',
+  path: '/contacts/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesIdRoute = CompaniesIdRouteImport.update({
   id: '/companies/$id',
   path: '/companies/$id',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
+  '/contacts/$id': typeof ContactsIdRoute
   '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
+  '/contacts/$id': typeof ContactsIdRoute
   '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
+  '/contacts/$id': typeof ContactsIdRoute
   '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
+    | '/contacts/$id'
     | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
+    | '/contacts/$id'
     | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
+    | '/contacts/$id'
     | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
@@ -280,6 +292,7 @@ export interface RootRouteChildren {
   VendorsRoute: typeof VendorsRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
+  ContactsIdRoute: typeof ContactsIdRoute
   InterviewsIdRoute: typeof InterviewsIdRoute
   OpportunitiesIdRoute: typeof OpportunitiesIdRoute
   CompaniesIndexRoute: typeof CompaniesIndexRoute
@@ -409,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FoundersIdRouteImport
       parentRoute: typeof FoundersRoute
     }
+    '/contacts/$id': {
+      id: '/contacts/$id'
+      path: '/contacts/$id'
+      fullPath: '/contacts/$id'
+      preLoaderRoute: typeof ContactsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/companies/$id': {
       id: '/companies/$id'
       path: '/companies/$id'
@@ -470,6 +490,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsRoute: VendorsRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
+  ContactsIdRoute: ContactsIdRoute,
   InterviewsIdRoute: InterviewsIdRoute,
   OpportunitiesIdRoute: OpportunitiesIdRoute,
   CompaniesIndexRoute: CompaniesIndexRoute,
