@@ -524,13 +524,16 @@ export type Database = {
           country: string | null
           cover_image_url: string | null
           created_at: string
+          description: string | null
           discovered_at: string | null
           end_date: string | null
           expected_audience: string | null
           id: string
           industry: string[] | null
+          is_new: boolean | null
           name: string
           owner: string | null
+          region: string | null
           registration_link: string | null
           source_url: string | null
           start_date: string | null
@@ -538,6 +541,7 @@ export type Database = {
           updated_at: string
           venue: string | null
           website: string | null
+          who_you_meet: string | null
         }
         Insert: {
           ai_factors?: Json | null
@@ -549,13 +553,16 @@ export type Database = {
           country?: string | null
           cover_image_url?: string | null
           created_at?: string
+          description?: string | null
           discovered_at?: string | null
           end_date?: string | null
           expected_audience?: string | null
           id?: string
           industry?: string[] | null
+          is_new?: boolean | null
           name: string
           owner?: string | null
+          region?: string | null
           registration_link?: string | null
           source_url?: string | null
           start_date?: string | null
@@ -563,6 +570,7 @@ export type Database = {
           updated_at?: string
           venue?: string | null
           website?: string | null
+          who_you_meet?: string | null
         }
         Update: {
           ai_factors?: Json | null
@@ -574,13 +582,16 @@ export type Database = {
           country?: string | null
           cover_image_url?: string | null
           created_at?: string
+          description?: string | null
           discovered_at?: string | null
           end_date?: string | null
           expected_audience?: string | null
           id?: string
           industry?: string[] | null
+          is_new?: boolean | null
           name?: string
           owner?: string | null
+          region?: string | null
           registration_link?: string | null
           source_url?: string | null
           start_date?: string | null
@@ -588,6 +599,7 @@ export type Database = {
           updated_at?: string
           venue?: string | null
           website?: string | null
+          who_you_meet?: string | null
         }
         Relationships: []
       }
