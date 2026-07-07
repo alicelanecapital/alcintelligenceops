@@ -47,9 +47,11 @@ export const startMeetingForContact = createServerFn({ method: "POST" })
 
 // Create an opportunity from a contact, pulling in the latest meeting context.
 export const createOpportunityFromContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { contactId: string }) => d)
-  .handler(async ({ data }) => {
-    const s = sb();
+  .handler(async ({ data, context }) => {
+    const s = context.supabase;
+
     const { data: contact, error } = await s
       .from("contacts")
       .select("*, source_event:events(id, name)")
