@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Mail, Phone, Linkedin, Edit2, Trash2 } from "lucide-react";
+import { ChevronDown, Mail, Phone, Linkedin, Edit2, Trash2, Plus } from "lucide-react";
 import { fetchContactsByOrg, deleteOrganisation, updateContact, createOrganisation, updateOrganisation } from "@/lib/founders-data";
 import { toast } from "sonner";
 
