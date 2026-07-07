@@ -24,7 +24,7 @@ const CALL_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   "Opportunity": { bg: "bg-green-100", text: "text-green-800" },
 };
 
-function EcosystemCard({ org }: { org: OrgRow }) {
+function EcosystemCard({ org, onEdit }: { org: OrgRow; onEdit: (o: OrgRow) => void }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [editingContact, setEditingContact] = useState<any | null>(null);
@@ -35,7 +35,10 @@ function EcosystemCard({ org }: { org: OrgRow }) {
   });
   const deleteMut = useMutation({
     mutationFn: () => deleteOrganisation(org.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] });
+      toast.success("Organisation deleted");
+    },
   });
   const updateMut = useMutation({
     mutationFn: (data: any) => updateContact(data.id, data),
@@ -55,10 +58,10 @@ function EcosystemCard({ org }: { org: OrgRow }) {
             <div className="font-serif text-lg leading-tight">{org.name}</div>
             <div className="flex gap-1">
               {org.fit_rating && <Badge className="bg-primary text-primary-foreground shrink-0">{org.fit_rating}</Badge>}
-              <Button size="icon" variant="ghost" className="h-6 w-6">
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onEdit(org)}>
                 <Edit2 className="h-3 w-3" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteMut.mutate()}>
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(`Delete "${org.name}"?`)) deleteMut.mutate(); }}>
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
