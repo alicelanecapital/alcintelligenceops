@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as FoundersRouteImport } from './routes/founders'
+import { Route as EventsOldRouteImport } from './routes/events-old'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DealsRouteImport } from './routes/deals'
@@ -36,6 +37,11 @@ const VendorsRoute = VendorsRouteImport.update({
 const FoundersRoute = FoundersRouteImport.update({
   id: '/founders',
   path: '/founders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsOldRoute = EventsOldRouteImport.update({
+  id: '/events-old',
+  path: '/events-old',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
+  '/events-old': typeof EventsOldRoute
   '/founders': typeof FoundersRouteWithChildren
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
+  '/events-old': typeof EventsOldRoute
   '/founders': typeof FoundersRouteWithChildren
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/deals': typeof DealsRoute
   '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
+  '/events-old': typeof EventsOldRoute
   '/founders': typeof FoundersRouteWithChildren
   '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
     | '/deals'
     | '/ecosystem'
     | '/events'
+    | '/events-old'
     | '/founders'
     | '/vendors'
     | '/api/transcribe'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/deals'
     | '/ecosystem'
     | '/events'
+    | '/events-old'
     | '/founders'
     | '/vendors'
     | '/api/transcribe'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/deals'
     | '/ecosystem'
     | '/events'
+    | '/events-old'
     | '/founders'
     | '/vendors'
     | '/api/transcribe'
@@ -251,6 +263,7 @@ export interface RootRouteChildren {
   DealsRoute: typeof DealsRoute
   EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
+  EventsOldRoute: typeof EventsOldRoute
   FoundersRoute: typeof FoundersRouteWithChildren
   VendorsRoute: typeof VendorsRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       path: '/founders'
       fullPath: '/founders'
       preLoaderRoute: typeof FoundersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events-old': {
+      id: '/events-old'
+      path: '/events-old'
+      fullPath: '/events-old'
+      preLoaderRoute: typeof EventsOldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -425,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   DealsRoute: DealsRoute,
   EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,
+  EventsOldRoute: EventsOldRoute,
   FoundersRoute: FoundersRouteWithChildren,
   VendorsRoute: VendorsRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
@@ -438,3 +459,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
