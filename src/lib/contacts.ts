@@ -71,8 +71,8 @@ export async function createContact(input: Partial<Omit<ContactRow, "source_even
   return data as unknown as ContactRow;
 }
 
-export async function updateContact(id: string, input: Partial<ContactRow>) {
-  const { data, error } = await supabase.from("contacts").update(input).eq("id", id).select("*").single();
+export async function updateContact(id: string, input: Partial<Omit<ContactRow, "source_event">>) {
+  const { data, error } = await supabase.from("contacts").update(input as any).eq("id", id).select("*").single();
   if (error) throw error;
   return data as unknown as ContactRow;
 }
