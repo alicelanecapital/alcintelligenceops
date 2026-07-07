@@ -21,6 +21,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OpportunitiesIndexRouteImport } from './routes/opportunities.index'
 import { Route as InterviewsIndexRouteImport } from './routes/interviews.index'
+import { Route as ContactsIndexRouteImport } from './routes/contacts.index'
 import { Route as CompaniesIndexRouteImport } from './routes/companies.index'
 import { Route as OpportunitiesIdRouteImport } from './routes/opportunities.$id'
 import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
@@ -89,6 +90,11 @@ const InterviewsIndexRoute = InterviewsIndexRouteImport.update({
   path: '/interviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactsIndexRoute = ContactsIndexRouteImport.update({
+  id: '/contacts/',
+  path: '/contacts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesIndexRoute = CompaniesIndexRouteImport.update({
   id: '/companies/',
   path: '/companies/',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
+  '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
   '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies': typeof CompaniesIndexRoute
+  '/contacts': typeof ContactsIndexRoute
   '/interviews': typeof InterviewsIndexRoute
   '/opportunities': typeof OpportunitiesIndexRoute
   '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
+  '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
   '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies/'
+    | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
     | '/dd-engine/wizard/$oppId'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies'
+    | '/contacts'
     | '/interviews'
     | '/opportunities'
     | '/dd-engine/wizard/$oppId'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies/'
+    | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
     | '/dd-engine/wizard/$oppId'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   InterviewsIdRoute: typeof InterviewsIdRoute
   OpportunitiesIdRoute: typeof OpportunitiesIdRoute
   CompaniesIndexRoute: typeof CompaniesIndexRoute
+  ContactsIndexRoute: typeof ContactsIndexRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
   OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute
 }
@@ -359,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/interviews'
       fullPath: '/interviews/'
       preLoaderRoute: typeof InterviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts/': {
+      id: '/contacts/'
+      path: '/contacts'
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof ContactsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies/': {
@@ -453,6 +473,7 @@ const rootRouteChildren: RootRouteChildren = {
   InterviewsIdRoute: InterviewsIdRoute,
   OpportunitiesIdRoute: OpportunitiesIdRoute,
   CompaniesIndexRoute: CompaniesIndexRoute,
+  ContactsIndexRoute: ContactsIndexRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
   OpportunitiesIndexRoute: OpportunitiesIndexRoute,
 }
