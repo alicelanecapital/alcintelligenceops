@@ -318,6 +318,18 @@ export async function deleteOrganisation(id: string) {
   if (error) throw error;
 }
 
+export async function createOrganisation(payload: any) {
+  const { data, error } = await supabase.from("organisations").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateOrganisation(id: string, payload: any) {
+  const { data, error } = await supabase.from("organisations").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createOpportunity(payload: any) {
   const { data, error } = await supabase.from("opportunities").insert(payload).select().single();
   if (error) throw error;
