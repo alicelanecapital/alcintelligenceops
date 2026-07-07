@@ -1,19 +1,47 @@
-## Problem
+## Plan: Ecosystem/Founders/Vendors CRUD + Events overhaul
 
-Production preview shows "preview has not been built" because the build's typecheck fails with 4 TypeScript errors in `src/routes/ecosystem.tsx`. The generated Supabase `types.ts` doesn't include the `call_status` column on `contacts`, but the code references it (lines 92, 94, 95).
+### 1. Full CRUD
 
-Dev server, env vars, and routing are all fine — only the strict build is blocked.
+**Ecosystem** (`src/routes/ecosystem.tsx`) — currently has Delete only. Add:
+- "Add organisation" button in header → opens Add/Edit dialog
+- Wire the existing Edit button (currently non-functional) → opens same dialog
+- New `createOrganisation` / `updateOrganisation` helpers in `src/lib/founders-data.ts`
+- Dialog covers: name, category, industry, purpose, who_they_serve, fit_rating, status, province, city, notes
 
-## Fix
+**Founders** (`src/routes/founders.tsx`) — currently read-only. Add:
+- "Add founder" button → dialog (name, startup_name, sector, stage, email, phone, website, description, referral_source)
+- Edit + Delete buttons on each card / list row → dialog + confirm delete
+- Uses existing `createFounder`, `updateFounder`, `deleteFounder`
 
-In `src/routes/ecosystem.tsx`, cast the contact rows to `any` at the render boundary (same workaround already applied in `opportunities.index.tsx` for stale generated types), so `c.call_status` typechecks:
+**Vendors** (`src/routes/vendors.tsx`) — already has CRUD. Verify Add/Edit/Delete work, no changes needed unless bugs surface.
 
-```ts
-const contacts = (contactsQuery.data ?? []) as any[];
-```
+### 2. Events module
 
-That single change resolves all 4 errors and unblocks the build.
+`src/routes/events.tsx` + `src/lib/event-discovery.ts`:
 
-## Verification
+- **Status filter**: already present — verify it filters within both region tabs correctly (bug: table shows all `futureEvents` in both tabs, not filtered per region). Fix by filtering table rows by region inside each `TabsContent`.
+- **Currency**: `formatCurrency` already returns `R…`. Audit the edit modal ("Cost (R)") and table cell — remove any duplicate "R" prefix if the stored value contains one. Ensure only `R{value}` shown.
+- **Additional info displayed**: table already has Dates + Attendees columns. Also expose Start / End / Who Will Attend prominently in a card-style expandable row or add explicit "Start" and "End" columns split from combined "Dates". Show `who_you_meet` truncated with tooltip full text.
+- **Book button**: already exists when `e.website` is set — keep, ensure it opens in new tab (already does).
+- **Remove Score column + scoring modal + `SCORING_CATEGORIES` + `total_score` field usage** from UI. Remove Score TableHead/TableCell, remove `onScore` prop, remove `showScoringModal` state and Dialog. Keep DB column intact.
 
-Run `bunx tsgo --noEmit` — expect 0 errors — then the preview will build.
+**Fix AI Event Discovery** (`src/lib/event-discovery.ts` is broken):
+- File imports `openai` SDK but calls Anthropic-shaped API (`openai.messages.create`, model `claude-3-5-sonnet-…`) — this fails at runtime. Also runs client-side reading `process.env.OPENAI_API_KEY` (undefined in browser).
+- Rewrite as a **server function** `src/lib/event-discovery.functions.ts` using **Lovable AI Gateway** (`https://ai.gateway.lovable.dev/v1/chat/completions`, model `google/gemini-2.5-flash`, `LOVABLE_API_KEY` from `process.env`).
+- Server fn returns `{ sa: Conference[], global: Conference[] }`. Prompt asks for **two arrays**: 15 SA sector-specific conferences (Mining-Indaba-tier: prestige, senior attendees, deal-making, international influence) and 15 Global conferences matching the same criteria.
+- Delete broken `src/lib/event-discovery.ts`.
+- Update `events.tsx` "Run discovery" mutation to call the server fn via `useServerFn`, and insert results tagged with correct `region` ("SA" | "Global"). No longer sets `total_score`.
+
+### 3. Technical notes
+
+- No DB migration required (schema already supports needed columns).
+- Server fn is public (no auth needed) since events are org-wide utility data — mirrors existing pattern.
+- New helpers in `founders-data.ts`: `createOrganisation`, `updateOrganisation`.
+
+### Files to edit
+- `src/lib/founders-data.ts` (add org create/update)
+- `src/lib/event-discovery.functions.ts` (new server fn)
+- `src/lib/event-discovery.ts` (delete)
+- `src/routes/ecosystem.tsx` (add + edit dialog, wire buttons)
+- `src/routes/founders.tsx` (add/edit/delete dialogs + buttons)
+- `src/routes/events.tsx` (remove scoring, fix region filter, wire new discovery fn)
