@@ -173,11 +173,26 @@ function EcosystemCard({ org, onEdit }: { org: OrgRow; onEdit: (o: OrgRow) => vo
 }
 
 function Ecosystem() {
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["orgs","ecosystem"], queryFn: () => fetchOrgs("ecosystem") });
   const orgs = q.data ?? [];
   const [search, setSearch] = useState("");
   const [fitFilter, setFitFilter] = useState<string | null>(null);
   const [viewType, setViewType] = useState<"cards" | "list">("cards");
+  const [editingOrg, setEditingOrg] = useState<any | null>(null);
+  const [showOrgModal, setShowOrgModal] = useState(false);
+
+  const saveOrgMut = useMutation({
+    mutationFn: (data: any) => data.id ? updateOrganisation(data.id, data) : createOrganisation({ ...data, kind: "ecosystem" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orgs", "ecosystem"] });
+      setShowOrgModal(false);
+      setEditingOrg(null);
+      toast.success("Organisation saved");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Save failed"),
+  });
+
   const filtered = useMemo(() => orgs.filter(o => {
     const matchesSearch = !search || o.name.toLowerCase().includes(search.toLowerCase()) || (o.category ?? "").toLowerCase().includes(search.toLowerCase());
     const matchesFit = !fitFilter || (o.fit_rating ?? "").toLowerCase().includes(fitFilter.toLowerCase());
@@ -185,9 +200,17 @@ function Ecosystem() {
   }), [orgs, search, fitFilter]);
   const fitRatings = Array.from(new Set(orgs.map(o => o.fit_rating).filter(Boolean))) as string[];
 
+  const openEdit = (o: any) => { setEditingOrg(o); setShowOrgModal(true); };
+  const openAdd = () => { setEditingOrg({}); setShowOrgModal(true); };
+
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
-      <PageHeader eyebrow="Map" title="Ecosystem" description="South Africa's origination ecosystem — foundations, incubators, funds, hubs, universities, networks and government." />
+      <PageHeader
+        eyebrow="Map"
+        title="Ecosystem"
+        description="South Africa's origination ecosystem — foundations, incubators, funds, hubs, universities, networks and government."
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> Add organisation</Button>}
+      />
       <div className="mb-4 flex items-center gap-4 flex-wrap">
         <Input placeholder="Search organisations…" className="max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select value={fitFilter ?? ""} onChange={(e) => setFitFilter(e.target.value || null)} className="px-3 py-2 border rounded-md text-sm">
@@ -204,13 +227,13 @@ function Ecosystem() {
         {viewType === "cards" ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(o => (
-              <EcosystemCard key={o.id} org={o} />
+              <EcosystemCard key={o.id} org={o} onEdit={openEdit} />
             ))}
           </div>
         ) : (
           <div className="rounded-lg border border-border bg-card">
             <Table>
-              <TableHeader><TableRow><TableHead>Organisation</TableHead><TableHead>Category</TableHead><TableHead>Fit</TableHead><TableHead>Status</TableHead><TableHead>Purpose</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Organisation</TableHead><TableHead>Category</TableHead><TableHead>Fit</TableHead><TableHead>Status</TableHead><TableHead>Purpose</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filtered.map(o => (
                   <TableRow key={o.id}>
@@ -219,6 +242,9 @@ function Ecosystem() {
                     <TableCell>{o.fit_rating}</TableCell>
                     <TableCell className="text-muted-foreground">{o.status ?? "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-md line-clamp-2">{o.purpose}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(o)}><Edit2 className="h-3 w-3" /></Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -226,6 +252,68 @@ function Ecosystem() {
           </div>
         )}
       </div>
+
+      <Dialog open={showOrgModal} onOpenChange={setShowOrgModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader><DialogTitle>{editingOrg?.id ? "Edit Organisation" : "Add Organisation"}</DialogTitle></DialogHeader>
+          {editingOrg && (
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto">
+              <div>
+                <label className="text-sm font-medium">Name</label>
+                <Input value={editingOrg.name ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, name: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Category</label>
+                  <Input value={editingOrg.category ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, category: e.target.value }))} placeholder="Foundation, Incubator, Fund…" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Industry</label>
+                  <Input value={editingOrg.industry ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, industry: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Purpose</label>
+                <Input value={editingOrg.purpose ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, purpose: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Who They Serve</label>
+                <Input value={editingOrg.who_they_serve ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, who_they_serve: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Fit Rating</label>
+                  <Input value={editingOrg.fit_rating ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, fit_rating: e.target.value }))} placeholder="High, Medium, Low" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <Input value={editingOrg.status ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, status: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">City</label>
+                  <Input value={editingOrg.city ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, city: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Province</label>
+                  <Input value={editingOrg.province ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, province: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notes</label>
+                <Input value={editingOrg.notes ?? ""} onChange={e => setEditingOrg((s: any) => ({ ...s, notes: e.target.value }))} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOrgModal(false)}>Cancel</Button>
+            <Button onClick={() => saveOrgMut.mutate(editingOrg)} disabled={saveOrgMut.isPending || !editingOrg?.name}>
+              {saveOrgMut.isPending ? "Saving…" : editingOrg?.id ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
