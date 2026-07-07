@@ -9,11 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VendorsRouteImport } from './routes/vendors'
-import { Route as FoundersRouteImport } from './routes/founders'
 import { Route as EventsOldRouteImport } from './routes/events-old'
 import { Route as EventsRouteImport } from './routes/events'
-import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DealsRouteImport } from './routes/deals'
 import { Route as DdEngineRouteImport } from './routes/dd-engine'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -25,22 +22,11 @@ import { Route as ContactsIndexRouteImport } from './routes/contacts.index'
 import { Route as CompaniesIndexRouteImport } from './routes/companies.index'
 import { Route as OpportunitiesIdRouteImport } from './routes/opportunities.$id'
 import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
-import { Route as FoundersIdRouteImport } from './routes/founders.$id'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as DdEngineWizardOppIdRouteImport } from './routes/dd-engine.wizard.$oppId'
 
-const VendorsRoute = VendorsRouteImport.update({
-  id: '/vendors',
-  path: '/vendors',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FoundersRoute = FoundersRouteImport.update({
-  id: '/founders',
-  path: '/founders',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EventsOldRoute = EventsOldRouteImport.update({
   id: '/events-old',
   path: '/events-old',
@@ -49,11 +35,6 @@ const EventsOldRoute = EventsOldRouteImport.update({
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EcosystemRoute = EcosystemRouteImport.update({
-  id: '/ecosystem',
-  path: '/ecosystem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DealsRoute = DealsRouteImport.update({
@@ -111,11 +92,6 @@ const InterviewsIdRoute = InterviewsIdRouteImport.update({
   path: '/interviews/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FoundersIdRoute = FoundersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => FoundersRoute,
-} as any)
 const ContactsIdRoute = ContactsIdRouteImport.update({
   id: '/contacts/$id',
   path: '/contacts/$id',
@@ -143,15 +119,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dd-engine': typeof DdEngineRouteWithChildren
   '/deals': typeof DealsRoute
-  '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
-  '/founders': typeof FoundersRouteWithChildren
-  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
-  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
@@ -166,15 +138,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dd-engine': typeof DdEngineRouteWithChildren
   '/deals': typeof DealsRoute
-  '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
-  '/founders': typeof FoundersRouteWithChildren
-  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
-  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies': typeof CompaniesIndexRoute
@@ -190,15 +158,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dd-engine': typeof DdEngineRouteWithChildren
   '/deals': typeof DealsRoute
-  '/ecosystem': typeof EcosystemRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
-  '/founders': typeof FoundersRouteWithChildren
-  '/vendors': typeof VendorsRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
-  '/founders/$id': typeof FoundersIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
   '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
@@ -215,15 +179,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dd-engine'
     | '/deals'
-    | '/ecosystem'
     | '/events'
     | '/events-old'
-    | '/founders'
-    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
-    | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies/'
@@ -238,15 +198,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dd-engine'
     | '/deals'
-    | '/ecosystem'
     | '/events'
     | '/events-old'
-    | '/founders'
-    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
-    | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies'
@@ -261,15 +217,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dd-engine'
     | '/deals'
-    | '/ecosystem'
     | '/events'
     | '/events-old'
-    | '/founders'
-    | '/vendors'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
-    | '/founders/$id'
     | '/interviews/$id'
     | '/opportunities/$id'
     | '/companies/'
@@ -285,11 +237,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DdEngineRoute: typeof DdEngineRouteWithChildren
   DealsRoute: typeof DealsRoute
-  EcosystemRoute: typeof EcosystemRoute
   EventsRoute: typeof EventsRoute
   EventsOldRoute: typeof EventsOldRoute
-  FoundersRoute: typeof FoundersRouteWithChildren
-  VendorsRoute: typeof VendorsRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
   ContactsIdRoute: typeof ContactsIdRoute
@@ -303,20 +252,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/vendors': {
-      id: '/vendors'
-      path: '/vendors'
-      fullPath: '/vendors'
-      preLoaderRoute: typeof VendorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/founders': {
-      id: '/founders'
-      path: '/founders'
-      fullPath: '/founders'
-      preLoaderRoute: typeof FoundersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/events-old': {
       id: '/events-old'
       path: '/events-old'
@@ -329,13 +264,6 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ecosystem': {
-      id: '/ecosystem'
-      path: '/ecosystem'
-      fullPath: '/ecosystem'
-      preLoaderRoute: typeof EcosystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deals': {
@@ -415,13 +343,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/founders/$id': {
-      id: '/founders/$id'
-      path: '/$id'
-      fullPath: '/founders/$id'
-      preLoaderRoute: typeof FoundersIdRouteImport
-      parentRoute: typeof FoundersRoute
-    }
     '/contacts/$id': {
       id: '/contacts/$id'
       path: '/contacts/$id'
@@ -465,29 +386,14 @@ const DdEngineRouteWithChildren = DdEngineRoute._addFileChildren(
   DdEngineRouteChildren,
 )
 
-interface FoundersRouteChildren {
-  FoundersIdRoute: typeof FoundersIdRoute
-}
-
-const FoundersRouteChildren: FoundersRouteChildren = {
-  FoundersIdRoute: FoundersIdRoute,
-}
-
-const FoundersRouteWithChildren = FoundersRoute._addFileChildren(
-  FoundersRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   DdEngineRoute: DdEngineRouteWithChildren,
   DealsRoute: DealsRoute,
-  EcosystemRoute: EcosystemRoute,
   EventsRoute: EventsRoute,
   EventsOldRoute: EventsOldRoute,
-  FoundersRoute: FoundersRouteWithChildren,
-  VendorsRoute: VendorsRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
   ContactsIdRoute: ContactsIdRoute,
