@@ -21,9 +21,7 @@ const navGroups = [
   {
     label: "Contacts",
     items: [
-      { to: "/ecosystem", label: "Ecosystem", icon: Map },
-      { to: "/founders", label: "Founders", icon: Users },
-      { to: "/vendors", label: "Vendors", icon: Building2 },
+      { to: "/contacts", label: "Contacts", icon: Users },
     ],
   },
   {
