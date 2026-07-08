@@ -25,7 +25,7 @@ import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
-import { Route as DdEngineWizardOppIdRouteImport } from './routes/dd-engine.wizard.$oppId'
+import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 
 const EventsOldRoute = EventsOldRouteImport.update({
   id: '/events-old',
@@ -107,17 +107,18 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DdEngineWizardOppIdRoute = DdEngineWizardOppIdRouteImport.update({
-  id: '/wizard/$oppId',
-  path: '/wizard/$oppId',
-  getParentRoute: () => DdEngineRoute,
-} as any)
+const DdInterviewOpportunityIdRoundRoute =
+  DdInterviewOpportunityIdRoundRouteImport.update({
+    id: '/dd-interview/$opportunityId/$round',
+    path: '/dd-interview/$opportunityId/$round',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/dd-engine': typeof DdEngineRouteWithChildren
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
@@ -130,13 +131,13 @@ export interface FileRoutesByFullPath {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
-  '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
+  '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/dd-engine': typeof DdEngineRouteWithChildren
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
@@ -149,14 +150,14 @@ export interface FileRoutesByTo {
   '/contacts': typeof ContactsIndexRoute
   '/interviews': typeof InterviewsIndexRoute
   '/opportunities': typeof OpportunitiesIndexRoute
-  '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
+  '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/dd-engine': typeof DdEngineRouteWithChildren
+  '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
@@ -169,7 +170,7 @@ export interface FileRoutesById {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
-  '/dd-engine/wizard/$oppId': typeof DdEngineWizardOppIdRoute
+  '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -190,7 +191,7 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
-    | '/dd-engine/wizard/$oppId'
+    | '/dd-interview/$opportunityId/$round'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -209,7 +210,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/interviews'
     | '/opportunities'
-    | '/dd-engine/wizard/$oppId'
+    | '/dd-interview/$opportunityId/$round'
   id:
     | '__root__'
     | '/'
@@ -228,14 +229,14 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
-    | '/dd-engine/wizard/$oppId'
+    | '/dd-interview/$opportunityId/$round'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
-  DdEngineRoute: typeof DdEngineRouteWithChildren
+  DdEngineRoute: typeof DdEngineRoute
   DealsRoute: typeof DealsRoute
   EventsRoute: typeof EventsRoute
   EventsOldRoute: typeof EventsOldRoute
@@ -248,6 +249,7 @@ export interface RootRouteChildren {
   ContactsIndexRoute: typeof ContactsIndexRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
   OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute
+  DdInterviewOpportunityIdRoundRoute: typeof DdInterviewOpportunityIdRoundRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -364,33 +366,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dd-engine/wizard/$oppId': {
-      id: '/dd-engine/wizard/$oppId'
-      path: '/wizard/$oppId'
-      fullPath: '/dd-engine/wizard/$oppId'
-      preLoaderRoute: typeof DdEngineWizardOppIdRouteImport
-      parentRoute: typeof DdEngineRoute
+    '/dd-interview/$opportunityId/$round': {
+      id: '/dd-interview/$opportunityId/$round'
+      path: '/dd-interview/$opportunityId/$round'
+      fullPath: '/dd-interview/$opportunityId/$round'
+      preLoaderRoute: typeof DdInterviewOpportunityIdRoundRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface DdEngineRouteChildren {
-  DdEngineWizardOppIdRoute: typeof DdEngineWizardOppIdRoute
-}
-
-const DdEngineRouteChildren: DdEngineRouteChildren = {
-  DdEngineWizardOppIdRoute: DdEngineWizardOppIdRoute,
-}
-
-const DdEngineRouteWithChildren = DdEngineRoute._addFileChildren(
-  DdEngineRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
-  DdEngineRoute: DdEngineRouteWithChildren,
+  DdEngineRoute: DdEngineRoute,
   DealsRoute: DealsRoute,
   EventsRoute: EventsRoute,
   EventsOldRoute: EventsOldRoute,
@@ -403,7 +393,18 @@ const rootRouteChildren: RootRouteChildren = {
   ContactsIndexRoute: ContactsIndexRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
   OpportunitiesIndexRoute: OpportunitiesIndexRoute,
+  DdInterviewOpportunityIdRoundRoute: DdInterviewOpportunityIdRoundRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

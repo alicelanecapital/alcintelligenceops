@@ -47,7 +47,7 @@ function ContactProfile() {
     mutationFn: () => createOpp({ data: { contactId: id } }),
     onSuccess: (opp: any) => {
       toast.success("Opportunity created");
-      navigate({ to: "/dd-engine/wizard/$oppId", params: { oppId: opp.id } });
+      navigate({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
@@ -142,7 +142,7 @@ function ContactProfile() {
             <CardContent className="space-y-2">
               {(opps.data ?? []).length === 0 && <div className="text-sm text-muted-foreground">No opportunities created yet.</div>}
               {(opps.data ?? []).map((o: any) => (
-                <Link key={o.id} to="/dd-engine/wizard/$oppId" params={{ oppId: o.id }} className="block">
+                <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
                   <div className="border rounded-md p-3 hover:border-primary/50 transition-colors">
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-medium">{o.name}</div>

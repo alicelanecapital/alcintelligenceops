@@ -104,6 +104,40 @@ export async function fetchOpportunities() {
   return data ?? [];
 }
 
+export async function fetchOpportunitiesWithDDStatus() {
+  const [{ data: opps, error: oppsError }, { data: interviews, error: interviewsError }] = await Promise.all([
+    supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").order("created_at", { ascending: false }),
+    supabase.from("dd_interviews").select("opportunity_id, round, status, detected_sector, sector_confidence"),
+  ]);
+  if (oppsError) throw oppsError;
+  if (interviewsError) throw interviewsError;
+
+  const byOpportunity = new Map<string, { round: number; sector: string | null; confidence: number | null }>();
+  for (const iv of interviews ?? []) {
+    const existing = byOpportunity.get(iv.opportunity_id);
+    if (!existing || iv.round >= existing.round) {
+      byOpportunity.set(iv.opportunity_id, {
+        round: iv.round,
+        sector: iv.detected_sector ?? existing?.sector ?? null,
+        confidence: iv.sector_confidence ?? existing?.confidence ?? null,
+      });
+    } else if (!existing.sector && iv.detected_sector) {
+      existing.sector = iv.detected_sector;
+      existing.confidence = iv.sector_confidence ?? null;
+    }
+  }
+
+  return (opps ?? []).map((opp: any) => {
+    const status = byOpportunity.get(opp.id);
+    return {
+      ...opp,
+      dd_current_round: status?.round ?? null,
+      dd_detected_sector: status?.sector ?? null,
+      dd_sector_confidence: status?.confidence ?? null,
+    };
+  });
+}
+
 export async function updateFounderAssessment(id: string, payload: {
   truthfulness_score?: number | null;
   commercial_instinct_score?: number | null;

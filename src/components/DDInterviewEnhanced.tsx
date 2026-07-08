@@ -1,16 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   ROUND_1, ROUND_2, ROUND_3, ROUND_4, ROUND_5,
   MASTER_DOCUMENT_CHECKLIST, SECTOR_MODULES,
-  VERIFICATION_TRIANGLE, RED_FLAG_DECISION_FRAMEWORK
+  VERIFICATION_TRIANGLE
 } from '@/lib/dd-framework-data';
-import {
-  detectSector, analyzeVoiceCharacteristics,
-  generateFollowUpQuestions, detectRedFlags,
-  generateAnalysisReport
-} from '@/lib/dd-sector-detection';
+import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -71,27 +66,24 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     }
   };
 
-  // Transcribe audio using Whisper API
+  // Transcribe audio via the existing /api/transcribe endpoint (Lovable AI Gateway, server-side key)
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
-      formData.append('model', 'whisper-1');
 
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      const response = await fetch('/api/transcribe', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.VITE_OPENAI_API_KEY}`
-        },
         body: formData
       });
 
       const data = await response.json();
-      setTranscript(data.text);
+      const text = data.text ?? '';
+      setTranscript(text);
 
       // Auto-detect sector from responses
-      if (round === 1 && currentQuestion <= 2) {
-        const detection = await detectSector([data.text]);
+      if (round === 1 && currentQuestion <= 2 && text) {
+        const detection = await detectSector({ data: { responses: [text] } });
         setSector(detection.sector);
         setSectorConfidence(detection.confidence);
       }
@@ -103,12 +95,14 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   // Generate AI analysis
   const generateAnalysis = async () => {
     try {
-      const analysis = await generateAnalysisReport(
-        opportunityId,
-        transcript,
-        sector || 'Unknown',
-        round
-      );
+      const analysis = await generateAnalysisReport({
+        data: {
+          interviewId: opportunityId,
+          transcript,
+          sector: sector || 'Unknown',
+          round
+        }
+      });
       setAiAnalysis(analysis);
     } catch (error) {
       console.error('Analysis generation failed:', error);
