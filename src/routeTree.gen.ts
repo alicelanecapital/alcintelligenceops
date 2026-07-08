@@ -9,12 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as EventsOldRouteImport } from './routes/events-old'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DealsRouteImport } from './routes/deals'
 import { Route as DdEngineRouteImport } from './routes/dd-engine'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OpportunitiesIndexRouteImport } from './routes/opportunities.index'
 import { Route as InterviewsIndexRouteImport } from './routes/interviews.index'
@@ -25,8 +26,14 @@ import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsOldRoute = EventsOldRouteImport.update({
   id: '/events-old',
   path: '/events-old',
@@ -47,14 +54,14 @@ const DdEngineRoute = DdEngineRouteImport.update({
   path: '/dd-engine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -107,6 +114,11 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDdFrameworkRoute = AdminDdFrameworkRouteImport.update({
+  id: '/admin/dd-framework',
+  path: '/admin/dd-framework',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DdInterviewOpportunityIdRoundRoute =
   DdInterviewOpportunityIdRoundRouteImport.update({
     id: '/dd-interview/$opportunityId/$round',
@@ -116,12 +128,14 @@ const DdInterviewOpportunityIdRoundRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
+  '/tasks': typeof TasksRoute
+  '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -135,12 +149,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
+  '/tasks': typeof TasksRoute
+  '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -155,12 +171,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
+  '/tasks': typeof TasksRoute
+  '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -176,12 +194,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/analytics'
     | '/auth'
+    | '/calendar'
     | '/dd-engine'
     | '/deals'
     | '/events'
     | '/events-old'
+    | '/tasks'
+    | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
@@ -195,12 +215,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/analytics'
     | '/auth'
+    | '/calendar'
     | '/dd-engine'
     | '/deals'
     | '/events'
     | '/events-old'
+    | '/tasks'
+    | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
@@ -214,12 +236,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/analytics'
     | '/auth'
+    | '/calendar'
     | '/dd-engine'
     | '/deals'
     | '/events'
     | '/events-old'
+    | '/tasks'
+    | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
     | '/contacts/$id'
@@ -234,12 +258,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
+  CalendarRoute: typeof CalendarRoute
   DdEngineRoute: typeof DdEngineRoute
   DealsRoute: typeof DealsRoute
   EventsRoute: typeof EventsRoute
   EventsOldRoute: typeof EventsOldRoute
+  TasksRoute: typeof TasksRoute
+  AdminDdFrameworkRoute: typeof AdminDdFrameworkRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
   ContactsIdRoute: typeof ContactsIdRoute
@@ -254,6 +280,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events-old': {
       id: '/events-old'
       path: '/events-old'
@@ -282,18 +315,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DdEngineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -366,6 +399,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/dd-framework': {
+      id: '/admin/dd-framework'
+      path: '/admin/dd-framework'
+      fullPath: '/admin/dd-framework'
+      preLoaderRoute: typeof AdminDdFrameworkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dd-interview/$opportunityId/$round': {
       id: '/dd-interview/$opportunityId/$round'
       path: '/dd-interview/$opportunityId/$round'
@@ -378,12 +418,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
+  CalendarRoute: CalendarRoute,
   DdEngineRoute: DdEngineRoute,
   DealsRoute: DealsRoute,
   EventsRoute: EventsRoute,
   EventsOldRoute: EventsOldRoute,
+  TasksRoute: TasksRoute,
+  AdminDdFrameworkRoute: AdminDdFrameworkRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
   ContactsIdRoute: ContactsIdRoute,

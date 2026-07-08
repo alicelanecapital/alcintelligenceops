@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  ROUND_1, ROUND_2, ROUND_3, ROUND_4, ROUND_5,
-  MASTER_DOCUMENT_CHECKLIST, SECTOR_MODULES,
-  VERIFICATION_TRIANGLE
-} from '@/lib/dd-framework-data';
+import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
+import { fetchFrameworkRoundDetail } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
@@ -24,10 +22,20 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const roundData = [ROUND_1, ROUND_2, ROUND_3, ROUND_4, ROUND_5][round - 1] || ROUND_1;
-  const questions = roundData.questions;
+  // Questions and required documents are admin-editable (see /admin/dd-framework)
+  // and live in dd_framework_rounds/questions/documents rather than the old
+  // hardcoded dd-framework-data.ts arrays.
+  const framework = useQuery({ queryKey: ['dd-framework-round', round], queryFn: () => fetchFrameworkRoundDetail(round) });
+  const roundData = framework.data?.round;
+  const questions = (framework.data?.questions ?? []).map((q) => ({
+    number: q.sort_order,
+    question: q.question_text,
+    why: q.why_text ?? '',
+    internalSteps: q.internal_steps ?? [],
+    redFlags: q.red_flags ?? [],
+  }));
   const question = questions[currentQuestion];
-  const documents = MASTER_DOCUMENT_CHECKLIST.filter(d => d.round === round);
+  const documents = framework.data?.documents ?? [];
 
   // Every round needs its own dd_interviews row before responses/documents/analysis
   // can be saved against it (dd_round_responses.interview_id is a foreign key into
@@ -237,6 +245,22 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   // Sector-specific module
   const sectorModule = sector && SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES];
 
+  if (framework.isLoading || !roundData) {
+    return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
+  }
+
+  if (!question) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg">
+        <h1 className="text-3xl font-bold mb-2">{roundData.title}</h1>
+        <p className="text-gray-600 mb-6">{roundData.subtitle}</p>
+        <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+          No questions are configured for this round yet. Add some from <span className="font-semibold">Admin → DD Framework</span>.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg">
       {/* Header */}
@@ -311,7 +335,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           <p className="text-sm font-semibold text-gray-900 mb-3">📋 Related documents for this round:</p>
           <div className="grid grid-cols-2 gap-2">
             {documents.map(doc => (
-              <div key={doc.name} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+              <div key={doc.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
                 <input
                   type="checkbox"
                   className="mt-1"
@@ -396,7 +420,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
         <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist:</p>
         <div className="space-y-2">
-          {roundData.questions.slice(0, 4).map((q, idx) => (
+          {questions.slice(0, 4).map((q, idx) => (
             <label key={idx} className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" className="w-4 h-4" />
               <span className="text-sm text-gray-700">{q.internalSteps[0]}</span>

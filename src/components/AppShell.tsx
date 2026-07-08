@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, LogOut } from "lucide-react";
+import { LayoutDashboard, Calendar, CalendarDays, CheckSquare, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -8,8 +8,14 @@ const navGroups = [
   {
     label: "Overview",
     items: [
-      { to: "/", label: "Daily Briefing", icon: LayoutDashboard },
-      { to: "/analytics", label: "Pipeline Analytics", icon: BarChart3 },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Planning",
+    items: [
+      { to: "/calendar", label: "Calendar", icon: CalendarDays },
+      { to: "/tasks", label: "Tasks", icon: CheckSquare },
     ],
   },
   {
@@ -29,6 +35,12 @@ const navGroups = [
     items: [
       { to: "/interviews", label: "Meetings", icon: MessagesSquare },
       { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { to: "/admin/dd-framework", label: "DD Framework", icon: ShieldCheck },
     ],
   },
 ];

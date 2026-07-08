@@ -6,8 +6,11 @@ import { fetchDeals, fetchOrgs, fetchFounders, fetchContacts, fetchEvents, DEAL_
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
 export const Route = createFileRoute("/")({ component: () => <AppShell><Dashboard /></AppShell> });
+
+const COLORS = ["#0F766E", "#14B8A6", "#5EEAD4", "#94A3B8", "#334155"];
 
 function Dashboard() {
   const deals = useQuery({ queryKey: ["deals"], queryFn: fetchDeals });
@@ -20,10 +23,18 @@ function Dashboard() {
   const active = (deals.data ?? []).filter((d: any) => !["Funded","Portfolio","Passed"].includes(d.stage)).length;
   const highFit = (ecos.data ?? []).filter((o) => (o.fit_rating ?? "").toLowerCase().startsWith("high")).length;
 
+  const byStage = DEAL_STAGES.map((s) => ({ stage: s, count: (deals.data ?? []).filter((d: any) => d.stage === s).length }));
+  const sectorMap = new Map<string, number>();
+  (smes.data ?? []).forEach((o) => { const k = o.industry || "Uncategorised"; sectorMap.set(k, (sectorMap.get(k) ?? 0) + 1); });
+  const bySector = Array.from(sectorMap.entries()).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 8);
+
+  const conversionRate = `${Math.round(((deals.data ?? []).filter((d:any)=>d.stage==="Funded").length / Math.max(1, (deals.data ?? []).length))*100)}%`;
+  const avgDealsPerFounder = ((deals.data ?? []).length / Math.max(1, (founders.data ?? []).length)).toFixed(2);
+
   return (
     <div className="max-w-7xl mx-auto px-10 py-12">
       <PageHeader
-        eyebrow="Daily Briefing"
+        eyebrow="Dashboard"
         title="Good morning."
         description="A live snapshot of the Alice Lane origination engine — pipeline health, priority ecosystem plays and founders worth a call today."
       />
@@ -97,6 +108,45 @@ function Dashboard() {
               ))}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="font-serif text-2xl mb-4">Pipeline analytics</h2>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader><CardTitle className="font-serif text-xl">Deals by stage</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer><BarChart data={byStage}>
+                <XAxis dataKey="stage" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={80} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip /><Bar dataKey="count" fill="#0F766E" />
+              </BarChart></ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="font-serif text-xl">SME mix by sector</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer><PieChart>
+                <Pie data={bySector} dataKey="value" nameKey="name" outerRadius={90} label={{ fontSize: 11 }}>
+                  {bySector.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie><Tooltip />
+              </PieChart></ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid lg:grid-cols-3 gap-6 mt-6">
+          {[
+            { label: "Conversion rate", value: conversionRate, hint: "Funded / total" },
+            { label: "Avg deals per founder", value: avgDealsPerFounder },
+            { label: "SMEs in pipeline", value: smes.data?.length ?? 0 },
+          ].map(k => (
+            <Card key={k.label}><CardContent className="p-6">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{k.label}</div>
+              <div className="font-serif text-4xl mt-2">{k.value}</div>
+              {k.hint && <div className="text-xs text-muted-foreground mt-1">{k.hint}</div>}
+            </CardContent></Card>
+          ))}
+        </div>
       </div>
     </div>
   );

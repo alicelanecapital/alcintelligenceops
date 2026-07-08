@@ -12,11 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus } from "lucide-react";
+import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus, CheckCircle2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddContactDialog } from "@/routes/contacts.index";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/events")({ component: () => <AppShell><Events /></AppShell> });
 
@@ -37,6 +38,20 @@ function Events() {
   const [captureEventId, setCaptureEventId] = useState<string | null>(null);
   const [showAddContact, setShowAddContact] = useState(false);
   const handleCapture = (event: any) => { setCaptureEventId(event.id); setShowAddContact(true); };
+  const { user } = useAuth();
+
+  const bookMut = useMutation({
+    mutationFn: (event: any) => updateEvent(event.id, {
+      booked: !event.booked,
+      booked_by: !event.booked ? (user?.email ?? "Unknown") : null,
+      booked_at: !event.booked ? new Date().toISOString() : null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success("Booking status updated");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to update booking status"),
+  });
 
   const discover = useServerFn(discoverEvents);
 
@@ -101,7 +116,10 @@ function Events() {
     return new Date(date).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
   };
 
-  const formatCurrency = (amount: number) => `R${(amount ?? 0).toLocaleString("en-ZA")}`;
+  const formatCurrency = (amount: number | string) => {
+    const numeric = typeof amount === 'string' ? Number(amount.replace(/[^0-9.-]/g, '')) : amount;
+    return `R${(numeric || 0).toLocaleString('en-ZA')}`;
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
@@ -152,7 +170,7 @@ function Events() {
           <TabsContent value="SA" className="mt-4">
             {saEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -160,7 +178,7 @@ function Events() {
           <TabsContent value="Global" className="mt-4">
             {globalEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -271,11 +289,12 @@ interface EventsTableProps {
   onEdit: (event: any) => void;
   onDelete: (id: string) => void;
   onCapture: (event: any) => void;
+  onToggleBooked: (event: any) => void;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
 }
 
-function EventsTable({ events, onEdit, onDelete, onCapture, formatCurrency, formatDate }: EventsTableProps) {
+function EventsTable({ events, onEdit, onDelete, onCapture, onToggleBooked, formatCurrency, formatDate }: EventsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -325,6 +344,15 @@ function EventsTable({ events, onEdit, onDelete, onCapture, formatCurrency, form
                     <ExternalLink className="h-3 w-3 mr-1" /> Book
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant={e.booked ? "default" : "outline"}
+                  className={`h-8 text-xs ${e.booked ? "bg-green-600 hover:bg-green-700" : ""}`}
+                  title={e.booked ? `Booked by ${e.booked_by ?? "a team member"}` : "Mark as booked"}
+                  onClick={() => onToggleBooked(e)}
+                >
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> {e.booked ? "Booked" : "Mark booked"}
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => onEdit(e)}>
                   <Edit2 className="h-4 w-4" />
                 </Button>

@@ -50,6 +50,41 @@ export async function addFounderTask(founder_id: string, title: string, due?: st
   return data;
 }
 
+export async function fetchAllMeetings() {
+  const { data, error } = await supabase
+    .from("meetings")
+    .select("*, founder:founders(id, name), company:companies(id, name)")
+    .order("meeting_date", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchAllTasks() {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*, founder:founders(id, name), company:companies(id, name), opportunity:opportunities(id, name)")
+    .order("due_date", { ascending: true, nullsFirst: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createTask(payload: any) {
+  const { data, error } = await supabase.from("tasks").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTask(id: string, payload: any) {
+  const { data, error } = await supabase.from("tasks").update(payload).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteTask(id: string) {
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function addFounderMeeting(founder_id: string, payload: { title: string; meeting_date?: string; agenda?: string; summary?: string }) {
   const { data, error } = await supabase.from("meetings").insert({ founder_id, ...payload }).select().single();
   if (error) throw error;
