@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   ROUND_1, ROUND_2, ROUND_3, ROUND_4, ROUND_5,
@@ -8,6 +10,7 @@ import {
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
+  const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -16,6 +19,8 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [sectorConfidence, setSectorConfidence] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
+  const [interviewRowId, setInterviewRowId] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -23,6 +28,56 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const questions = roundData.questions;
   const question = questions[currentQuestion];
   const documents = MASTER_DOCUMENT_CHECKLIST.filter(d => d.round === round);
+
+  // Every round needs its own dd_interviews row before responses/documents/analysis
+  // can be saved against it (dd_round_responses.interview_id is a foreign key into
+  // dd_interviews, not opportunities). Get-or-create it on mount for this opportunity+round.
+  useEffect(() => {
+    let cancelled = false;
+    setInterviewRowId(null);
+    setCurrentQuestion(0);
+    setTranscript('');
+    setAiAnalysis(null);
+
+    (async () => {
+      const { data: existing, error: findError } = await supabase
+        .from('dd_interviews')
+        .select('id, status, transcript, ai_analysis, detected_sector, sector_confidence')
+        .eq('opportunity_id', opportunityId)
+        .eq('round', round)
+        .maybeSingle();
+      if (findError) {
+        toast.error('Failed to load this round: ' + findError.message);
+        return;
+      }
+
+      if (existing) {
+        if (!cancelled) {
+          setInterviewRowId(existing.id);
+          if (existing.transcript) setTranscript(existing.transcript);
+          if (existing.ai_analysis) setAiAnalysis(existing.ai_analysis);
+          if (existing.detected_sector) {
+            setSector(existing.detected_sector);
+            setSectorConfidence(existing.sector_confidence ? Math.round(existing.sector_confidence) : 0);
+          }
+        }
+        return;
+      }
+
+      const { data: created, error: createError } = await supabase
+        .from('dd_interviews')
+        .insert({ opportunity_id: opportunityId, round, status: 'in_progress', started_at: new Date().toISOString() })
+        .select('id')
+        .single();
+      if (createError) {
+        toast.error('Failed to start this round: ' + createError.message);
+        return;
+      }
+      if (!cancelled) setInterviewRowId(created.id);
+    })();
+
+    return () => { cancelled = true; };
+  }, [opportunityId, round]);
 
   // Start recording
   const startRecording = async () => {
@@ -51,6 +106,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       }, 1000);
     } catch (error) {
       console.error('Failed to start recording:', error);
+      toast.error('Could not access the microphone.');
     }
   };
 
@@ -86,43 +142,65 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         const detection = await detectSector({ data: { responses: [text] } });
         setSector(detection.sector);
         setSectorConfidence(detection.confidence);
+        if (interviewRowId && detection.sector) {
+          await supabase.from('dd_interviews').update({
+            detected_sector: detection.sector,
+            sector_confidence: detection.confidence,
+          }).eq('id', interviewRowId);
+        }
       }
     } catch (error) {
       console.error('Transcription failed:', error);
+      toast.error('Transcription failed.');
     }
   };
 
   // Generate AI analysis
   const generateAnalysis = async () => {
+    if (!interviewRowId) {
+      toast.error('This round is still loading — try again in a moment.');
+      return;
+    }
     try {
       const analysis = await generateAnalysisReport({
         data: {
-          interviewId: opportunityId,
+          interviewId: interviewRowId,
           transcript,
           sector: sector || 'Unknown',
           round
         }
       });
       setAiAnalysis(analysis);
-    } catch (error) {
+      await supabase.from('dd_interviews').update({ ai_analysis: analysis }).eq('id', interviewRowId);
+    } catch (error: any) {
       console.error('Analysis generation failed:', error);
+      toast.error('Analysis generation failed: ' + (error?.message ?? 'unknown error'));
     }
   };
 
   // Save response
   const saveResponse = async () => {
-    try {
-      await supabase.from('dd_round_responses').insert({
-        interview_id: opportunityId,
-        question_number: currentQuestion + 1,
-        question_text: question.question,
-        founder_response: transcript,
-        response_type: 'transcribed',
-        response_source: 'transcript'
-      });
-    } catch (error) {
-      console.error('Failed to save response:', error);
+    if (!interviewRowId) {
+      toast.error('This round is still loading — try again in a moment.');
+      return;
     }
+    const { error } = await supabase.from('dd_round_responses').upsert({
+      interview_id: interviewRowId,
+      question_number: currentQuestion + 1,
+      question_text: question.question,
+      founder_response: transcript,
+      response_type: 'transcribed',
+      response_source: 'transcript'
+    }, { onConflict: 'interview_id,question_number' });
+
+    if (error) {
+      console.error('Failed to save response:', error);
+      toast.error('Failed to save response: ' + error.message);
+      return;
+    }
+
+    await supabase.from('dd_interviews').update({ transcript }).eq('id', interviewRowId);
+    toast.success('Response saved');
   };
 
   // Format time display
@@ -130,6 +208,30 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Advance to the next round (or finish, on round 5)
+  const handleAdvance = async () => {
+    if (!interviewRowId) return;
+    setAdvancing(true);
+    try {
+      await supabase.from('dd_interviews').update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      }).eq('id', interviewRowId);
+
+      if (round < 5) {
+        toast.success(`Round ${round} complete`);
+        navigate({ to: `/dd-interview/${opportunityId}/${round + 1}` });
+      } else {
+        toast.success('Due diligence complete for all 5 rounds');
+        navigate({ to: '/dd-engine' });
+      }
+    } catch (error: any) {
+      toast.error('Failed to advance: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setAdvancing(false);
+    }
   };
 
   // Sector-specific module
@@ -269,13 +371,15 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         <div className="flex gap-3 mt-6">
           <button
             onClick={saveResponse}
-            className="px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+            disabled={!interviewRowId}
+            className="px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Response
           </button>
           <button
             onClick={generateAnalysis}
-            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+            disabled={!interviewRowId}
+            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Analyze
           </button>
@@ -366,8 +470,12 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           ) : (
             <div className="p-4 bg-green-100 border border-green-300 rounded">
               <p className="text-green-900 font-semibold">✅ Clear to proceed to next round</p>
-              <button className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700">
-                Continue to Round {round + 1}
+              <button
+                onClick={handleAdvance}
+                disabled={!interviewRowId || advancing}
+                className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {advancing ? 'Saving…' : round < 5 ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
               </button>
             </div>
           )}

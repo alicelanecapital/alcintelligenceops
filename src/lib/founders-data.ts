@@ -90,9 +90,19 @@ export async function fetchCompanyProfile(id: string) {
     supabase.from("investments").select("*").eq("company_id", id),
   ]);
   if (company.error) throw company.error;
+  const founderRows = (founders.data ?? []).map((x: any) => x.founder).filter(Boolean);
+  // Founders no longer have their own profile route -- contacts is the current
+  // unified model. Look up each founder's corresponding contact (migrated via
+  // legacy_founder_id) so callers can link to /contacts/ instead.
+  const founderIds = founderRows.map((f: any) => f.id);
+  const contactLinks = founderIds.length
+    ? await supabase.from("contacts").select("id, legacy_founder_id").in("legacy_founder_id", founderIds)
+    : { data: [] };
+  const contactIdByFounderId = new Map((contactLinks.data ?? []).map((c: any) => [c.legacy_founder_id, c.id]));
+  const foundersWithContact = founderRows.map((f: any) => ({ ...f, contact_id: contactIdByFounderId.get(f.id) ?? null }));
   return {
     company: company.data,
-    founders: (founders.data ?? []).map((x: any) => x.founder).filter(Boolean),
+    founders: foundersWithContact,
     meetings: meetings.data ?? [], notes: notes.data ?? [], tasks: tasks.data ?? [], documents: docs.data ?? [],
     opportunities: opps.data ?? [], investments: investments.data ?? [],
   };

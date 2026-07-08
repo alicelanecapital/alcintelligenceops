@@ -84,7 +84,9 @@ export function CompanyProfile() {
         </TabsContent>
         <TabsContent value="founders">
           <div className="grid md:grid-cols-2 gap-3">{founders.map((f: any) => f && (
-            <Link key={f.id} to="/founders/$id" params={{ id: f.id }}><Card><CardContent className="p-4"><div className="font-medium">{f.name}</div><div className="text-xs text-muted-foreground">{f.sector}</div></CardContent></Card></Link>
+            f.contact_id
+              ? <Link key={f.id} to="/contacts/$id" params={{ id: f.contact_id }}><Card><CardContent className="p-4"><div className="font-medium">{f.name}</div><div className="text-xs text-muted-foreground">{f.sector}</div></CardContent></Card></Link>
+              : <Card key={f.id}><CardContent className="p-4"><div className="font-medium">{f.name}</div><div className="text-xs text-muted-foreground">{f.sector}</div></CardContent></Card>
           ))}</div>
         </TabsContent>
         <TabsContent value="meetings"><Simple items={meetings} render={(m: any) => `${m.title ?? "Meeting"} — ${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString() : ""}`} /></TabsContent>
