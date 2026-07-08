@@ -47,7 +47,7 @@ function DDEngine() {
   };
 
   const handleBeginWizard = (oppId: string) => {
-    navigate({ to: `/dd-engine/wizard/${oppId}` });
+    navigate({ to: `/dd-interview/${oppId}/1` });
   };
 
   return (
