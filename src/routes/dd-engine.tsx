@@ -1,13 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { fetchOpportunitiesWithDDStatus } from "@/lib/founders-data";
+import { fetchOpportunitiesWithDDStatus, createOpportunity } from "@/lib/founders-data";
+import { fetchFounders } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Play, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
@@ -35,7 +41,7 @@ function DDEngine() {
         eyebrow="Diligence"
         title="Due Diligence"
         description="Founder interviews guided by the 5-round due diligence framework."
-        actions={<Button className="bg-primary text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4 mr-2" /> Add Opportunity</Button>}
+        actions={<AddOpportunity />}
       />
 
       <div className="grid md:grid-cols-2 gap-4 mt-6">
@@ -81,5 +87,78 @@ function DDEngine() {
         )}
       </div>
     </div>
+  );
+}
+
+function AddOpportunity() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [founderId, setFounderId] = useState<string>("");
+  const [name, setName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders, enabled: open });
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createOpportunity({
+        name,
+        founder_id: founderId || null,
+        industry: industry || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      toast.success("Opportunity added");
+      setOpen(false);
+      setFounderId("");
+      setName("");
+      setIndustry("");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to add opportunity"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+          <Plus className="h-4 w-4 mr-2" /> Add Opportunity
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">New opportunity</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Existing founder (optional)</Label>
+            <select
+              value={founderId}
+              onChange={(e) => {
+                setFounderId(e.target.value);
+                const f = (founders.data ?? []).find((x: any) => x.id === e.target.value);
+                if (f && !name) { setName(f.startup_name ?? f.name ?? ""); setIndustry(f.sector ?? ""); }
+              }}
+              className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">— Start blank —</option>
+              {(founders.data ?? []).map((f: any) => (
+                <option key={f.id} value={f.id}>{f.name} · {f.startup_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Opportunity name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Acme Software" />
+          </div>
+          <div>
+            <Label>Industry</Label>
+            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !name.trim()}>
+            {createMut.isPending ? "Adding…" : "Add opportunity"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
