@@ -27,8 +27,8 @@ const navGroups = [
   {
     label: "Due Diligence Engine",
     items: [
-      { to: "/dd-engine", label: "Pipeline", icon: Kanban },
-      { to: "/interviews", label: "Interviews", icon: MessagesSquare },
+      { to: "/interviews", label: "Meetings", icon: MessagesSquare },
+      { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
     ],
   },
 ];

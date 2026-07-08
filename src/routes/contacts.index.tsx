@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchContacts, createContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
+import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/contacts/")({
@@ -78,14 +80,16 @@ function ContactsIndex() {
 }
 
 function ContactCard({ c }: { c: ContactRow }) {
+  const primary = c.company || c.name;
+  const secondary = c.company ? c.name : c.position;
   return (
     <Link to="/contacts/$id" params={{ id: c.id }}>
       <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
         <CardContent className="p-5 space-y-2">
           <div className="flex items-start justify-between">
             <div>
-              <div className="font-serif text-lg leading-tight">{c.name}</div>
-              {c.company && <div className="text-xs text-muted-foreground">{c.company}{c.position ? ` · ${c.position}` : ""}</div>}
+              <div className="font-serif text-lg leading-tight">{primary}</div>
+              {secondary && <div className="text-xs text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
             </div>
             <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
           </div>
@@ -113,6 +117,8 @@ function AddContactDialog({ open, onClose, defaultEventId }: { open: boolean; on
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
   const [form, setForm] = useState<any>({ category: "founder" });
+  const generateDescription = useServerFn(generateCompanyDescription);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   const m = useMutation({
     mutationFn: () => createContact({ ...form, source_event_id: form.source_event_id || defaultEventId || null, date_met: form.date_met || new Date().toISOString().slice(0, 10) }),
@@ -124,6 +130,22 @@ function AddContactDialog({ open, onClose, defaultEventId }: { open: boolean; on
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to add"),
   });
+
+  async function handleGenerateDescription() {
+    if (!form.company?.trim()) {
+      toast.error("Enter a company name first");
+      return;
+    }
+    setGeneratingDescription(true);
+    try {
+      const { description } = await generateDescription({ data: { company: form.company, website: form.website, position: form.position } });
+      setForm((f: any) => ({ ...f, company_description: description }));
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to generate description");
+    } finally {
+      setGeneratingDescription(false);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -151,6 +173,28 @@ function AddContactDialog({ open, onClose, defaultEventId }: { open: boolean; on
             </select>
           </Field>
           <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setForm({ ...form, date_met: e.target.value })} /></Field>
+          <div className="col-span-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Company description</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={handleGenerateDescription}
+                disabled={generatingDescription || !form.company?.trim()}
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                {generatingDescription ? "Generating…" : "Generate with AI"}
+              </Button>
+            </div>
+            <textarea
+              className="w-full min-h-[70px] px-3 py-2 border rounded-md text-sm bg-background mt-1"
+              value={form.company_description ?? ""}
+              onChange={(e) => setForm({ ...form, company_description: e.target.value })}
+              placeholder="What does this company do?"
+            />
+          </div>
           <div className="col-span-2">
             <Label className="text-sm">Notes</Label>
             <textarea className="w-full min-h-[80px] px-3 py-2 border rounded-md text-sm bg-background" value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

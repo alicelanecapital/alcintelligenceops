@@ -23,7 +23,7 @@ const SCORING_CATEGORIES = [
 
 const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
   "opportunistic": { bg: "bg-blue-100", text: "text-blue-800" },
-  "priority": { bg: "bg-purple-100", text: "text-purple-800" },
+  "priority": { bg: "bg-orange-100", text: "text-orange-800" },
   "attend": { bg: "bg-green-100", text: "text-green-800" },
   "selective": { bg: "bg-amber-100", text: "text-amber-800" },
 };

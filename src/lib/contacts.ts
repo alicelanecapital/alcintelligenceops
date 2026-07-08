@@ -14,6 +14,7 @@ export type ContactRow = {
   website: string | null;
   notes: string | null;
   ai_summary: string | null;
+  company_description: string | null;
   relationship_score: number | null;
   last_interaction_at: string | null;
   status: string | null;

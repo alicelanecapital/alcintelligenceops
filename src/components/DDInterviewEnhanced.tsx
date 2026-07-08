@@ -228,8 +228,8 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         </div>
 
         {/* Verification Triangle */}
-        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded">
-          <p className="text-sm font-semibold text-purple-900 mb-3">🔍 Verification Triangle:</p>
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
+          <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
           <div className="grid grid-cols-3 gap-4">
             {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
               <div key={idx} className="text-center">
@@ -238,12 +238,12 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
                   {source.name === 'Documents' && '📄'}
                   {source.name === 'Independent Observation' && '🔎'}
                 </div>
-                <p className="text-xs font-semibold text-purple-900">{source.name}</p>
-                <p className="text-xs text-purple-700 mt-1">{source.description}</p>
+                <p className="text-xs font-semibold text-orange-900">{source.name}</p>
+                <p className="text-xs text-orange-700 mt-1">{source.description}</p>
               </div>
             ))}
           </div>
-          <p className="text-xs text-purple-700 mt-3 text-center">
+          <p className="text-xs text-orange-700 mt-3 text-center">
             ✅ Every claim requires validation from all 3 sources
           </p>
         </div>
@@ -275,7 +275,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           </button>
           <button
             onClick={generateAnalysis}
-            className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
           >
             Analyze
           </button>
@@ -337,16 +337,16 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
 
           {/* Voice Analysis */}
           {aiAnalysis.voiceAnalysis && (
-            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded">
-              <p className="text-sm font-semibold text-purple-900 mb-3">🎙️ Voice Analysis:</p>
+            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
+              <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Analysis:</p>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-purple-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
-                  <p className="text-purple-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
+                  <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
+                  <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
                 </div>
                 <div>
-                  <p className="text-purple-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> markers</p>
-                  <p className="text-purple-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
+                  <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> markers</p>
+                  <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
                 </div>
               </div>
             </div>

@@ -3,7 +3,7 @@ export const BADGE_COLORS: Record<string, { bg: string; text: string; border: st
   // Event scoring categories
   "Cost": { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-300" },
   "Deal Flow": { bg: "bg-green-100", text: "text-green-800", border: "border-green-300" },
-  "Investor Access": { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-300" },
+  "Investor Access": { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300" },
   "Strategic Partnerships": { bg: "bg-pink-100", text: "text-pink-800", border: "border-pink-300" },
   "Government Access": { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-300" },
   "Market Intelligence": { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300" },

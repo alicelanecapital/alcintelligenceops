@@ -23,7 +23,7 @@ function InterviewsIndex() {
     <div className="max-w-6xl mx-auto px-10 py-12">
       <PageHeader
         eyebrow="Diagnostic Engine"
-        title="Interviews"
+        title="Meetings"
         description="Founder meetings recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
         actions={<NewInterview />}
       />
@@ -48,7 +48,7 @@ function InterviewsIndex() {
         ))}
         {q.isSuccess && !q.data?.length && (
           <div className="col-span-full rounded-lg border border-dashed border-border p-12 text-center bg-card">
-            <div className="font-serif text-xl">No interviews yet</div>
+            <div className="font-serif text-xl">No meetings yet</div>
             <p className="text-sm text-muted-foreground mt-2">Start your first founder meeting to build the memo.</p>
           </div>
         )}
@@ -92,9 +92,9 @@ function NewInterview() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button>Start interview</Button></DialogTrigger>
+      <DialogTrigger asChild><Button>Start meeting</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif text-2xl">New founder interview</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">New founder meeting</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
             <Label>Existing founder (optional)</Label>

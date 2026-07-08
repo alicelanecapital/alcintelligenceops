@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,12 +16,13 @@ import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus } from "lucide-re
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AddContactDialog } from "@/routes/contacts.index";
 
 export const Route = createFileRoute("/events")({ component: () => <AppShell><Events /></AppShell> });
 
 const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
   opportunistic: { bg: "bg-blue-100", text: "text-blue-800" },
-  priority: { bg: "bg-purple-100", text: "text-purple-800" },
+  priority: { bg: "bg-orange-100", text: "text-orange-800" },
   attend: { bg: "bg-green-100", text: "text-green-800" },
   selective: { bg: "bg-amber-100", text: "text-amber-800" },
 };
@@ -33,6 +34,9 @@ function Events() {
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [region, setRegion] = useState<"SA" | "Global">("SA");
+  const [captureEventId, setCaptureEventId] = useState<string | null>(null);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const handleCapture = (event: any) => { setCaptureEventId(event.id); setShowAddContact(true); };
 
   const discover = useServerFn(discoverEvents);
 
@@ -148,7 +152,7 @@ function Events() {
           <TabsContent value="SA" className="mt-4">
             {saEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -156,7 +160,7 @@ function Events() {
           <TabsContent value="Global" className="mt-4">
             {globalEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -242,6 +246,12 @@ function Events() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AddContactDialog
+        open={showAddContact}
+        onClose={() => setShowAddContact(false)}
+        defaultEventId={captureEventId ?? undefined}
+      />
     </div>
   );
 }
@@ -260,11 +270,12 @@ interface EventsTableProps {
   events: any[];
   onEdit: (event: any) => void;
   onDelete: (id: string) => void;
+  onCapture: (event: any) => void;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
 }
 
-function EventsTable({ events, onEdit, onDelete, formatCurrency, formatDate }: EventsTableProps) {
+function EventsTable({ events, onEdit, onDelete, onCapture, formatCurrency, formatDate }: EventsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -306,11 +317,9 @@ function EventsTable({ events, onEdit, onDelete, formatCurrency, formatDate }: E
             </TableCell>
             <TableCell className="text-right">
               <div className="flex gap-1 justify-end">
-                <Link to="/contacts" search={{}}>
-                  <Button size="sm" variant="outline" className="h-8 text-xs" title={`Capture contacts from ${e.name}`}>
-                    <UserPlus className="h-3 w-3 mr-1" /> Capture
-                  </Button>
-                </Link>
+                <Button size="sm" variant="outline" className="h-8 text-xs" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
+                  <UserPlus className="h-3 w-3 mr-1" /> Add
+                </Button>
                 {e.website && (
                   <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => window.open(e.website, '_blank')}>
                     <ExternalLink className="h-3 w-3 mr-1" /> Book
