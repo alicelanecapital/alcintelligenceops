@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
 import { fetchFrameworkRoundDetail } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
+import { useServerFn } from '@tanstack/react-start';
+import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
   const navigate = useNavigate();
@@ -19,8 +21,14 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
   const [interviewRowId, setInterviewRowId] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
+  const [uploadChannel, setUploadChannel] = useState<{ dedicated_email: string } | null>(null);
+  const [receivedDocs, setReceivedDocs] = useState<any[]>([]);
+  const [syncingDocs, setSyncingDocs] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const getOrCreateChannelFn = useServerFn(getOrCreateUploadChannel);
+  const syncDocsFn = useServerFn(syncUploadChannelDocuments);
+  const getSignedUrlFn = useServerFn(getSignedDocumentUrl);
 
   // Questions and required documents are admin-editable (see /admin/dd-framework)
   // and live in dd_framework_rounds/questions/documents rather than the old
@@ -242,6 +250,60 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     }
   };
 
+  // Load (or create) the dedicated email upload channel for this opportunity,
+  // and the documents already received through it, once the round is ready.
+  useEffect(() => {
+    if (!interviewRowId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const channel = await getOrCreateChannelFn({ data: { opportunityId } });
+        if (!cancelled) setUploadChannel(channel);
+      } catch (error: any) {
+        console.error('Failed to load upload channel:', error);
+      }
+      const { data: docs } = await supabase
+        .from('dd_interview_documents')
+        .select('*')
+        .eq('interview_id', interviewRowId)
+        .order('uploaded_at', { ascending: false });
+      if (!cancelled) setReceivedDocs(docs ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, [interviewRowId, opportunityId]);
+
+  const handleSyncDocuments = async () => {
+    if (!interviewRowId) return;
+    setSyncingDocs(true);
+    try {
+      const result = await syncDocsFn({ data: { opportunityId, interviewId: interviewRowId, round } });
+      if (result.reason === 'not_connected') {
+        toast.error('Connect a Google account on the Calendar page first to enable email document sync.');
+      } else {
+        toast.success(`${result.imported} new document${result.imported === 1 ? '' : 's'} imported`);
+        const { data: docs } = await supabase
+          .from('dd_interview_documents')
+          .select('*')
+          .eq('interview_id', interviewRowId)
+          .order('uploaded_at', { ascending: false });
+        setReceivedDocs(docs ?? []);
+      }
+    } catch (error: any) {
+      toast.error('Failed to check for new documents: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setSyncingDocs(false);
+    }
+  };
+
+  const openDocument = async (doc: any) => {
+    try {
+      const { url } = await getSignedUrlFn({ data: { storagePath: doc.file_url } });
+      window.open(url, '_blank');
+    } catch (error: any) {
+      toast.error('Failed to open document: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
   // Sector-specific module
   const sectorModule = sector && SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES];
 
@@ -351,6 +413,48 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Email Upload Channel */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+          <p className="text-sm font-semibold text-blue-900 mb-2">📧 Email documents in:</p>
+          {uploadChannel ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+                className="text-xs text-blue-700 underline"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncDocuments}
+                disabled={syncingDocs}
+                className="ml-auto px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {syncingDocs ? 'Checking…' : 'Check for new documents'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-blue-700">Loading upload address…</p>
+          )}
+          {receivedDocs.length > 0 && (
+            <div className="mt-3 space-y-1">
+              {receivedDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => openDocument(doc)}
+                  className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
+                >
+                  <span>{doc.file_name}</span>
+                  <span className="text-blue-600">View</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Verification Triangle */}

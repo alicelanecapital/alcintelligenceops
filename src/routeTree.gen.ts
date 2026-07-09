@@ -28,6 +28,7 @@ import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
+import { Route as AuthGoogleCallbackRouteImport } from './routes/auth.google.callback'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -125,10 +126,15 @@ const DdInterviewOpportunityIdRoundRoute =
     path: '/dd-interview/$opportunityId/$round',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthGoogleCallbackRoute = AuthGoogleCallbackRouteImport.update({
+  id: '/google/callback',
+  path: '/google/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
@@ -145,11 +151,12 @@ export interface FileRoutesByFullPath {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
@@ -166,12 +173,13 @@ export interface FileRoutesByTo {
   '/contacts': typeof ContactsIndexRoute
   '/interviews': typeof InterviewsIndexRoute
   '/opportunities': typeof OpportunitiesIndexRoute
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/calendar': typeof CalendarRoute
   '/dd-engine': typeof DdEngineRoute
   '/deals': typeof DealsRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
 export interface FileRouteTypes {
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
+    | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/interviews'
     | '/opportunities'
+    | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   id:
     | '__root__'
@@ -253,12 +264,13 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
+    | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   CalendarRoute: typeof CalendarRoute
   DdEngineRoute: typeof DdEngineRoute
   DealsRoute: typeof DealsRoute
@@ -413,12 +425,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DdInterviewOpportunityIdRoundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/google/callback': {
+      id: '/auth/google/callback'
+      path: '/google/callback'
+      fullPath: '/auth/google/callback'
+      preLoaderRoute: typeof AuthGoogleCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthGoogleCallbackRoute: typeof AuthGoogleCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthGoogleCallbackRoute: AuthGoogleCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   CalendarRoute: CalendarRoute,
   DdEngineRoute: DdEngineRoute,
   DealsRoute: DealsRoute,

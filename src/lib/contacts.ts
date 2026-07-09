@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type ContactCategory = "founder" | "investor" | "ecosystem" | "vendor";
+export type ContactCategory = "founder" | "investor" | "ecosystem" | "vendor" | "unknown";
 
 export type ContactRow = {
   id: string;
@@ -33,6 +33,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   investor: "Investor",
   ecosystem: "Ecosystem",
   vendor: "Vendor",
+  unknown: "Unknown",
 };
 
 export const CATEGORY_OPTIONS = [
@@ -40,6 +41,7 @@ export const CATEGORY_OPTIONS = [
   { value: "investor", label: "Investor" },
   { value: "ecosystem", label: "Ecosystem" },
   { value: "vendor", label: "Vendor" },
+  { value: "unknown", label: "Unknown" },
 ];
 
 export async function fetchContacts(category?: string) {

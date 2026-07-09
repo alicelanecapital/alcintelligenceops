@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddContactDialog } from "@/routes/contacts.index";
 import { useAuth } from "@/lib/auth";
+import { checkEventBookedInCalendar } from "@/lib/calendar-sync.functions";
 
 export const Route = createFileRoute("/events")({ component: () => <AppShell><Events /></AppShell> });
 
@@ -51,6 +52,18 @@ function Events() {
       toast.success("Booking status updated");
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to update booking status"),
+  });
+
+  const checkCalendarFn = useServerFn(checkEventBookedInCalendar);
+  const checkCalendarMut = useMutation({
+    mutationFn: (event: any) => checkCalendarFn({ data: { eventId: event.id, eventName: event.name, startDate: event.start_date, endDate: event.end_date } }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      if (result.booked) toast.success(`Found "${result.matchedTitle}" on your calendar — marked booked`);
+      else if (result.reason === "not_connected") toast.error("Connect your Google account on the Calendar page first");
+      else toast("No matching calendar event found yet");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to check calendar"),
   });
 
   const discover = useServerFn(discoverEvents);
@@ -170,7 +183,7 @@ function Events() {
           <TabsContent value="SA" className="mt-4">
             {saEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={saEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} onCheckCalendar={(e) => checkCalendarMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -178,7 +191,7 @@ function Events() {
           <TabsContent value="Global" className="mt-4">
             {globalEvents.length === 0 ? <EmptyState /> : (
               <div className="rounded-lg border border-border bg-card">
-                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
+                <EventsTable events={globalEvents} onEdit={(e) => { setEditingEvent(e); setShowEditModal(true); }} onDelete={(id) => deleteMut.mutate(id)} onCapture={handleCapture} onToggleBooked={(e) => bookMut.mutate(e)} onCheckCalendar={(e) => checkCalendarMut.mutate(e)} formatCurrency={formatCurrency} formatDate={formatDate} />
               </div>
             )}
           </TabsContent>
@@ -290,11 +303,12 @@ interface EventsTableProps {
   onDelete: (id: string) => void;
   onCapture: (event: any) => void;
   onToggleBooked: (event: any) => void;
+  onCheckCalendar: (event: any) => void;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
 }
 
-function EventsTable({ events, onEdit, onDelete, onCapture, onToggleBooked, formatCurrency, formatDate }: EventsTableProps) {
+function EventsTable({ events, onEdit, onDelete, onCapture, onToggleBooked, onCheckCalendar, formatCurrency, formatDate }: EventsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -348,11 +362,22 @@ function EventsTable({ events, onEdit, onDelete, onCapture, onToggleBooked, form
                   size="sm"
                   variant={e.booked ? "default" : "outline"}
                   className={`h-8 text-xs ${e.booked ? "bg-green-600 hover:bg-green-700" : ""}`}
-                  title={e.booked ? `Booked by ${e.booked_by ?? "a team member"}` : "Mark as booked"}
+                  title={e.booked ? `Booked by ${e.booked_by ?? "a team member"}` : "Mark as booked manually"}
                   onClick={() => onToggleBooked(e)}
                 >
                   <CheckCircle2 className="h-3 w-3 mr-1" /> {e.booked ? "Booked" : "Mark booked"}
                 </Button>
+                {!e.booked && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    title="Check your connected Google Calendar for a matching event"
+                    onClick={() => onCheckCalendar(e)}
+                  >
+                    Check calendar
+                  </Button>
+                )}
                 <Button size="icon" variant="ghost" onClick={() => onEdit(e)}>
                   <Edit2 className="h-4 w-4" />
                 </Button>

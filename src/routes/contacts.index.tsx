@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchContacts, createContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
 import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/contacts/")({
@@ -25,6 +27,8 @@ function ContactsIndex() {
   const [category, setCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scannedForm, setScannedForm] = useState<any | null>(null);
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
 
   const filtered = useMemo(() => {
@@ -42,9 +46,14 @@ function ContactsIndex() {
         title="Contacts"
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Add contact
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setScanOpen(true)}>
+              <Camera className="h-4 w-4 mr-1" /> Scan business card
+            </Button>
+            <Button onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add contact
+            </Button>
+          </div>
         }
       />
 
@@ -75,6 +84,20 @@ function ContactsIndex() {
       </div>
 
       <AddContactDialog open={addOpen} onClose={() => setAddOpen(false)} />
+
+      <ScanBusinessCardDialog
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onExtracted={(form) => { setScannedForm(form); setScanOpen(false); }}
+      />
+
+      {scannedForm && (
+        <AddContactDialog
+          open={!!scannedForm}
+          onClose={() => setScannedForm(null)}
+          initialForm={scannedForm}
+        />
+      )}
     </div>
   );
 }
@@ -113,12 +136,182 @@ function ContactCard({ c }: { c: ContactRow }) {
   );
 }
 
-function AddContactDialog({ open, onClose, defaultEventId }: { open: boolean; onClose: () => void; defaultEventId?: string }) {
+function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean; onClose: () => void; onExtracted: (form: any) => void }) {
+  const [mode, setMode] = useState<"choose" | "camera" | "preview">("choose");
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const extract = useServerFn(extractBusinessCard);
+
+  useEffect(() => {
+    if (!open) {
+      stopCamera();
+      setMode("choose");
+      setCapturedDataUrl(null);
+      setExtracting(false);
+    }
+  }, [open]);
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      setMode("camera");
+      // video element renders on next tick once mode switches
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 0);
+    } catch (e: any) {
+      toast.error("Could not access the camera: " + (e?.message ?? "permission denied"));
+    }
+  }
+
+  function captureFromVideo() {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx?.drawImage(video, 0, 0);
+    setCapturedDataUrl(canvas.toDataURL("image/jpeg", 0.9));
+    stopCamera();
+    setMode("preview");
+  }
+
+  function handleFileChosen(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCapturedDataUrl(reader.result as string);
+      setMode("preview");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleUseThisPhoto() {
+    if (!capturedDataUrl) return;
+    setExtracting(true);
+    try {
+      const base64 = capturedDataUrl.split(",")[1];
+      const mimeType = capturedDataUrl.substring(5, capturedDataUrl.indexOf(";"));
+
+      // Save the photo for the record, best-effort (extraction proceeds even if this fails)
+      try {
+        const fileName = `card-${Date.now()}.jpg`;
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        await supabase.storage.from("business-cards").upload(fileName, bytes, { contentType: mimeType || "image/jpeg" });
+      } catch {
+        // non-fatal
+      }
+
+      const result: ExtractedBusinessCard = await extract({ data: { imageBase64: base64, mimeType: mimeType || "image/jpeg" } });
+
+      if (!result.name && !result.company && !result.email) {
+        toast.error("Couldn't read that card clearly — try again with better lighting, or add the contact manually.");
+        setExtracting(false);
+        return;
+      }
+
+      if (result.category === "unknown") {
+        toast(`Couldn't confidently tell what kind of contact this is (${result.categoryReasoning || "low confidence"}) — filed under Unknown for you to assign.`);
+      } else {
+        toast.success(`Looks like a ${result.category} (${result.categoryConfidence}% confidence)`);
+      }
+
+      onExtracted({
+        name: result.name ?? "",
+        company: result.company ?? "",
+        position: result.position ?? "",
+        email: result.email ?? "",
+        phone: result.phone ?? "",
+        website: result.website ?? "",
+        linkedin: result.linkedin ?? "",
+        category: result.category,
+      });
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to read the card");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Scan business card</DialogTitle></DialogHeader>
+
+        {mode === "choose" && (
+          <div className="grid grid-cols-2 gap-3 py-4">
+            <button
+              onClick={startCamera}
+              className="flex flex-col items-center justify-center gap-2 border rounded-lg p-6 hover:bg-muted/40 transition-colors"
+            >
+              <Camera className="h-8 w-8 text-primary" />
+              <span className="text-sm font-medium">Use camera</span>
+              <span className="text-xs text-muted-foreground text-center">Laptop webcam or phone camera</span>
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2 border rounded-lg p-6 hover:bg-muted/40 transition-colors"
+            >
+              <Upload className="h-8 w-8 text-primary" />
+              <span className="text-sm font-medium">Upload photo</span>
+              <span className="text-xs text-muted-foreground text-center">Choose an existing image</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileChosen(f); }}
+            />
+          </div>
+        )}
+
+        {mode === "camera" && (
+          <div className="space-y-3">
+            <video ref={videoRef} autoPlay playsInline className="w-full rounded-md bg-black" />
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => { stopCamera(); setMode("choose"); }}>Cancel</Button>
+              <Button onClick={captureFromVideo}><Camera className="h-4 w-4 mr-1" /> Capture</Button>
+            </div>
+          </div>
+        )}
+
+        {mode === "preview" && capturedDataUrl && (
+          <div className="space-y-3">
+            <img src={capturedDataUrl} alt="Captured business card" className="w-full rounded-md border" />
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => { setCapturedDataUrl(null); setMode("choose"); }} disabled={extracting}>
+                <RotateCcw className="h-4 w-4 mr-1" /> Retake
+              </Button>
+              <Button onClick={handleUseThisPhoto} disabled={extracting}>
+                {extracting ? "Reading card…" : "Use this photo"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const [form, setForm] = useState<any>({ category: "founder" });
+  const [form, setForm] = useState<any>(initialForm ?? { category: "founder" });
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(initialForm ?? { category: "founder" });
+  }, [open, initialForm]);
 
   const m = useMutation({
     mutationFn: () => createContact({ ...form, source_event_id: form.source_event_id || defaultEventId || null, date_met: form.date_met || new Date().toISOString().slice(0, 10) }),
@@ -151,7 +344,7 @@ function AddContactDialog({ open, onClose, defaultEventId }: { open: boolean; on
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add contact</DialogTitle>
+          <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Name*"><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>

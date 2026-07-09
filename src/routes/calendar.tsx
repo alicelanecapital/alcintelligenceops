@@ -1,13 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
+import { getGoogleConnectionStatus, disconnectGoogle, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, LinkIcon, Unlink } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameMonth, isSameDay, addMonths, subMonths, format, parseISO,
@@ -22,6 +26,67 @@ const TYPE_STYLES: Record<CalItem["type"], string> = {
   meeting: "bg-blue-100 text-blue-800",
   task: "bg-amber-100 text-amber-800",
 };
+
+function GoogleConnection() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const statusFn = useServerFn(getGoogleConnectionStatus);
+  const status = useQuery({ queryKey: ["google-connection"], queryFn: () => statusFn() });
+  const disconnectFn = useServerFn(disconnectGoogle);
+
+  // Surface the redirect result from /auth/google/callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("google");
+    if (!result) return;
+    if (result === "connected") {
+      toast.success("Google account connected");
+      qc.invalidateQueries({ queryKey: ["google-connection"] });
+    } else if (result === "error") {
+      toast.error("Google connection failed: " + (params.get("google_message") ?? "unknown error"));
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  const disconnectMut = useMutation({
+    mutationFn: () => disconnectFn(),
+    onSuccess: () => { toast.success("Google disconnected"); qc.invalidateQueries({ queryKey: ["google-connection"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Failed to disconnect"),
+  });
+
+  function connect() {
+    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+    if (!clientId) {
+      toast.error("Google OAuth isn't configured yet (VITE_GOOGLE_OAUTH_CLIENT_ID missing)");
+      return;
+    }
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: GOOGLE_SCOPES,
+      access_type: "offline",
+      prompt: "consent",
+      state: user?.email ?? "",
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  if (status.data?.connected) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => disconnectMut.mutate()} disabled={disconnectMut.isPending}>
+        <Unlink className="h-3.5 w-3.5 mr-1" /> Disconnect Google ({status.data.email})
+      </Button>
+    );
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={connect}>
+      <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
+    </Button>
+  );
+}
 
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
@@ -62,7 +127,8 @@ function CalendarScreen() {
         title="Calendar"
         description="Events, meetings, and task due dates in one place."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <GoogleConnection />
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => subMonths(m, 1))}><ChevronLeft className="h-4 w-4" /></Button>
             <div className="font-serif text-lg w-40 text-center">{format(month, "MMMM yyyy")}</div>
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => addMonths(m, 1))}><ChevronRight className="h-4 w-4" /></Button>
