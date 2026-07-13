@@ -16,7 +16,7 @@ import { Radio, Play, CalendarClock, MapPin, Video } from "lucide-react";
 import { startInterview } from "@/lib/interviews.functions";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
-import { Link as RouterLink } from "@tanstack/react-router";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
@@ -38,7 +38,7 @@ function InterviewsIndex() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <div className="font-serif text-lg">Upcoming meetings</div>
-          <span className="text-xs text-muted-foreground">Synced from Google Calendar · <RouterLink to="/admin/accounts" className="underline">Manage accounts</RouterLink></span>
+          <SyncGoogleButton />
         </div>
         {upcoming.data && upcoming.data.length > 0 ? (
           <div className="rounded-lg border border-border divide-y divide-border bg-card">
@@ -58,7 +58,7 @@ function InterviewsIndex() {
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground bg-card">
-            No synced calendar meetings yet. Connect and sync a Google account from <RouterLink to="/admin/accounts" className="underline">Admin → Accounts</RouterLink>.
+            No synced calendar meetings yet. Click "Sync Google" above to connect and sync your calendar.
           </div>
         )}
       </div>

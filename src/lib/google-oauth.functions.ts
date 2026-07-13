@@ -9,6 +9,9 @@ async function adminClient() {
 
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
+  // Write scope needed so booking-link confirmations can create the actual
+  // Google Calendar event (blocks the slot + emails the client an invite).
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/gmail.readonly",
   "openid",
   "email",

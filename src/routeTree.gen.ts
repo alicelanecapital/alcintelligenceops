@@ -25,11 +25,13 @@ import { Route as OpportunitiesIdRouteImport } from './routes/opportunities.$id'
 import { Route as InterviewsIdRouteImport } from './routes/interviews.$id'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
+import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 import { Route as AuthGoogleCallbackRouteImport } from './routes/auth.google.callback'
+import { Route as ApiCronSyncGoogleCalendarsRouteImport } from './routes/api/cron.sync-google-calendars'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -111,6 +113,11 @@ const CompaniesIdRoute = CompaniesIdRouteImport.update({
   path: '/companies/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookSlugRoute = BookSlugRouteImport.update({
+  id: '/book/$slug',
+  path: '/book/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
@@ -137,6 +144,12 @@ const AuthGoogleCallbackRoute = AuthGoogleCallbackRouteImport.update({
   path: '/google/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiCronSyncGoogleCalendarsRoute =
+  ApiCronSyncGoogleCalendarsRouteImport.update({
+    id: '/api/cron/sync-google-calendars',
+    path: '/api/cron/sync-google-calendars',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -150,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
@@ -158,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
+  '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
@@ -173,6 +188,7 @@ export interface FileRoutesByTo {
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
@@ -181,6 +197,7 @@ export interface FileRoutesByTo {
   '/contacts': typeof ContactsIndexRoute
   '/interviews': typeof InterviewsIndexRoute
   '/opportunities': typeof OpportunitiesIndexRoute
+  '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
@@ -197,6 +214,7 @@ export interface FileRoutesById {
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
@@ -205,6 +223,7 @@ export interface FileRoutesById {
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
   '/opportunities/': typeof OpportunitiesIndexRoute
+  '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
 }
@@ -222,6 +241,7 @@ export interface FileRouteTypes {
     | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
+    | '/book/$slug'
     | '/companies/$id'
     | '/contacts/$id'
     | '/interviews/$id'
@@ -230,6 +250,7 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
+    | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   fileRoutesByTo: FileRoutesByTo
@@ -245,6 +266,7 @@ export interface FileRouteTypes {
     | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
+    | '/book/$slug'
     | '/companies/$id'
     | '/contacts/$id'
     | '/interviews/$id'
@@ -253,6 +275,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/interviews'
     | '/opportunities'
+    | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   id:
@@ -268,6 +291,7 @@ export interface FileRouteTypes {
     | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
+    | '/book/$slug'
     | '/companies/$id'
     | '/contacts/$id'
     | '/interviews/$id'
@@ -276,6 +300,7 @@ export interface FileRouteTypes {
     | '/contacts/'
     | '/interviews/'
     | '/opportunities/'
+    | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
   fileRoutesById: FileRoutesById
@@ -292,6 +317,7 @@ export interface RootRouteChildren {
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminDdFrameworkRoute: typeof AdminDdFrameworkRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  BookSlugRoute: typeof BookSlugRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
   ContactsIdRoute: typeof ContactsIdRoute
   InterviewsIdRoute: typeof InterviewsIdRoute
@@ -300,6 +326,7 @@ export interface RootRouteChildren {
   ContactsIndexRoute: typeof ContactsIndexRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
   OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute
+  ApiCronSyncGoogleCalendarsRoute: typeof ApiCronSyncGoogleCalendarsRoute
   DdInterviewOpportunityIdRoundRoute: typeof DdInterviewOpportunityIdRoundRoute
 }
 
@@ -417,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompaniesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$slug': {
+      id: '/book/$slug'
+      path: '/book/$slug'
+      fullPath: '/book/$slug'
+      preLoaderRoute: typeof BookSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transcribe': {
       id: '/api/transcribe'
       path: '/api/transcribe'
@@ -452,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthGoogleCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/api/cron/sync-google-calendars': {
+      id: '/api/cron/sync-google-calendars'
+      path: '/api/cron/sync-google-calendars'
+      fullPath: '/api/cron/sync-google-calendars'
+      preLoaderRoute: typeof ApiCronSyncGoogleCalendarsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -477,6 +518,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAccountsRoute: AdminAccountsRoute,
   AdminDdFrameworkRoute: AdminDdFrameworkRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  BookSlugRoute: BookSlugRoute,
   CompaniesIdRoute: CompaniesIdRoute,
   ContactsIdRoute: ContactsIdRoute,
   InterviewsIdRoute: InterviewsIdRoute,
@@ -485,6 +527,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactsIndexRoute: ContactsIndexRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
   OpportunitiesIndexRoute: OpportunitiesIndexRoute,
+  ApiCronSyncGoogleCalendarsRoute: ApiCronSyncGoogleCalendarsRoute,
   DdInterviewOpportunityIdRoundRoute: DdInterviewOpportunityIdRoundRoute,
 }
 export const routeTree = rootRouteImport
