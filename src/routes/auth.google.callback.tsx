@@ -46,11 +46,9 @@ export const Route = createFileRoute("/auth/google/callback")({
         const tokens = await tokenRes.json();
         const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString();
 
-        const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-        const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-          auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-        });
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const supabase = supabaseAdmin;
+
 
         const { error: dbError } = await supabase.from("google_oauth_connections").upsert({
           user_email: stateEmail,
