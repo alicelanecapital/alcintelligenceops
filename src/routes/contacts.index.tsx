@@ -511,12 +511,15 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     const base = initialForm ?? { category: "founder" };
     const lastEvent = readLastEvent();
     const lastDate = readLastDate();
+    const name = base.name?.trim() ? base.name : (base.company ?? "");
     return {
       ...base,
+      name,
       source_event_id: base.source_event_id ?? lastEvent ?? null,
       date_met: base.date_met ?? lastDate ?? "",
     };
   };
+
   const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
