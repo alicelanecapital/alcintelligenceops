@@ -10,6 +10,9 @@ import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { EditContactDialog } from "@/components/EditContactDialog";
+import { EventSelect } from "@/components/EventSelect";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
