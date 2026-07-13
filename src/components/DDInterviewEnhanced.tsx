@@ -258,7 +258,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     (async () => {
       try {
         const channel = await getOrCreateChannelFn({ data: { opportunityId } });
-        if (!cancelled) setUploadChannel(channel);
+        if (!cancelled && channel?.dedicated_email) setUploadChannel({ dedicated_email: channel.dedicated_email });
       } catch (error: any) {
         console.error('Failed to load upload channel:', error);
       }
