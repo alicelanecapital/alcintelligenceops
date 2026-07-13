@@ -352,7 +352,7 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Scan business card</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Scan business card or QR</DialogTitle></DialogHeader>
 
         {mode === "choose" && (
           <div className="grid grid-cols-2 gap-3 py-4">
