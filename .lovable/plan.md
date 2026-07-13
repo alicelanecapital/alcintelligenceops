@@ -1,41 +1,49 @@
-## Contacts – auto-AI description, smarter dedupe, inline CRUD, sticky event
+## 1. Auto-fill Name from Company (not just placeholder)
 
-### 1. Auto-generate AI Company Description (no button click)
-In `AddContactDialog` and `EditContactDialog`:
-- When the Company field loses focus (`onBlur`) and `company_description` is empty and company has ≥2 chars, kick off `generateCompanyDescription` automatically.
-- Show a small "Generating with AI…" hint under the textarea while it runs; user can still edit or overwrite.
-- Debounce so re-blurring the same company doesn't refetch. Keep the manual "Generate with AI" button as a re-run option.
+In the Review-scanned-contact dialog and Add Contact dialog, the Name field currently only *shows* "Defaults to company if blank" as placeholder — the field stays empty until save. Change it so:
 
-### 2. Merge Duplicates – detect by same email OR same phone (regardless of name)
-Current rule in `contacts.functions.ts` already unions same-email, same-phone, and same-(name+company). Tighten and surface it:
-- Normalize phones more loosely: strip everything non-digit, then compare last 9 digits (so `+27 82 555 1234` and `082 555 1234` match).
-- Normalize emails to lowercase trimmed (already done) and also ignore `+tag` in local part (`jane+work@x.com` = `jane@x.com`).
-- In the Merge dialog, group each duplicate under its match reason ("Same email", "Same phone", "Same name + company") so the user can see why.
-- Add per-group checkboxes so the user can opt out of specific merges before confirming (send selected `keepId → [dupeIds]` map to `mergeDuplicateContacts`).
+- When Company is filled (via scan pre-fill or manual `onBlur`) and Name is still empty, set `form.name = form.company` in state immediately so the user sees "Wellness Corporate" in Name and can edit it.
+- Same behavior in `EditContactDialog` when Company changes and Name is blank.
+- Keep the existing save-time fallback as a safety net.
 
-### 3. Full CRUD on each record
-- **Create**: exists (Add contact).
-- **Read**: exists (list + detail).
-- **Update**: exists on detail page. Add inline quick actions on each list/card row: a pencil (opens `EditContactDialog` reused from detail) and trash (with confirm) — no need to navigate into detail for small fixes.
-- **Delete**: already on detail; add to list row as above.
-- Extract `EditContactDialog` from `contacts.$id.tsx` into `src/components/EditContactDialog.tsx` so both list and detail can mount it.
+## 2. Inline "Add new event" in the Source event dropdown
 
-### 4. Sticky Event + Event Date until manually changed
-Current implementation writes `contacts:last_source_event_id` / `contacts:last_date_met` only on successful save. Change to sticky-by-intent:
-- Write to localStorage as soon as the user picks/changes the event or date in the dialog (not just on save), so an abandoned dialog still remembers.
-- Also apply the sticky values inside the scan → Review Scanned Contact flow (already prefills, but confirm QR/AI scans don't overwrite them with `null`).
-- Add a small "Sticky · click to clear" chip next to Source event and Date met that shows the remembered value and clears both keys on click.
+Replace the plain `<select>` for Source event in `AddContactDialog`, `EditContactDialog`, and the business-card scan review step with a small combobox:
 
-### Technical notes
-Files touched:
-- `src/routes/contacts.index.tsx` — auto-description on blur, sticky-write on change, sticky chip, list-row edit/delete buttons, mount shared EditContactDialog, richer merge dialog (reasons + checkboxes).
-- `src/routes/contacts.$id.tsx` — replace inline EditContactDialog with shared import; add auto-description on blur.
-- `src/components/EditContactDialog.tsx` (new) — extracted dialog with all fields + auto AI description.
-- `src/lib/contacts.functions.ts` — looser phone/email normalization, return `reason` per group from `previewDuplicateContacts`, accept an optional `selection: { keepId: string; dupeIds: string[] }[]` on `mergeDuplicateContacts` (falls back to merging all when omitted).
+- Options = alphabetically sorted existing events + sticky "+ Add new event…" item at the bottom.
+- Selecting it opens a lightweight inline prompt (Name + optional Date) that calls a `createEvent` server function (or existing helper in `src/lib/db.ts` — confirm during build).
+- On success: invalidate `["events"]`, auto-select the new event; the sorted render places it in the correct position automatically.
+- Store the selected event id in the sticky localStorage key.
 
-No schema changes. No new packages.
+## 3. Friendly delete confirmation (replace native `confirm()`)
 
-### Out of scope
-- Auto-dedupe on insert.
-- Fuzzy name matching (Levenshtein) — only exact normalized matches.
-- Undo after merge.
+The "Alice Lane" screenshot is the browser's native `window.confirm("Delete Christiaan?")` from the trash icon. Replace with shadcn `AlertDialog`:
+
+- Title: "Delete contact?"
+- Description: "This will permanently delete **{name}** and cannot be undone. Related meetings, opportunities and event attendance will keep their history but lose the link to this contact."
+- Buttons: "Cancel" (outline), "Delete" (destructive).
+- Wire up in both `contacts.index.tsx` (list + card views) and `contacts.$id.tsx` (detail). Single local `contactToDelete` state so only one dialog instance mounts.
+
+## 4. Swap Company and Name field order
+
+In every contact surface, put **Company first, then Name**:
+
+- `contacts.$id.tsx` — detail/view page: reorder the header and the field grid so Company is shown/read first.
+- `EditContactDialog.tsx` — reorder the grid so Company row is above Name.
+- `AddContactDialog` in `contacts.index.tsx` — same reorder.
+- Business-card scan review dialog — same reorder in the review form.
+
+This is a pure presentation swap: no state key renames, no data migration, no label changes. Behavior 1 (name auto-fills from company) still applies — now the flow reads naturally top-to-bottom: type Company → Name auto-populates below.
+
+## Files to touch
+
+- `src/routes/contacts.index.tsx`
+- `src/routes/contacts.$id.tsx`
+- `src/components/EditContactDialog.tsx`
+- Business-card scan dialog component (confirm exact filename during build)
+- `src/lib/contacts.functions.ts` or `src/lib/db.ts` — add `createEvent` if not already exposed.
+
+## Out of scope
+
+- No schema changes, no new packages.
+- No changes to merge-duplicates or AI description behavior.
