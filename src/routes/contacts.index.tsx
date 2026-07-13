@@ -4,8 +4,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchContacts, createContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
-import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { generateCompanyDescription, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
 import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
+import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, GitMerge, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
@@ -31,6 +32,7 @@ function ContactsIndex() {
   const [addOpen, setAddOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [scannedForm, setScannedForm] = useState<any | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
@@ -61,9 +63,12 @@ function ContactsIndex() {
         title="Contacts"
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setMergeOpen(true)}>
+              <GitMerge className="h-4 w-4 mr-1" /> Merge duplicates
+            </Button>
             <Button variant="outline" onClick={() => setScanOpen(true)}>
-              <Camera className="h-4 w-4 mr-1" /> Scan business card
+              <Camera className="h-4 w-4 mr-1" /> Scan card / QR
             </Button>
             <Button onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4 mr-1" /> Add contact
@@ -129,6 +134,8 @@ function ContactsIndex() {
           initialForm={scannedForm}
         />
       )}
+
+      <MergeDuplicatesDialog open={mergeOpen} onClose={() => setMergeOpen(false)} />
     </div>
   );
 }
@@ -288,6 +295,28 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         // non-fatal
       }
 
+      // Try QR first — much faster and more accurate when present
+      const qrRaw = await decodeQrFromDataUrl(capturedDataUrl);
+      if (qrRaw) {
+        const parsed = parseQrToContact(qrRaw);
+        if (parsed.name || parsed.company || parsed.email || parsed.phone || parsed.website) {
+          toast.success("QR code decoded");
+          onExtracted({
+            name: parsed.name ?? "",
+            company: parsed.company ?? "",
+            position: parsed.position ?? "",
+            email: parsed.email ?? "",
+            phone: parsed.phone ?? "",
+            website: parsed.website ?? "",
+            linkedin: parsed.linkedin ?? "",
+            notes: parsed.notes ?? "",
+            category: "founder",
+          });
+          setExtracting(false);
+          return;
+        }
+      }
+
       const result: ExtractedBusinessCard = await extract({ data: { imageBase64: base64, mimeType: mimeType || "image/jpeg" } });
 
       if (!result.name && !result.company && !result.email) {
@@ -319,10 +348,11 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
     }
   }
 
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Scan business card</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Scan business card or QR</DialogTitle></DialogHeader>
 
         {mode === "choose" && (
           <div className="grid grid-cols-2 gap-3 py-4">
@@ -405,21 +435,57 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
   );
 }
 
+const LAST_EVENT_KEY = "contacts:last_source_event_id";
+const LAST_DATE_KEY = "contacts:last_date_met";
+function readLastEvent(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_EVENT_KEY) : null; } catch { return null; }
+}
+function readLastDate(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_DATE_KEY) : null; } catch { return null; }
+}
+
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const [form, setForm] = useState<any>(initialForm ?? { category: "founder" });
+  const sortedEvents = useMemo(
+    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
+    [events.data],
+  );
+  const buildInitial = () => {
+    const base = initialForm ?? { category: "founder" };
+    const lastEvent = readLastEvent();
+    const lastDate = readLastDate();
+    return {
+      ...base,
+      source_event_id: base.source_event_id ?? lastEvent ?? null,
+      date_met: base.date_met ?? lastDate ?? "",
+    };
+  };
+  const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
 
   useEffect(() => {
-    if (open) setForm(initialForm ?? { category: "founder" });
+    if (open) setForm(buildInitial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialForm]);
 
   const m = useMutation({
-    mutationFn: () => createContact({ ...form, source_event_id: form.source_event_id || defaultEventId || null, date_met: form.date_met || new Date().toISOString().slice(0, 10) }),
+    mutationFn: () => {
+      const resolvedName = (form.name?.trim() || form.company?.trim() || "").trim();
+      const sourceEventId = form.source_event_id || defaultEventId || null;
+      const dateMet = form.date_met || new Date().toISOString().slice(0, 10);
+      return createContact({ ...form, name: resolvedName, source_event_id: sourceEventId, date_met: dateMet });
+    },
     onSuccess: () => {
       toast.success("Contact added");
+      try {
+        const ev = form.source_event_id || defaultEventId || "";
+        if (ev) window.localStorage.setItem(LAST_EVENT_KEY, ev);
+        else window.localStorage.removeItem(LAST_EVENT_KEY);
+        const d = form.date_met || "";
+        if (d) window.localStorage.setItem(LAST_DATE_KEY, d);
+      } catch { /* ignore */ }
       qc.invalidateQueries({ queryKey: ["contacts"] });
       setForm({ category: "founder" });
       onClose();
@@ -450,7 +516,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
           <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Name*"><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Category">
             <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -465,7 +531,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
           <Field label="Source event">
             <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? defaultEventId ?? ""} onChange={(e) => setForm({ ...form, source_event_id: e.target.value || null })}>
               <option value="">— none —</option>
-              {(events.data ?? []).map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+              {sortedEvents.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
             </select>
           </Field>
           <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setForm({ ...form, date_met: e.target.value })} /></Field>
@@ -498,7 +564,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => m.mutate()} disabled={!form.name || m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
+          <Button onClick={() => m.mutate()} disabled={(!form.name?.trim() && !form.company?.trim()) || m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -515,3 +581,78 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export { AddContactDialog };
+
+function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const preview = useServerFn(previewDuplicateContacts);
+  const merge = useServerFn(mergeDuplicateContacts);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ groupCount: number; duplicateCount: number; groups: any[] } | null>(null);
+  const [merging, setMerging] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setResult(null); return; }
+    setLoading(true);
+    preview()
+      .then((r: any) => setResult(r))
+      .catch((e: any) => toast.error(e.message ?? "Failed to scan"))
+      .finally(() => setLoading(false));
+  }, [open, preview]);
+
+  async function handleMerge() {
+    setMerging(true);
+    try {
+      const r: any = await merge();
+      toast.success(`Merged ${r.mergedCount} duplicate${r.mergedCount === 1 ? "" : "s"} across ${r.groupCount} group${r.groupCount === 1 ? "" : "s"}`);
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Merge failed");
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Merge duplicate contacts</DialogTitle></DialogHeader>
+        {loading && <div className="py-6 text-sm text-muted-foreground">Scanning contacts…</div>}
+        {!loading && result && (
+          <div className="space-y-3">
+            {result.groupCount === 0 ? (
+              <div className="text-sm text-muted-foreground">No duplicates found — your contacts list is clean.</div>
+            ) : (
+              <>
+                <div className="text-sm">
+                  Found <strong>{result.groupCount}</strong> duplicate group{result.groupCount === 1 ? "" : "s"} — <strong>{result.duplicateCount}</strong> contact{result.duplicateCount === 1 ? "" : "s"} will be merged into their oldest match.
+                </div>
+                <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
+                  {result.groups.map((g: any) => (
+                    <div key={g.keep} className="px-3 py-2 text-sm">
+                      <div className="font-medium">Keep: {g.keepLabel}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Merging: {g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.label).join(", ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Rule: same email, same phone, or same name + company. All related meetings, opportunities and events stay linked to the kept contact.
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          {result && result.groupCount > 0 && (
+            <Button onClick={handleMerge} disabled={merging}>
+              {merging ? "Merging…" : `Merge ${result.duplicateCount}`}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
