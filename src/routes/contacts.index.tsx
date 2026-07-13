@@ -194,8 +194,8 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
   const [mode, setMode] = useState<"choose" | "camera" | "preview">("choose");
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const extract = useServerFn(extractBusinessCard);
 
@@ -208,33 +208,47 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
     }
   }, [open]);
 
+  // Attach the stream reactively once the <video> element is actually mounted.
+  useEffect(() => {
+    if (mode !== "camera" || !stream) return;
+    const v = videoRef.current;
+    if (!v) return;
+    v.srcObject = stream;
+    const tryPlay = () => {
+      v.play().catch((err) => {
+        toast.error("Couldn't start video preview: " + (err?.message ?? "unknown"));
+      });
+    };
+    if (v.readyState >= 1) {
+      tryPlay();
+    } else {
+      v.addEventListener("loadedmetadata", tryPlay, { once: true });
+      return () => v.removeEventListener("loadedmetadata", tryPlay);
+    }
+  }, [mode, stream]);
+
   function stopCamera() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setStream(null);
   }
 
   async function startCamera() {
     try {
-      let stream: MediaStream;
+      let s: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       } catch {
         // Laptops usually don't have an "environment" camera — fall back to any
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        s = await navigator.mediaDevices.getUserMedia({ video: true });
       }
-      streamRef.current = stream;
+      setStream(s);
       setMode("camera");
-      // wait for the <video> to mount, attach the stream, then explicitly play
-      setTimeout(async () => {
-        const v = videoRef.current;
-        if (!v) return;
-        v.srcObject = stream;
-        try { await v.play(); } catch { /* autoplay may reject; user gesture already granted */ }
-      }, 0);
     } catch (e: any) {
       toast.error("Could not access the camera: " + (e?.message ?? "permission denied"));
     }
   }
+
 
   function captureFromVideo() {
     const video = videoRef.current;
@@ -342,7 +356,15 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         {mode === "camera" && (
           <div className="space-y-3">
             <div className="relative rounded-md overflow-hidden bg-black">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full block aspect-[1.6/1] object-cover" />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                onCanPlay={() => videoRef.current?.play().catch(() => {})}
+                className="w-full block aspect-[1.6/1] object-cover bg-black"
+              />
+
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
                   className="relative w-[88%] aspect-[1.6/1] rounded-lg border-2 border-white/90"

@@ -1,39 +1,29 @@
-## Diagnosis
+## Problem
 
-The 403 comes from Google's OAuth server, not your app. Your callback (`/auth/google/callback`) and secrets are wired correctly — Google is refusing to show the consent screen to your account. With the scopes this integration requests (Gmail readonly + Calendar read/write), the two realistic causes are:
+The `<video>` element in the scan modal stays black. The stream is acquired successfully (permission dialog resolves), but the frame never paints.
 
-1. **Consent screen is in "Testing" and your email isn't a Test user.** Google returns exactly this 403 page.
-2. **`gmail.readonly` is a "restricted" scope.** In Testing mode it works for listed test users only. In Production mode it requires Google verification (and a security assessment) — without that, users see 403/access-denied.
+Root cause: we attach `srcObject` inside a `setTimeout(0)` after flipping `mode` to `"camera"`. In a Radix Dialog the content mounts through a portal + animation, so `videoRef.current` is often still `null` on the next tick, or the element is attached but `play()` rejects silently because the element isn't yet in the layout tree. There is also no `onLoadedMetadata` handler, so we never retry `play()` once dimensions are known.
 
-No code change will fix this — it's a Google Cloud Console config issue.
+## Fix
 
-## Fix (in Google Cloud Console, on the same project that owns your OAuth Client ID)
+Rewire the camera lifecycle so the stream is attached *reactively* once the video element exists, not via `setTimeout`:
 
-**APIs & Services → OAuth consent screen**
-- User type: **External**
-- Publishing status: **Testing** (leave it here for now)
-- **Test users** → Add your Google account (`georgia@alicelanecapital.com`) and any teammate who needs to connect. Save.
-- **Scopes** → confirm these are added:
-  - `openid`, `.../auth/userinfo.email`
-  - `.../auth/calendar.readonly`
-  - `.../auth/calendar.events`
-  - `.../auth/gmail.readonly`
+1. Store the `MediaStream` in React state (`stream`), not just a ref.
+2. Trigger `getUserMedia` from the user's click as today (keeps the gesture), but only `setStream(...)` + `setMode("camera")` — do not touch the video element in the click handler.
+3. Add a `useEffect` keyed on `[mode, stream]` that:
+   - finds `videoRef.current`,
+   - assigns `srcObject = stream`,
+   - awaits `loadedmetadata` (via event listener) then calls `video.play()`,
+   - logs any `play()` rejection to `toast` so failures stop being silent.
+4. Add `onCanPlay={() => videoRef.current?.play().catch(()=>{})}` on the `<video>` as a second safety net.
+5. Give the video a guaranteed non-zero box before the stream loads: keep `aspect-[1.6/1] object-cover w-full` and add `bg-black` so a blank frame is obviously the video, not a layout collapse.
+6. On `stopCamera()` / dialog close, also clear `video.srcObject = null` and `setStream(null)` so a re-open starts clean.
+7. Keep the existing `facingMode: "environment"` → `{ video: true }` fallback.
 
-**APIs & Services → Enabled APIs**
-- Enable **Google Calendar API** and **Gmail API** on the same project.
+## Files touched
 
-**APIs & Services → Credentials → your OAuth 2.0 Client ID (Web application)**
-- Authorized redirect URIs must include **both** exactly:
-  - `https://id-preview--11ff6cba-0e12-4f91-9089-4c2aaab66c8a.lovable.app/auth/google/callback`
-  - `https://alcintelligenceops.lovable.app/auth/google/callback`
-- Confirm the Client ID saved in Lovable is from **this same client** (Web application type, not iOS/Android/Desktop).
+- `src/routes/contacts.index.tsx` — only the `ScanBusinessCardDialog` component (camera lifecycle). No other UI or business logic changes.
 
-Then retry **Connect Google** while signed into a listed Test user account.
+## Verification
 
-## If you want any Google user (not just test users) to connect
-
-You'll need to either:
-- Publish the consent screen and complete Google's **verification + Gmail restricted-scope security assessment**, or
-- Drop `gmail.readonly` from `GOOGLE_SCOPES` in `src/lib/google-oauth.functions.ts` (Calendar-only stays in the lighter "sensitive" tier and is much easier to verify).
-
-Tell me which path you want and I'll take it from there — no code changes needed for the immediate 403 fix.
+After the change, open Contacts → Scan business card → Use camera. Expect: live webcam feed inside the framed overlay within ~1s. If `play()` still rejects, a toast surfaces the reason instead of a silent black frame.
