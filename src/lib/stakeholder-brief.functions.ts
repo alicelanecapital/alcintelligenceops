@@ -33,8 +33,9 @@ export const generateStakeholderBrief = createServerFn({ method: "POST" })
       .from("opportunities")
       .select("*, founder:founders(name, startup_name, sector, email, phone), company:companies(name, industry, summary)")
       .eq("id", data.opportunityId)
-      .single();
+      .maybeSingle();
     if (oppError) throw oppError;
+    if (!opp) throw new Error(`Opportunity ${data.opportunityId} not found`);
 
     const companyName = (opp as any).company?.name ?? (opp as any).founder?.startup_name ?? (opp as any).name;
 
