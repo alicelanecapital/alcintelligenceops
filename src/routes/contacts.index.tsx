@@ -216,10 +216,11 @@ function ContactListRow({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
-    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
   return (
@@ -240,14 +241,16 @@ function ContactListRow({ c }: { c: ContactRow }) {
         </Link>
         <div className="flex items-center gap-1 shrink-0">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { if (confirm(`Delete ${primary}?`)) del.mutate(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setConfirming(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
           <ArrowRight className="h-3.5 w-3.5 text-primary" />
         </div>
       </div>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
     </>
   );
 }
+
 
 
 function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean; onClose: () => void; onExtracted: (form: any) => void }) {
