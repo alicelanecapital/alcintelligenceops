@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getGoogleConnectionStatus, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
+import { getGoogleConnectionStatus, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
 import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync.functions";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -56,10 +56,10 @@ export function SyncGoogleButton() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function connect() {
-    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+  async function connect() {
+    const { clientId } = await getGoogleOAuthClientId();
     if (!clientId) {
-      toast.error("Google OAuth isn't configured yet (VITE_GOOGLE_OAUTH_CLIENT_ID missing)");
+      toast.error("Google OAuth isn't configured yet (GOOGLE_OAUTH_CLIENT_ID missing on the server)");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/google/callback`;
