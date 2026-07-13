@@ -276,7 +276,23 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
 
         {mode === "camera" && (
           <div className="space-y-3">
-            <video ref={videoRef} autoPlay playsInline className="w-full rounded-md bg-black" />
+            <div className="relative rounded-md overflow-hidden bg-black">
+              <video ref={videoRef} autoPlay playsInline className="w-full block" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div
+                  className="relative w-[88%] aspect-[1.6/1] rounded-lg border-2 border-white/90"
+                  style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)" }}
+                >
+                  <div className="absolute -top-1 -left-1 h-4 w-4 border-t-2 border-l-2 border-white rounded-tl" />
+                  <div className="absolute -top-1 -right-1 h-4 w-4 border-t-2 border-r-2 border-white rounded-tr" />
+                  <div className="absolute -bottom-1 -left-1 h-4 w-4 border-b-2 border-l-2 border-white rounded-bl" />
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 border-b-2 border-r-2 border-white rounded-br" />
+                </div>
+              </div>
+              <p className="absolute bottom-2 inset-x-0 text-center text-xs text-white">
+                Align the business card within the frame
+              </p>
+            </div>
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => { stopCamera(); setMode("choose"); }}>Cancel</Button>
               <Button onClick={captureFromVideo}><Camera className="h-4 w-4 mr-1" /> Capture</Button>

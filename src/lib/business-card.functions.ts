@@ -18,6 +18,14 @@ export type ExtractedBusinessCard = {
 
 const SYSTEM_PROMPT = `You are an assistant that reads business card photos for an investment firm's CRM.
 
+Only one side of the card is photographed -- typically the side with the
+person's name, phone number, and website, which often does NOT print an
+explicit "Company Name:" line. Intuit the company name rather than
+requiring it to be printed outright:
+- Prefer any logo wordmark or heading text at the top of the card.
+- Otherwise infer it from the website domain (e.g. "acmewidgets.co.za" implies "Acme Widgets") or the email domain, stripping the TLD and formatting it as a plausible business name.
+- Only return null for company if there is truly no name, no website, and no email domain to infer from.
+
 Extract the contact's details, then classify them into exactly one category based on their job title, company name, and any other visible context:
 - "founder": runs/owns an SME or startup that could be an investment target
 - "investor": VC, angel investor, fund, or investment committee member
