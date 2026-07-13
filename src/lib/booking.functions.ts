@@ -13,20 +13,24 @@ function slugify(email: string) {
   return `${base}-${rand}`;
 }
 
-/** Creates (once) or returns this user's booking link, for the "Booking link" card on the Calendar screen. */
+/**
+ * Creates (once) or returns this user's booking link, for the "Booking link" card
+ * on the Calendar screen. Uses the caller's own authenticated client (not the
+ * service-role admin client) since booking_links RLS already scopes rows to
+ * their own user_email -- no elevated privilege is needed here.
+ */
 export const getOrCreateBookingLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const email = context.claims.email as string | undefined;
     if (!email) throw new Error("Not signed in");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: existing, error: findError } = await (supabaseAdmin.from("booking_links" as any) as any)
+    const { data: existing, error: findError } = await (context.supabase.from("booking_links" as any) as any)
       .select("*").eq("user_email", email).maybeSingle();
     if (findError) throw findError;
     if (existing) return existing;
 
-    const { data, error } = await (supabaseAdmin.from("booking_links" as any) as any)
+    const { data, error } = await (context.supabase.from("booking_links" as any) as any)
       .insert({ user_email: email, slug: slugify(email) })
       .select("*")
       .single();

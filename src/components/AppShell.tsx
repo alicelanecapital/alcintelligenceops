@@ -12,22 +12,12 @@ const navGroups = [
     ],
   },
   {
-    label: "Planning",
+    label: "CRM",
     items: [
+      { to: "/events", label: "Events", icon: Calendar },
+      { to: "/contacts", label: "Contacts", icon: Users },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
       { to: "/tasks", label: "Tasks", icon: CheckSquare },
-    ],
-  },
-  {
-    label: "Sourcing",
-    items: [
-      { to: "/events", label: "Current Events", icon: Calendar },
-    ],
-  },
-  {
-    label: "Contacts",
-    items: [
-      { to: "/contacts", label: "Contacts", icon: Users },
     ],
   },
   {
