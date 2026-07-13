@@ -14,6 +14,10 @@ export const GOOGLE_SCOPES = [
   "email",
 ].join(" ");
 
+export const getGoogleOAuthClientId = createServerFn({ method: "GET" }).handler(async () => {
+  return { clientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? null };
+});
+
 /** Reads this user's stored Google tokens, refreshing the access token first if it's expired. */
 export async function getValidGoogleAccessToken(userEmail: string): Promise<string | null> {
   const s = await adminClient();
