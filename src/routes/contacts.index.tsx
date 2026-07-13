@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, GitMerge, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
@@ -32,6 +32,7 @@ function ContactsIndex() {
   const [addOpen, setAddOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [scannedForm, setScannedForm] = useState<any | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
@@ -62,9 +63,12 @@ function ContactsIndex() {
         title="Contacts"
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setMergeOpen(true)}>
+              <GitMerge className="h-4 w-4 mr-1" /> Merge duplicates
+            </Button>
             <Button variant="outline" onClick={() => setScanOpen(true)}>
-              <Camera className="h-4 w-4 mr-1" /> Scan business card
+              <Camera className="h-4 w-4 mr-1" /> Scan card / QR
             </Button>
             <Button onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4 mr-1" /> Add contact
@@ -130,6 +134,8 @@ function ContactsIndex() {
           initialForm={scannedForm}
         />
       )}
+
+      <MergeDuplicatesDialog open={mergeOpen} onClose={() => setMergeOpen(false)} />
     </div>
   );
 }
