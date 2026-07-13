@@ -16,7 +16,7 @@ export const GOOGLE_SCOPES = [
 
 /** Reads this user's stored Google tokens, refreshing the access token first if it's expired. */
 export async function getValidGoogleAccessToken(userEmail: string): Promise<string | null> {
-  const s = server();
+  const s = await adminClient();
   const { data: conn } = await s.from("google_oauth_connections").select("*").eq("user_email", userEmail).maybeSingle();
   if (!conn) return null;
 
