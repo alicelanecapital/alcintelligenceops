@@ -487,6 +487,7 @@ export type Database = {
           recording_url: string | null
           round: number
           sector_confidence: number | null
+          stakeholder_brief: Json | null
           started_at: string | null
           status: string
           transcript: string | null
@@ -504,6 +505,7 @@ export type Database = {
           recording_url?: string | null
           round: number
           sector_confidence?: number | null
+          stakeholder_brief?: Json | null
           started_at?: string | null
           status?: string
           transcript?: string | null
@@ -521,6 +523,7 @@ export type Database = {
           recording_url?: string | null
           round?: number
           sector_confidence?: number | null
+          stakeholder_brief?: Json | null
           started_at?: string | null
           status?: string
           transcript?: string | null
@@ -1300,11 +1303,60 @@ export type Database = {
           },
         ]
       }
+      google_calendar_events: {
+        Row: {
+          attendees: Json | null
+          created_at: string
+          description: string | null
+          end_time: string | null
+          google_event_id: string
+          id: string
+          is_all_day: boolean | null
+          location: string | null
+          meeting_link: string | null
+          start_time: string | null
+          title: string | null
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          attendees?: Json | null
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          google_event_id: string
+          id?: string
+          is_all_day?: boolean | null
+          location?: string | null
+          meeting_link?: string | null
+          start_time?: string | null
+          title?: string | null
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          attendees?: Json | null
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          google_event_id?: string
+          id?: string
+          is_all_day?: boolean | null
+          location?: string | null
+          meeting_link?: string | null
+          start_time?: string | null
+          title?: string | null
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       google_oauth_connections: {
         Row: {
           access_token: string
           connected_at: string
           id: string
+          last_synced_at: string | null
           refresh_token: string | null
           scope: string | null
           token_expires_at: string | null
@@ -1315,6 +1367,7 @@ export type Database = {
           access_token: string
           connected_at?: string
           id?: string
+          last_synced_at?: string | null
           refresh_token?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -1325,6 +1378,7 @@ export type Database = {
           access_token?: string
           connected_at?: string
           id?: string
+          last_synced_at?: string | null
           refresh_token?: string | null
           scope?: string | null
           token_expires_at?: string | null
