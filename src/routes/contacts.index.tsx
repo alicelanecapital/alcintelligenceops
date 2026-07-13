@@ -14,9 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
@@ -33,6 +35,7 @@ function ContactsIndex() {
   const [scannedForm, setScannedForm] = useState<any | null>(null);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
+  const [groupByEvent, setGroupByEvent] = useState(false);
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
 
   const primaryLabel = (c: ContactRow) => c.company || c.name;
@@ -53,6 +56,21 @@ function ContactsIndex() {
     () => (letter ? filtered.filter((c) => firstLetterOf(primaryLabel(c)) === letter) : filtered),
     [filtered, letter],
   );
+
+  const groupedByEvent = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; contacts: ContactRow[] }>();
+    for (const c of displayed) {
+      const key = c.source_event?.id ?? "__none__";
+      const name = c.source_event?.name ?? "No event";
+      if (!map.has(key)) map.set(key, { id: key, name, contacts: [] });
+      map.get(key)!.contacts.push(c);
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.id === "__none__") return 1;
+      if (b.id === "__none__") return -1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [displayed]);
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
@@ -87,14 +105,47 @@ function ContactsIndex() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>
+        <button
+          onClick={() => setGroupByEvent((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border transition-colors",
+            groupByEvent ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground hover:bg-muted",
+          )}
+        >
+          <CalendarDays className="h-3.5 w-3.5" /> Events
+        </button>
+        {!groupByEvent && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>}
       </div>
 
       <div className="mb-6">
         <AlphabetChips active={letter} onChange={setLetter} available={availableLetters} />
       </div>
 
-      {view === "card" ? (
+      {groupByEvent ? (
+        <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
+          {groupedByEvent.map((g) => (
+            <AccordionItem key={g.id} value={g.id}>
+              <AccordionTrigger className="text-sm">
+                <span className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-serif text-base">{g.name}</span>
+                  <Badge variant="outline" className="text-[10px]">{g.contacts.length}</Badge>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="rounded-md border border-border divide-y divide-border">
+                  {g.contacts.map((c) => <ContactListRow key={c.id} c={c} />)}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+          {q.isSuccess && !groupedByEvent.length && (
+            <div className="p-12 text-center text-muted-foreground">
+              No contacts match. Try a different filter or add one.
+            </div>
+          )}
+        </Accordion>
+      ) : view === "card" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {displayed.map((c) => <ContactCard key={c.id} c={c} />)}
           {q.isSuccess && !displayed.length && (
