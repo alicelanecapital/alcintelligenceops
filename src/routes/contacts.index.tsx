@@ -503,10 +503,8 @@ function readLastDate(): string | null {
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const sortedEvents = useMemo(
-    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
-    [events.data],
-  );
+  void events;
+
   const buildInitial = () => {
     const base = initialForm ?? { category: "founder" };
     const lastEvent = readLastEvent();
