@@ -295,6 +295,28 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         // non-fatal
       }
 
+      // Try QR first — much faster and more accurate when present
+      const qrRaw = await decodeQrFromDataUrl(capturedDataUrl);
+      if (qrRaw) {
+        const parsed = parseQrToContact(qrRaw);
+        if (parsed.name || parsed.company || parsed.email || parsed.phone || parsed.website) {
+          toast.success("QR code decoded");
+          onExtracted({
+            name: parsed.name ?? "",
+            company: parsed.company ?? "",
+            position: parsed.position ?? "",
+            email: parsed.email ?? "",
+            phone: parsed.phone ?? "",
+            website: parsed.website ?? "",
+            linkedin: parsed.linkedin ?? "",
+            notes: parsed.notes ?? "",
+            category: "founder",
+          });
+          setExtracting(false);
+          return;
+        }
+      }
+
       const result: ExtractedBusinessCard = await extract({ data: { imageBase64: base64, mimeType: mimeType || "image/jpeg" } });
 
       if (!result.name && !result.company && !result.email) {
@@ -325,6 +347,7 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
       setExtracting(false);
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
