@@ -435,21 +435,57 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
   );
 }
 
+const LAST_EVENT_KEY = "contacts:last_source_event_id";
+const LAST_DATE_KEY = "contacts:last_date_met";
+function readLastEvent(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_EVENT_KEY) : null; } catch { return null; }
+}
+function readLastDate(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_DATE_KEY) : null; } catch { return null; }
+}
+
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const [form, setForm] = useState<any>(initialForm ?? { category: "founder" });
+  const sortedEvents = useMemo(
+    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
+    [events.data],
+  );
+  const buildInitial = () => {
+    const base = initialForm ?? { category: "founder" };
+    const lastEvent = readLastEvent();
+    const lastDate = readLastDate();
+    return {
+      ...base,
+      source_event_id: base.source_event_id ?? lastEvent ?? null,
+      date_met: base.date_met ?? lastDate ?? "",
+    };
+  };
+  const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
 
   useEffect(() => {
-    if (open) setForm(initialForm ?? { category: "founder" });
+    if (open) setForm(buildInitial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialForm]);
 
   const m = useMutation({
-    mutationFn: () => createContact({ ...form, source_event_id: form.source_event_id || defaultEventId || null, date_met: form.date_met || new Date().toISOString().slice(0, 10) }),
+    mutationFn: () => {
+      const resolvedName = (form.name?.trim() || form.company?.trim() || "").trim();
+      const sourceEventId = form.source_event_id || defaultEventId || null;
+      const dateMet = form.date_met || new Date().toISOString().slice(0, 10);
+      return createContact({ ...form, name: resolvedName, source_event_id: sourceEventId, date_met: dateMet });
+    },
     onSuccess: () => {
       toast.success("Contact added");
+      try {
+        const ev = form.source_event_id || defaultEventId || "";
+        if (ev) window.localStorage.setItem(LAST_EVENT_KEY, ev);
+        else window.localStorage.removeItem(LAST_EVENT_KEY);
+        const d = form.date_met || "";
+        if (d) window.localStorage.setItem(LAST_DATE_KEY, d);
+      } catch { /* ignore */ }
       qc.invalidateQueries({ queryKey: ["contacts"] });
       setForm({ category: "founder" });
       onClose();
