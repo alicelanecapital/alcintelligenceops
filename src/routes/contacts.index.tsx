@@ -511,9 +511,19 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
   const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const lastAutoCompanyRef = useRef<string>("");
 
   useEffect(() => {
-    if (open) setForm(buildInitial());
+    if (open) { setForm(buildInitial()); lastAutoCompanyRef.current = ""; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialForm]);
+
+  // Auto-generate AI description when scanned data prefills a company
+  useEffect(() => {
+    if (!open) return;
+    if (!initialForm?.company?.trim()) return;
+    if (form.company_description?.trim()) return;
+    autoGenerateIfEmpty();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialForm]);
 
@@ -526,13 +536,6 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     },
     onSuccess: () => {
       toast.success("Contact added");
-      try {
-        const ev = form.source_event_id || defaultEventId || "";
-        if (ev) window.localStorage.setItem(LAST_EVENT_KEY, ev);
-        else window.localStorage.removeItem(LAST_EVENT_KEY);
-        const d = form.date_met || "";
-        if (d) window.localStorage.setItem(LAST_DATE_KEY, d);
-      } catch { /* ignore */ }
       qc.invalidateQueries({ queryKey: ["contacts"] });
       setForm({ category: "founder" });
       onClose();
@@ -540,11 +543,8 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     onError: (e: any) => toast.error(e.message ?? "Failed to add"),
   });
 
-  async function handleGenerateDescription() {
-    if (!form.company?.trim()) {
-      toast.error("Enter a company name first");
-      return;
-    }
+  async function runGenerate() {
+    if (!form.company?.trim()) { toast.error("Enter a company name first"); return; }
     setGeneratingDescription(true);
     try {
       const { description } = await generateDescription({ data: { company: form.company, website: form.website, position: form.position } });
@@ -555,6 +555,38 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
       setGeneratingDescription(false);
     }
   }
+
+  async function autoGenerateIfEmpty() {
+    const c = form.company?.trim() || (initialForm?.company ?? "").trim();
+    if (!c || c.length < 2) return;
+    if (form.company_description?.trim()) return;
+    const key = c.toLowerCase();
+    if (lastAutoCompanyRef.current === key) return;
+    lastAutoCompanyRef.current = key;
+    setGeneratingDescription(true);
+    try {
+      const { description } = await generateDescription({ data: { company: c, website: form.website, position: form.position } });
+      setForm((f: any) => (f.company_description?.trim() ? f : { ...f, company_description: description }));
+    } catch { /* silent auto-fail */ } finally {
+      setGeneratingDescription(false);
+    }
+  }
+
+  function setEventSticky(v: string) {
+    setForm({ ...form, source_event_id: v || null });
+    try { if (v) window.localStorage.setItem(LAST_EVENT_KEY, v); else window.localStorage.removeItem(LAST_EVENT_KEY); } catch {}
+  }
+  function setDateSticky(v: string) {
+    setForm({ ...form, date_met: v });
+    try { if (v) window.localStorage.setItem(LAST_DATE_KEY, v); } catch {}
+  }
+  function clearSticky() {
+    try { window.localStorage.removeItem(LAST_EVENT_KEY); window.localStorage.removeItem(LAST_DATE_KEY); } catch {}
+    setForm({ ...form, source_event_id: null, date_met: "" });
+    toast.success("Cleared sticky event & date");
+  }
+
+  const hasSticky = !!(readLastEvent() || readLastDate());
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -569,39 +601,55 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </Field>
-          <Field label="Company"><Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} /></Field>
+          <Field label="Company">
+            <Input
+              value={form.company ?? ""}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onBlur={autoGenerateIfEmpty}
+            />
+          </Field>
           <Field label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
           <Field label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></Field>
           <Field label="Website"><Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
           <Field label="Source event">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? defaultEventId ?? ""} onChange={(e) => setForm({ ...form, source_event_id: e.target.value || null })}>
+            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? defaultEventId ?? ""} onChange={(e) => setEventSticky(e.target.value)}>
               <option value="">— none —</option>
               {sortedEvents.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
             </select>
           </Field>
-          <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setForm({ ...form, date_met: e.target.value })} /></Field>
+          <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setDateSticky(e.target.value)} /></Field>
+          {hasSticky && (
+            <div className="col-span-2 -mt-1">
+              <button type="button" onClick={clearSticky} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" /> Sticky event & date remembered from your last contact — click to clear
+              </button>
+            </div>
+          )}
           <div className="col-span-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Company description</Label>
+              <Label className="text-sm">
+                Company description
+                {generatingDescription && <span className="ml-2 text-xs text-muted-foreground">Generating with AI…</span>}
+              </Label>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={handleGenerateDescription}
+                onClick={runGenerate}
                 disabled={generatingDescription || !form.company?.trim()}
               >
                 <Sparkles className="h-3 w-3 mr-1" />
-                {generatingDescription ? "Generating…" : "Generate with AI"}
+                {generatingDescription ? "Generating…" : "Regenerate"}
               </Button>
             </div>
             <textarea
               className="w-full min-h-[70px] px-3 py-2 border rounded-md text-sm bg-background mt-1"
               value={form.company_description ?? ""}
               onChange={(e) => setForm({ ...form, company_description: e.target.value })}
-              placeholder="What does this company do?"
+              placeholder="Auto-generated when you fill in a company"
             />
           </div>
           <div className="col-span-2">
@@ -635,21 +683,38 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
   const merge = useServerFn(mergeDuplicateContacts);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ groupCount: number; duplicateCount: number; groups: any[] } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [merging, setMerging] = useState(false);
 
   useEffect(() => {
-    if (!open) { setResult(null); return; }
+    if (!open) { setResult(null); setSelected(new Set()); return; }
     setLoading(true);
     preview()
-      .then((r: any) => setResult(r))
+      .then((r: any) => {
+        setResult(r);
+        setSelected(new Set(r.groups.map((g: any) => g.keep)));
+      })
       .catch((e: any) => toast.error(e.message ?? "Failed to scan"))
       .finally(() => setLoading(false));
   }, [open, preview]);
 
+  function toggle(keep: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(keep)) next.delete(keep); else next.add(keep);
+      return next;
+    });
+  }
+
   async function handleMerge() {
+    if (!result) return;
+    const selection = result.groups
+      .filter((g: any) => selected.has(g.keep))
+      .map((g: any) => ({ keepId: g.keep, dupeIds: g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.id) }));
+    if (!selection.length) { toast.error("Select at least one group to merge"); return; }
     setMerging(true);
     try {
-      const r: any = await merge();
+      const r: any = await merge({ data: { selection } });
       toast.success(`Merged ${r.mergedCount} duplicate${r.mergedCount === 1 ? "" : "s"} across ${r.groupCount} group${r.groupCount === 1 ? "" : "s"}`);
       qc.invalidateQueries({ queryKey: ["contacts"] });
       onClose();
@@ -659,6 +724,10 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
       setMerging(false);
     }
   }
+
+  const selectedDupeCount = result
+    ? result.groups.filter((g: any) => selected.has(g.keep)).reduce((n: number, g: any) => n + (g.members.length - 1), 0)
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -672,20 +741,28 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
             ) : (
               <>
                 <div className="text-sm">
-                  Found <strong>{result.groupCount}</strong> duplicate group{result.groupCount === 1 ? "" : "s"} — <strong>{result.duplicateCount}</strong> contact{result.duplicateCount === 1 ? "" : "s"} will be merged into their oldest match.
+                  Found <strong>{result.groupCount}</strong> duplicate group{result.groupCount === 1 ? "" : "s"}. Uncheck any you want to keep separate.
                 </div>
-                <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
+                <div className="max-h-72 overflow-y-auto border rounded-md divide-y">
                   {result.groups.map((g: any) => (
-                    <div key={g.keep} className="px-3 py-2 text-sm">
-                      <div className="font-medium">Keep: {g.keepLabel}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Merging: {g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.label).join(", ")}
+                    <label key={g.keep} className="flex items-start gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40">
+                      <Checkbox checked={selected.has(g.keep)} onCheckedChange={() => toggle(g.keep)} className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="font-medium">Keep: {g.keepLabel}</span>
+                          {(g.reasons ?? []).map((r: string) => (
+                            <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Merging: {g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.label).join(", ")}
+                        </div>
                       </div>
-                    </div>
+                    </label>
                   ))}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Rule: same email, same phone, or same name + company. All related meetings, opportunities and events stay linked to the kept contact.
+                  Matched by email, phone (last 9 digits), or name + company. All related meetings, opportunities and events stay linked to the kept contact.
                 </div>
               </>
             )}
@@ -694,8 +771,8 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           {result && result.groupCount > 0 && (
-            <Button onClick={handleMerge} disabled={merging}>
-              {merging ? "Merging…" : `Merge ${result.duplicateCount}`}
+            <Button onClick={handleMerge} disabled={merging || selectedDupeCount === 0}>
+              {merging ? "Merging…" : `Merge ${selectedDupeCount}`}
             </Button>
           )}
         </DialogFooter>
@@ -703,3 +780,4 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
     </Dialog>
   );
 }
+
