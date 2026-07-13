@@ -42,6 +42,15 @@ export async function fetchEvents() {
   return data ?? [];
 }
 
+export async function createEvent(input: { name: string; start_date?: string | null }) {
+  const payload: any = { name: input.name.trim() };
+  if (input.start_date) payload.start_date = input.start_date;
+  const { data, error } = await supabase.from("events").insert(payload).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+
 export async function updateDealStage(id: string, stage: string) {
   const { error } = await supabase.from("deals").update({ stage }).eq("id", id);
   if (error) throw error;

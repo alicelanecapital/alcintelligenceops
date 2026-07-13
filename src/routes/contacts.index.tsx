@@ -10,6 +10,9 @@ import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { EditContactDialog } from "@/components/EditContactDialog";
+import { EventSelect } from "@/components/EventSelect";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -158,10 +161,11 @@ function ContactCard({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
-    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
   return (
@@ -178,7 +182,7 @@ function ContactCard({ c }: { c: ContactRow }) {
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (confirm(`Delete ${primary}?`)) del.mutate(); }}>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true); }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -202,18 +206,21 @@ function ContactCard({ c }: { c: ContactRow }) {
         </CardContent>
       </Card>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
     </>
   );
 }
+
 
 function ContactListRow({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
-    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
   return (
@@ -234,14 +241,16 @@ function ContactListRow({ c }: { c: ContactRow }) {
         </Link>
         <div className="flex items-center gap-1 shrink-0">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { if (confirm(`Delete ${primary}?`)) del.mutate(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setConfirming(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
           <ArrowRight className="h-3.5 w-3.5 text-primary" />
         </div>
       </div>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
     </>
   );
 }
+
 
 
 function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean; onClose: () => void; onExtracted: (form: any) => void }) {
@@ -493,21 +502,20 @@ function readLastDate(): string | null {
 
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
-  const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const sortedEvents = useMemo(
-    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
-    [events.data],
-  );
+
   const buildInitial = () => {
     const base = initialForm ?? { category: "founder" };
     const lastEvent = readLastEvent();
     const lastDate = readLastDate();
+    const name = base.name?.trim() ? base.name : (base.company ?? "");
     return {
       ...base,
+      name,
       source_event_id: base.source_event_id ?? lastEvent ?? null,
       date_met: base.date_met ?? lastDate ?? "",
     };
   };
+
   const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
@@ -595,30 +603,31 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
           <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label="Company">
+            <Input
+              value={form.company ?? ""}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onBlur={() => {
+                setForm((f: any) => (f.name?.trim() ? f : { ...f, name: f.company ?? "" }));
+                autoGenerateIfEmpty();
+              }}
+            />
+          </Field>
           <Field label="Category">
             <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </Field>
-          <Field label="Company">
-            <Input
-              value={form.company ?? ""}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
-              onBlur={autoGenerateIfEmpty}
-            />
-          </Field>
+          <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
           <Field label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></Field>
           <Field label="Website"><Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
           <Field label="Source event">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? defaultEventId ?? ""} onChange={(e) => setEventSticky(e.target.value)}>
-              <option value="">— none —</option>
-              {sortedEvents.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
-            </select>
+            <EventSelect value={form.source_event_id ?? defaultEventId ?? ""} onChange={setEventSticky} />
           </Field>
+
           <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setDateSticky(e.target.value)} /></Field>
           {hasSticky && (
             <div className="col-span-2 -mt-1">
