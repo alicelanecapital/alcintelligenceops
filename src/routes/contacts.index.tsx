@@ -342,7 +342,7 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         {mode === "camera" && (
           <div className="space-y-3">
             <div className="relative rounded-md overflow-hidden bg-black">
-              <video ref={videoRef} autoPlay playsInline className="w-full block" />
+              <video ref={videoRef} autoPlay playsInline muted className="w-full block aspect-[1.6/1] object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
                   className="relative w-[88%] aspect-[1.6/1] rounded-lg border-2 border-white/90"
