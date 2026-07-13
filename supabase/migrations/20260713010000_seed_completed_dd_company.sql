@@ -4,7 +4,7 @@
 -- Wrapped in a guard on the opportunity name so re-running this migration is
 -- a no-op if the demo company already exists.
 
-do $$
+do $seed$
 declare
   v_founder_id uuid;
   v_company_id uuid;
@@ -13,7 +13,7 @@ declare
   v_round int;
   v_round_title text;
 begin
-  if exists (select 1 from public.opportunities where name = 'Kaya Fresh Foods — Demo (Completed)') then
+  if exists (select 1 from public.opportunities where name = 'Kaya Fresh Foods - Demo (Completed)') then
     return;
   end if;
 
@@ -68,7 +68,7 @@ begin
     name, founder_id, company_id, industry, current_stage, assigned_partner,
     priority, estimated_investment, probability, source, summary
   ) values (
-    'Kaya Fresh Foods — Demo (Completed)', v_founder_id, v_company_id, 'Food',
+    'Kaya Fresh Foods - Demo (Completed)', v_founder_id, v_company_id, 'Food',
     'Investment Committee', 'Nomsa Dlamini', 'High', 3500000, 85,
     'Endeavor South Africa introduction',
     'Reference example: completed all 5 rounds of the due diligence framework with a clean "Proceed" recommendation. Kept for training and process demonstration.'
@@ -139,7 +139,7 @@ begin
       q.why_text,
       true,
       now() - ((6 - v_round) * interval '3 weeks') + interval '1 day',
-      'Verified — no material discrepancy found.'
+      'Verified - no material discrepancy found.'
     from public.dd_framework_questions q
     where q.round = v_round
     order by q.sort_order
@@ -167,4 +167,4 @@ begin
   end loop;
 
   update public.opportunities set current_stage = 'Investment Committee' where id = v_opportunity_id;
-end $$;
+end $seed$;
