@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { updateContact, CATEGORY_OPTIONS } from "@/lib/contacts";
-import { fetchEvents } from "@/lib/db";
 import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { EventSelect } from "@/components/EventSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
+
 
 const LAST_EVENT_KEY = "contacts:last_source_event_id";
 const LAST_DATE_KEY = "contacts:last_date_met";
