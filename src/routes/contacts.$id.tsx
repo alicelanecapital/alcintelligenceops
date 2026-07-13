@@ -3,19 +3,17 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchContact, fetchContactMeetings, fetchContactOpportunities, updateContact, deleteContact, CATEGORY_LABELS, CATEGORY_OPTIONS } from "@/lib/contacts";
-import { fetchEvents } from "@/lib/db";
-import { startMeetingForContact, createOpportunityFromContact, generateCompanyDescription } from "@/lib/contacts.functions";
+import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, CATEGORY_LABELS } from "@/lib/contacts";
+import { startMeetingForContact, createOpportunityFromContact } from "@/lib/contacts.functions";
+import { EditContactDialog } from "@/components/EditContactDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useMemo, useState } from "react";
-import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
+
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
