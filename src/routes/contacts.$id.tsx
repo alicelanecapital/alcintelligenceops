@@ -13,6 +13,8 @@ import { useState } from "react";
 import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+
 
 
 export const Route = createFileRoute("/contacts/$id")({
