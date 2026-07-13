@@ -27,6 +27,7 @@ alter table public.google_calendar_events enable row level security;
 
 -- Team-wide read so "Upcoming meetings" on the shared Meetings screen can show
 -- everyone's synced calendar, matching this app's team-scoped-read pattern.
+drop policy if exists "google_calendar_events team read" on public.google_calendar_events;
 create policy "google_calendar_events team read" on public.google_calendar_events
   for select to authenticated
   using ((auth.jwt() ->> 'email') like '%@alicelanecapital.com');
@@ -34,6 +35,7 @@ create policy "google_calendar_events team read" on public.google_calendar_event
 -- Writes (sync) restricted to the owning user's own rows, same pattern as
 -- google_oauth_connections -- a user's calendar sync should never let another
 -- signed-in user overwrite it.
+drop policy if exists "google_calendar_events own write" on public.google_calendar_events;
 create policy "google_calendar_events own write" on public.google_calendar_events
   for all to authenticated
   using (user_email = (auth.jwt() ->> 'email'))
