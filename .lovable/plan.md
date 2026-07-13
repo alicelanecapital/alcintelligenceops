@@ -1,49 +1,41 @@
-## Contacts – capture, edit, dedupe & QR scanning
+## Contacts – auto-AI description, smarter dedupe, inline CRUD, sticky event
 
-### 1. Edit Contact parity with Add / Scan
-Add the missing fields to `EditContactDialog` in `src/routes/contacts.$id.tsx` so it mirrors `AddContactDialog`:
-- Source event (dropdown of events, sorted alphabetically)
-- Date met
-- Company description (with "Generate with AI" button)
-- Persist via `updateContact` (already accepts these columns)
+### 1. Auto-generate AI Company Description (no button click)
+In `AddContactDialog` and `EditContactDialog`:
+- When the Company field loses focus (`onBlur`) and `company_description` is empty and company has ≥2 chars, kick off `generateCompanyDescription` automatically.
+- Show a small "Generating with AI…" hint under the textarea while it runs; user can still edit or overwrite.
+- Debounce so re-blurring the same company doesn't refetch. Keep the manual "Generate with AI" button as a re-run option.
 
-### 2. Alphabetical Source Events
-Sort the events list A→Z in both dialogs (Add Contact, Review Scanned Contact, Edit Contact) — do the sort in the component after `fetchEvents`.
+### 2. Merge Duplicates – detect by same email OR same phone (regardless of name)
+Current rule in `contacts.functions.ts` already unions same-email, same-phone, and same-(name+company). Tighten and surface it:
+- Normalize phones more loosely: strip everything non-digit, then compare last 9 digits (so `+27 82 555 1234` and `082 555 1234` match).
+- Normalize emails to lowercase trimmed (already done) and also ignore `+tag` in local part (`jane+work@x.com` = `jane@x.com`).
+- In the Merge dialog, group each duplicate under its match reason ("Same email", "Same phone", "Same name + company") so the user can see why.
+- Add per-group checkboxes so the user can opt out of specific merges before confirming (send selected `keepId → [dupeIds]` map to `mergeDuplicateContacts`).
 
-### 3. Default Name = Company when blank
-In `AddContactDialog` save handler: if `form.name` is empty, use `form.company` as the name before insert. Also relax the "Save disabled unless name" gate so the button enables when either name or company is filled.
+### 3. Full CRUD on each record
+- **Create**: exists (Add contact).
+- **Read**: exists (list + detail).
+- **Update**: exists on detail page. Add inline quick actions on each list/card row: a pencil (opens `EditContactDialog` reused from detail) and trash (with confirm) — no need to navigate into detail for small fixes.
+- **Delete**: already on detail; add to list row as above.
+- Extract `EditContactDialog` from `contacts.$id.tsx` into `src/components/EditContactDialog.tsx` so both list and detail can mount it.
 
-### 4. Remember last event + date for scans
-Persist the last-used `source_event_id` and `date_met` to `localStorage` (`contacts:last_source_event_id`, `contacts:last_date_met`) whenever a contact is saved. `AddContactDialog` (both plain and Review Scanned) prefills from these values, so consecutive scans at the same event auto-fill until the user changes it manually.
-
-### 5. Remove duplicate contacts
-- Add a one-off "Merge duplicates" action on `/contacts` (button next to Add contact, opens a small dialog listing groups).
-- Duplicate rule: same normalized email OR (same normalized phone) OR (same lowercase name + same lowercase company).
-- For each group, keep the oldest record, merge non-null fields from the others into it, reassign FKs on `interviews`, `opportunities`, `meetings`, `communications`, `notes`, `tasks`, `document_requests` from duplicate ids → kept id, then delete the duplicates. Implemented as a `createServerFn` (`mergeDuplicateContacts`) using `requireSupabaseAuth`.
-- Show a preview count first ("Found N duplicate groups, M contacts will be merged") and require a confirm click.
-
-### 6. Scan QR code on contacts
-Extend `ScanBusinessCardDialog` (rename UI to "Scan card / QR"):
-- Add `jsqr` (pure JS QR decoder, edge-safe, client-only).
-- On "Use this photo" and during live camera preview, run `jsQR` on the frame first.
-- If a QR is detected, parse it:
-  - `BEGIN:VCARD` → map FN/ORG/TITLE/EMAIL/TEL/URL/X-SOCIALPROFILE to form fields, skip AI call.
-  - `MECARD:` → same mapping.
-  - Plain URL / email / phone → prefill the matching field only.
-  - Otherwise dump into notes.
-- If no QR found, fall back to existing AI business-card extraction.
-- Prefill flows into the same Review Scanned Contact dialog, which now also inherits the remembered event/date.
+### 4. Sticky Event + Event Date until manually changed
+Current implementation writes `contacts:last_source_event_id` / `contacts:last_date_met` only on successful save. Change to sticky-by-intent:
+- Write to localStorage as soon as the user picks/changes the event or date in the dialog (not just on save), so an abandoned dialog still remembers.
+- Also apply the sticky values inside the scan → Review Scanned Contact flow (already prefills, but confirm QR/AI scans don't overwrite them with `null`).
+- Add a small "Sticky · click to clear" chip next to Source event and Date met that shows the remembered value and clears both keys on click.
 
 ### Technical notes
-- Files touched:
-  - `src/routes/contacts.index.tsx` — sort events, localStorage prefill, name-fallback, QR path, Merge button.
-  - `src/routes/contacts.$id.tsx` — expand `EditContactDialog` fields + generate-description.
-  - `src/lib/contacts.functions.ts` — add `mergeDuplicateContacts` server fn.
-  - `src/lib/qr.ts` (new) — thin wrapper around `jsqr` + vCard/MECARD parser.
-  - `package.json` — add `jsqr`.
-- No schema changes needed; `contacts.company_description`, `source_event_id`, `date_met` already exist.
-- The merge server fn runs as the signed-in user (RLS applies). No admin client.
+Files touched:
+- `src/routes/contacts.index.tsx` — auto-description on blur, sticky-write on change, sticky chip, list-row edit/delete buttons, mount shared EditContactDialog, richer merge dialog (reasons + checkboxes).
+- `src/routes/contacts.$id.tsx` — replace inline EditContactDialog with shared import; add auto-description on blur.
+- `src/components/EditContactDialog.tsx` (new) — extracted dialog with all fields + auto AI description.
+- `src/lib/contacts.functions.ts` — looser phone/email normalization, return `reason` per group from `previewDuplicateContacts`, accept an optional `selection: { keepId: string; dupeIds: string[] }[]` on `mergeDuplicateContacts` (falls back to merging all when omitted).
+
+No schema changes. No new packages.
 
 ### Out of scope
-- Automatic de-dup on insert (this plan only ships the manual merge action).
-- Background/periodic dedupe.
+- Auto-dedupe on insert.
+- Fuzzy name matching (Levenshtein) — only exact normalized matches.
+- Undo after merge.

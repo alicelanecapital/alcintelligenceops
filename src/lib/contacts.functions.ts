@@ -172,12 +172,23 @@ type ContactLite = {
   created_at: string;
 };
 
-const normEmail = (v: string | null) => (v ?? "").trim().toLowerCase() || null;
-const normPhone = (v: string | null) => (v ? v.replace(/[^\d+]/g, "") : "") || null;
+const normEmail = (v: string | null) => {
+  const s = (v ?? "").trim().toLowerCase();
+  if (!s || !s.includes("@")) return null;
+  const [local, domain] = s.split("@");
+  const cleanLocal = local.split("+")[0];
+  return `${cleanLocal}@${domain}`;
+};
+const normPhone = (v: string | null) => {
+  const digits = (v ?? "").replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  return digits.slice(-9); // last 9 digits — tolerates country code / spaces / formatting
+};
 const normText = (v: string | null) => (v ?? "").trim().toLowerCase() || null;
 
-function groupDuplicates(rows: ContactLite[]): ContactLite[][] {
-  // Union-find over ids using duplicate keys
+type GroupInfo = { members: ContactLite[]; reasons: Set<string> };
+
+function groupDuplicates(rows: ContactLite[]): { group: ContactLite[]; reasons: string[] }[] {
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     const p = parent.get(x) ?? x;
@@ -192,19 +203,43 @@ function groupDuplicates(rows: ContactLite[]): ContactLite[][] {
   };
   rows.forEach((r) => parent.set(r.id, r.id));
 
-  const byKey = new Map<string, string>();
-  const link = (key: string | null, id: string) => {
+  const reasonsByRoot = new Map<string, Set<string>>();
+  const addReason = (id: string, reason: string) => {
+    const root = find(id);
+    const set = reasonsByRoot.get(root) ?? new Set<string>();
+    set.add(reason);
+    reasonsByRoot.set(root, set);
+  };
+
+  const byKey = new Map<string, { id: string; reason: string }>();
+  const link = (key: string | null, reason: string, id: string) => {
     if (!key) return;
     const prev = byKey.get(key);
-    if (prev) union(prev, id);
-    else byKey.set(key, id);
+    if (prev) {
+      union(prev.id, id);
+      addReason(id, reason);
+    } else {
+      byKey.set(key, { id, reason });
+    }
   };
   for (const r of rows) {
-    link(normEmail(r.email) && `e:${normEmail(r.email)}`, r.id);
-    link(normPhone(r.phone) && `p:${normPhone(r.phone)}`, r.id);
+    const e = normEmail(r.email);
+    const p = normPhone(r.phone);
     const n = normText(r.name), c = normText(r.company);
-    if (n && c) link(`nc:${n}|${c}`, r.id);
+    link(e && `e:${e}`, "Same email", r.id);
+    link(p && `p:${p}`, "Same phone", r.id);
+    if (n && c) link(`nc:${n}|${c}`, "Same name + company", r.id);
   }
+
+  // migrate reasons whose root changed after later unions
+  const finalReasons = new Map<string, Set<string>>();
+  for (const [root, set] of reasonsByRoot) {
+    const newRoot = find(root);
+    const target = finalReasons.get(newRoot) ?? new Set<string>();
+    set.forEach((s) => target.add(s));
+    finalReasons.set(newRoot, target);
+  }
+
   const groups = new Map<string, ContactLite[]>();
   for (const r of rows) {
     const root = find(r.id);
@@ -212,7 +247,9 @@ function groupDuplicates(rows: ContactLite[]): ContactLite[][] {
     arr.push(r);
     groups.set(root, arr);
   }
-  return [...groups.values()].filter((g) => g.length > 1);
+  return [...groups.entries()]
+    .filter(([, g]) => g.length > 1)
+    .map(([root, g]) => ({ group: g, reasons: [...(finalReasons.get(root) ?? new Set())] }));
 }
 
 export const previewDuplicateContacts = createServerFn({ method: "POST" })
@@ -224,25 +261,42 @@ export const previewDuplicateContacts = createServerFn({ method: "POST" })
     const groups = groupDuplicates((data ?? []) as any);
     return {
       groupCount: groups.length,
-      duplicateCount: groups.reduce((n, g) => n + (g.length - 1), 0),
-      groups: groups.map((g) => ({
-        keep: g[0].id,
-        keepLabel: g[0].name || g[0].company || g[0].email || "(unnamed)",
-        members: g.map((m) => ({ id: m.id, label: m.name || m.company || m.email || "(unnamed)" })),
+      duplicateCount: groups.reduce((n, g) => n + (g.group.length - 1), 0),
+      groups: groups.map(({ group, reasons }) => ({
+        keep: group[0].id,
+        keepLabel: group[0].name || group[0].company || group[0].email || "(unnamed)",
+        reasons,
+        members: group.map((m) => ({ id: m.id, label: m.name || m.company || m.email || "(unnamed)" })),
       })),
     };
   });
 
 export const mergeDuplicateContacts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { selection?: { keepId: string; dupeIds: string[] }[] } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
     const s = context.supabase;
-    const { data, error } = await s.from("contacts").select("*").order("created_at", { ascending: true });
+    const { data: rows, error } = await s.from("contacts").select("*").order("created_at", { ascending: true });
     if (error) throw error;
-    const groups = groupDuplicates((data ?? []) as any);
+    const allRows = (rows ?? []) as any as ContactLite[];
+    const byId = new Map(allRows.map((r) => [r.id, r]));
+
+    let plan: { keep: ContactLite; dupes: ContactLite[] }[];
+    if (data.selection && data.selection.length) {
+      plan = data.selection
+        .map((sel) => {
+          const keep = byId.get(sel.keepId);
+          const dupes = sel.dupeIds.map((id) => byId.get(id)).filter(Boolean) as ContactLite[];
+          return keep && dupes.length ? { keep, dupes } : null;
+        })
+        .filter(Boolean) as any;
+    } else {
+      const groups = groupDuplicates(allRows);
+      plan = groups.map(({ group }) => ({ keep: group[0], dupes: group.slice(1) }));
+    }
+
     let merged = 0;
-    for (const g of groups) {
-      const [keep, ...dupes] = g;
+    for (const { keep, dupes } of plan) {
       const patch: any = {};
       const fields: (keyof ContactLite)[] = [
         "name","company","email","phone","position","website","linkedin",
@@ -254,7 +308,6 @@ export const mergeDuplicateContacts = createServerFn({ method: "POST" })
           if (filled) patch[f] = filled[f];
         }
       }
-      // Combine notes if multiple contacts had different notes
       const notesPieces = [keep.notes, ...dupes.map((d) => d.notes)].filter(Boolean) as string[];
       const uniqueNotes = [...new Set(notesPieces.map((n) => n.trim()))].join("\n---\n");
       if (uniqueNotes && uniqueNotes !== (keep.notes ?? "").trim()) patch.notes = uniqueNotes;
@@ -263,7 +316,6 @@ export const mergeDuplicateContacts = createServerFn({ method: "POST" })
         await s.from("contacts").update(patch).eq("id", keep.id);
       }
       const dupIds = dupes.map((d) => d.id);
-      // Reassign references
       await s.from("opportunities").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
       await s.from("interviews").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
       await s.from("event_attendees").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
@@ -271,6 +323,7 @@ export const mergeDuplicateContacts = createServerFn({ method: "POST" })
       await s.from("contacts").delete().in("id", dupIds);
       merged += dupIds.length;
     }
-    return { mergedCount: merged, groupCount: groups.length };
+    return { mergedCount: merged, groupCount: plan.length };
   });
+
 
