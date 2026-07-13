@@ -9,6 +9,7 @@ import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-
 import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
+import { EditContactDialog } from "@/components/EditContactDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, GitMerge, QrCode } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, GitMerge, QrCode, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
+
 
 export const Route = createFileRoute("/contacts/")({
   component: () => <AppShell><ContactsIndex /></AppShell>,
