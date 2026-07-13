@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { listInterviews } from "@/lib/interviews";
 import { fetchFounders } from "@/lib/db";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
+import { fetchTeamMembers } from "@/lib/team-members";
+import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,10 @@ export const Route = createFileRoute("/interviews/")({ component: () => <AppShel
 function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
+  const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const [view, setView] = useViewMode("meetings");
+
+  const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
@@ -42,19 +47,26 @@ function InterviewsIndex() {
         </div>
         {upcoming.data && upcoming.data.length > 0 ? (
           <div className="rounded-lg border border-border divide-y divide-border bg-card">
-            {upcoming.data.slice(0, 8).map((ev: any) => (
-              <div key={ev.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <CalendarClock className="h-4 w-4 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{ev.title}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-                    <span>{format(new Date(ev.start_time), "EEE d MMM · HH:mm")}</span>
-                    {ev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
-                    {ev.meeting_link && <a href={ev.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline"><Video className="h-3 w-3" />Join</a>}
+            {upcoming.data.slice(0, 8).map((ev: any) => {
+              const owner = memberByEmail.get(ev.user_email);
+              const classes = owner ? COLOR_CLASSES[owner.color] : DEFAULT_COLOR_CLASSES;
+              return (
+                <div key={ev.id} className={`flex items-center gap-3 px-4 py-3 text-sm border-l-4 ${classes.border}`}>
+                  <CalendarClock className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{ev.title}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                      <span>{format(new Date(ev.start_time), "EEE d MMM · HH:mm")}</span>
+                      {ev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
+                      {ev.meeting_link && <a href={ev.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline"><Video className="h-3 w-3" />Join</a>}
+                    </div>
                   </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${classes.badge}`}>
+                    {owner?.display_name || ev.user_email}
+                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground bg-card">
