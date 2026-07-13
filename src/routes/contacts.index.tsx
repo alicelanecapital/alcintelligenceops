@@ -161,10 +161,11 @@ function ContactCard({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
-    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
   return (
@@ -181,7 +182,7 @@ function ContactCard({ c }: { c: ContactRow }) {
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (confirm(`Delete ${primary}?`)) del.mutate(); }}>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true); }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -205,9 +206,11 @@ function ContactCard({ c }: { c: ContactRow }) {
         </CardContent>
       </Card>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
     </>
   );
 }
+
 
 function ContactListRow({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
