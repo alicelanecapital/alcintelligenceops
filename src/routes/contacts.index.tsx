@@ -502,8 +502,6 @@ function readLastDate(): string | null {
 
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
-  const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  void events;
 
   const buildInitial = () => {
     const base = initialForm ?? { category: "founder" };
