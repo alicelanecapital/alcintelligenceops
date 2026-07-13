@@ -268,6 +268,409 @@ export type Database = {
         }
         Relationships: []
       }
+      dd_framework_documents: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          purpose: string | null
+          round: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          purpose?: string | null
+          round: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          purpose?: string | null
+          round?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_framework_documents_round_fkey"
+            columns: ["round"]
+            isOneToOne: false
+            referencedRelation: "dd_framework_rounds"
+            referencedColumns: ["round"]
+          },
+        ]
+      }
+      dd_framework_questions: {
+        Row: {
+          created_at: string
+          id: string
+          internal_steps: string[] | null
+          question_text: string
+          red_flags: Json | null
+          round: number
+          sort_order: number
+          updated_at: string
+          why_text: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          internal_steps?: string[] | null
+          question_text: string
+          red_flags?: Json | null
+          round: number
+          sort_order?: number
+          updated_at?: string
+          why_text?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          internal_steps?: string[] | null
+          question_text?: string
+          red_flags?: Json | null
+          round?: number
+          sort_order?: number
+          updated_at?: string
+          why_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_framework_questions_round_fkey"
+            columns: ["round"]
+            isOneToOne: false
+            referencedRelation: "dd_framework_rounds"
+            referencedColumns: ["round"]
+          },
+        ]
+      }
+      dd_framework_rounds: {
+        Row: {
+          duration: string | null
+          purpose: string | null
+          round: number
+          subtitle: string | null
+          title: string
+        }
+        Insert: {
+          duration?: string | null
+          purpose?: string | null
+          round: number
+          subtitle?: string | null
+          title: string
+        }
+        Update: {
+          duration?: string | null
+          purpose?: string | null
+          round?: number
+          subtitle?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      dd_internal_verification: {
+        Row: {
+          completed: boolean | null
+          completion_date: string | null
+          created_at: string
+          findings: string | null
+          id: string
+          interview_id: string
+          round: number
+          step_description: string | null
+          step_title: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completion_date?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          interview_id: string
+          round: number
+          step_description?: string | null
+          step_title: string
+        }
+        Update: {
+          completed?: boolean | null
+          completion_date?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          interview_id?: string
+          round?: number
+          step_description?: string | null
+          step_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_internal_verification_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dd_interview_documents: {
+        Row: {
+          auto_analysis: Json | null
+          document_category: string
+          document_type: string | null
+          file_name: string | null
+          file_size_bytes: number | null
+          file_url: string | null
+          id: string
+          interview_id: string
+          parsed_data: Json | null
+          round: number
+          upload_channel: string | null
+          uploaded_at: string
+          verification_status: string | null
+        }
+        Insert: {
+          auto_analysis?: Json | null
+          document_category: string
+          document_type?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          interview_id: string
+          parsed_data?: Json | null
+          round: number
+          upload_channel?: string | null
+          uploaded_at?: string
+          verification_status?: string | null
+        }
+        Update: {
+          auto_analysis?: Json | null
+          document_category?: string
+          document_type?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          interview_id?: string
+          parsed_data?: Json | null
+          round?: number
+          upload_channel?: string | null
+          uploaded_at?: string
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_interview_documents_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dd_interviews: {
+        Row: {
+          ai_analysis: Json | null
+          completed_at: string | null
+          created_at: string
+          detected_sector: string | null
+          id: string
+          opportunity_id: string
+          paused_at: string | null
+          recording_duration_seconds: number | null
+          recording_url: string | null
+          round: number
+          sector_confidence: number | null
+          started_at: string | null
+          status: string
+          transcript: string | null
+          transcript_source: string | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          detected_sector?: string | null
+          id?: string
+          opportunity_id: string
+          paused_at?: string | null
+          recording_duration_seconds?: number | null
+          recording_url?: string | null
+          round: number
+          sector_confidence?: number | null
+          started_at?: string | null
+          status?: string
+          transcript?: string | null
+          transcript_source?: string | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          detected_sector?: string | null
+          id?: string
+          opportunity_id?: string
+          paused_at?: string | null
+          recording_duration_seconds?: number | null
+          recording_url?: string | null
+          round?: number
+          sector_confidence?: number | null
+          started_at?: string | null
+          status?: string
+          transcript?: string | null
+          transcript_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_interviews_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dd_round_responses: {
+        Row: {
+          created_at: string
+          founder_response: string | null
+          id: string
+          interview_id: string
+          question_number: number
+          question_text: string
+          response_source: string | null
+          response_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          founder_response?: string | null
+          id?: string
+          interview_id: string
+          question_number: number
+          question_text: string
+          response_source?: string | null
+          response_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          founder_response?: string | null
+          id?: string
+          interview_id?: string
+          question_number?: number
+          question_text?: string
+          response_source?: string | null
+          response_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_round_responses_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dd_upload_channels: {
+        Row: {
+          channel_type: string
+          created_at: string
+          dedicated_email: string | null
+          id: string
+          interview_id: string | null
+          opportunity_id: string
+        }
+        Insert: {
+          channel_type?: string
+          created_at?: string
+          dedicated_email?: string | null
+          id?: string
+          interview_id?: string | null
+          opportunity_id: string
+        }
+        Update: {
+          channel_type?: string
+          created_at?: string
+          dedicated_email?: string | null
+          id?: string
+          interview_id?: string | null
+          opportunity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_upload_channels_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dd_verification_claims: {
+        Row: {
+          claim_text: string
+          claim_type: string | null
+          created_at: string
+          documents_support: boolean | null
+          founder_word: boolean | null
+          id: string
+          independent_observation: boolean | null
+          interview_id: string
+          round: number
+          variance_percent: number | null
+          verification_complete: boolean | null
+          verified_amount: number | null
+          verified_at: string | null
+        }
+        Insert: {
+          claim_text: string
+          claim_type?: string | null
+          created_at?: string
+          documents_support?: boolean | null
+          founder_word?: boolean | null
+          id?: string
+          independent_observation?: boolean | null
+          interview_id: string
+          round: number
+          variance_percent?: number | null
+          verification_complete?: boolean | null
+          verified_amount?: number | null
+          verified_at?: string | null
+        }
+        Update: {
+          claim_text?: string
+          claim_type?: string | null
+          created_at?: string
+          documents_support?: boolean | null
+          founder_word?: boolean | null
+          id?: string
+          independent_observation?: boolean | null
+          interview_id?: string
+          round?: number
+          variance_percent?: number | null
+          verification_complete?: boolean | null
+          verified_amount?: number | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_verification_claims_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_activity: {
         Row: {
           created_at: string
@@ -564,6 +967,9 @@ export type Database = {
           ai_factors: Json | null
           ai_score: number | null
           ai_summary: string | null
+          booked: boolean
+          booked_at: string | null
+          booked_by: string | null
           city: string | null
           cost: string | null
           cost_type: string | null
@@ -593,6 +999,9 @@ export type Database = {
           ai_factors?: Json | null
           ai_score?: number | null
           ai_summary?: string | null
+          booked?: boolean
+          booked_at?: string | null
+          booked_by?: string | null
           city?: string | null
           cost?: string | null
           cost_type?: string | null
@@ -622,6 +1031,9 @@ export type Database = {
           ai_factors?: Json | null
           ai_score?: number | null
           ai_summary?: string | null
+          booked?: boolean
+          booked_at?: string | null
+          booked_by?: string | null
           city?: string | null
           cost?: string | null
           cost_type?: string | null
@@ -887,6 +1299,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      google_oauth_connections: {
+        Row: {
+          access_token: string
+          connected_at: string
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
       }
       interview_analyses: {
         Row: {
