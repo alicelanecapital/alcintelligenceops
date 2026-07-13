@@ -1,15 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
-
-function server() {
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-  return createClient<Database>(url, key, { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } });
-}
 
 const BRIEF_SYSTEM = `You are an Alice Lane Capital investment analyst preparing an interviewer for a due diligence meeting.
 Given the founder, company, and known external contacts (people outside Alice Lane who may attend), produce a short
@@ -27,9 +19,12 @@ Keep notes to one sentence each, specific and actionable for an interviewer walk
 export const generateStakeholderBrief = createServerFn({ method: "POST" })
   .inputValidator((d: { opportunityId: string; interviewId: string; round: number }) => d)
   .handler(async ({ data }) => {
-    const sb = server();
+    // Admin client: this reads across opportunities/contacts regardless of who's asking, and
+    // both tables' RLS ("to authenticated") would otherwise hide rows from a plain anon-key
+    // client with no user session -- the contacts query would silently return zero rows.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: opp, error: oppError } = await sb
+    const { data: opp, error: oppError } = await supabaseAdmin
       .from("opportunities")
       .select("*, founder:founders(name, startup_name, sector, email, phone), company:companies(name, industry, summary)")
       .eq("id", data.opportunityId)
@@ -39,7 +34,7 @@ export const generateStakeholderBrief = createServerFn({ method: "POST" })
 
     const companyName = (opp as any).company?.name ?? (opp as any).founder?.startup_name ?? (opp as any).name;
 
-    const { data: contacts } = await sb
+    const { data: contacts } = await supabaseAdmin
       .from("contacts")
       .select("name, category, position, email, phone, notes")
       .ilike("company", `%${companyName}%`);
@@ -78,9 +73,7 @@ ${JSON.stringify(contacts ?? [])}
     try { brief = JSON.parse(content); } catch { brief = { attendees: [], talking_points: [], relationship_history: content }; }
     brief.generated_at = new Date().toISOString();
 
-    // stakeholder_brief is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
-    // generated Supabase types -- cast until types.ts is regenerated post-migration.
-    await (sb.from("dd_interviews") as any).update({ stakeholder_brief: brief }).eq("id", data.interviewId);
+    await supabaseAdmin.from("dd_interviews").update({ stakeholder_brief: brief }).eq("id", data.interviewId);
 
     return brief;
   });
