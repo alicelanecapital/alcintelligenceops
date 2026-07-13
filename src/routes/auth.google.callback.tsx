@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
+
 
 export const Route = createFileRoute("/auth/google/callback")({
   server: {
