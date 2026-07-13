@@ -187,7 +187,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         }
       });
       setAiAnalysis(analysis);
-      await supabase.from('dd_interviews').update({ ai_analysis: analysis }).eq('id', interviewRowId);
+      await supabase.from('dd_interviews').update({ ai_analysis: analysis as any }).eq('id', interviewRowId);
     } catch (error: any) {
       console.error('Analysis generation failed:', error);
       toast.error('Analysis generation failed: ' + (error?.message ?? 'unknown error'));
