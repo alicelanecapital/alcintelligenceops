@@ -30,7 +30,9 @@ function ContactProfile() {
   const opps = useQuery({ queryKey: ["contact-opps", id], queryFn: () => fetchContactOpportunities(id) });
 
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+
 
   const startMeeting = useServerFn(startMeetingForContact);
   const createOpp = useServerFn(createOpportunityFromContact);
@@ -72,8 +74,9 @@ function ContactProfile() {
     <div className="max-w-6xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow={<Link to="/contacts" className="hover:underline">← Contacts</Link>}
-        title={c.name}
-        description={c.company ? `${c.company}${c.position ? ` · ${c.position}` : ""}` : ""}
+        title={c.company || c.name}
+        description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
+
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button size="lg" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
@@ -96,7 +99,7 @@ function ContactProfile() {
               <CardTitle className="text-base">Details</CardTitle>
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this contact?")) delMut.mutate(); }}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -179,6 +182,14 @@ function ContactProfile() {
 
       <EditContactDialog open={editOpen} onClose={() => setEditOpen(false)} contact={c} />
       <RequestInfoModal open={requestOpen} onClose={() => setRequestOpen(false)} contactId={id} contactName={c.name} contactEmail={c.email} />
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => delMut.mutate()}
+        name={c.company || c.name}
+        pending={delMut.isPending}
+      />
+
     </div>
   );
 }
