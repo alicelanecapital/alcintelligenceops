@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_links: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          slug: string
+          title: string
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          slug: string
+          title?: string
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          booking_link_id: string
+          client_email: string
+          client_name: string
+          client_notes: string | null
+          created_at: string
+          end_time: string
+          google_event_id: string | null
+          id: string
+          start_time: string
+          status: string
+        }
+        Insert: {
+          booking_link_id: string
+          client_email: string
+          client_name: string
+          client_notes?: string | null
+          created_at?: string
+          end_time: string
+          google_event_id?: string | null
+          id?: string
+          start_time: string
+          status?: string
+        }
+        Update: {
+          booking_link_id?: string
+          client_email?: string
+          client_name?: string
+          client_notes?: string | null
+          created_at?: string
+          end_time?: string
+          google_event_id?: string | null
+          id?: string
+          start_time?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_booking_link_id_fkey"
+            columns: ["booking_link_id"]
+            isOneToOne: false
+            referencedRelation: "booking_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communications: {
         Row: {
           body: string | null
