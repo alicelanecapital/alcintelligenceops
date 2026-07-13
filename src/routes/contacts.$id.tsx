@@ -3,18 +3,19 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchContact, fetchContactMeetings, fetchContactOpportunities, updateContact, deleteContact, CATEGORY_LABELS, CATEGORY_OPTIONS } from "@/lib/contacts";
+import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact, createOpportunityFromContact } from "@/lib/contacts.functions";
+import { EditContactDialog } from "@/components/EditContactDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+
+
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
@@ -29,7 +30,9 @@ function ContactProfile() {
   const opps = useQuery({ queryKey: ["contact-opps", id], queryFn: () => fetchContactOpportunities(id) });
 
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+
 
   const startMeeting = useServerFn(startMeetingForContact);
   const createOpp = useServerFn(createOpportunityFromContact);
@@ -71,8 +74,9 @@ function ContactProfile() {
     <div className="max-w-6xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow={<Link to="/contacts" className="hover:underline">← Contacts</Link>}
-        title={c.name}
-        description={c.company ? `${c.company}${c.position ? ` · ${c.position}` : ""}` : ""}
+        title={c.company || c.name}
+        description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
+
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button size="lg" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
@@ -95,7 +99,7 @@ function ContactProfile() {
               <CardTitle className="text-base">Details</CardTitle>
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this contact?")) delMut.mutate(); }}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -178,6 +182,14 @@ function ContactProfile() {
 
       <EditContactDialog open={editOpen} onClose={() => setEditOpen(false)} contact={c} />
       <RequestInfoModal open={requestOpen} onClose={() => setRequestOpen(false)} contactId={id} contactName={c.name} contactEmail={c.email} />
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => delMut.mutate()}
+        name={c.company || c.name}
+        pending={delMut.isPending}
+      />
+
     </div>
   );
 }
@@ -191,55 +203,5 @@ function InfoRow({ icon, label }: { icon: React.ReactNode; label: React.ReactNod
   );
 }
 
-function EditContactDialog({ open, onClose, contact }: { open: boolean; onClose: () => void; contact: any }) {
-  const qc = useQueryClient();
-  const [form, setForm] = useState<any>(contact);
-  const m = useMutation({
-    mutationFn: () => updateContact(contact.id, {
-      name: form.name, category: form.category, company: form.company, position: form.position,
-      email: form.email, phone: form.phone, linkedin: form.linkedin, website: form.website,
-      notes: form.notes, status: form.status, ai_summary: form.ai_summary,
-    }),
-    onSuccess: () => {
-      toast.success("Saved");
-      qc.invalidateQueries({ queryKey: ["contact", contact.id] });
-      qc.invalidateQueries({ queryKey: ["contacts"] });
-      onClose();
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Edit contact</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <F label="Name"><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></F>
-          <F label="Category">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-          </F>
-          <F label="Company"><Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} /></F>
-          <F label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></F>
-          <F label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></F>
-          <F label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></F>
-          <F label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></F>
-          <F label="Website"><Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} /></F>
-          <F label="Status"><Input value={form.status ?? ""} onChange={(e) => setForm({ ...form, status: e.target.value })} /></F>
-          <div className="col-span-2">
-            <Label className="text-sm">Notes</Label>
-            <textarea className="w-full min-h-[80px] px-3 py-2 border rounded-md text-sm bg-background" value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => m.mutate()} disabled={m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
-function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><Label className="text-sm">{label}</Label>{children}</div>;
-}
+

@@ -227,6 +227,7 @@ export type Database = {
           ai_summary: string | null
           category: string
           company: string | null
+          company_description: string | null
           created_at: string
           date_met: string | null
           email: string | null
@@ -253,6 +254,7 @@ export type Database = {
           ai_summary?: string | null
           category?: string
           company?: string | null
+          company_description?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           ai_summary?: string | null
           category?: string
           company?: string | null
+          company_description?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
@@ -1924,6 +1927,7 @@ export type Database = {
           created_at: string
           current_stage: string | null
           description: string | null
+          disc_profile: Json | null
           estimated_investment: number | null
           event_id: string | null
           founder_id: string | null
@@ -1944,6 +1948,7 @@ export type Database = {
           created_at?: string
           current_stage?: string | null
           description?: string | null
+          disc_profile?: Json | null
           estimated_investment?: number | null
           event_id?: string | null
           founder_id?: string | null
@@ -1964,6 +1969,7 @@ export type Database = {
           created_at?: string
           current_stage?: string | null
           description?: string | null
+          disc_profile?: Json | null
           estimated_investment?: number | null
           event_id?: string | null
           founder_id?: string | null

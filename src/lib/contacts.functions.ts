@@ -150,3 +150,180 @@ export const createOpportunityFromContact = createServerFn({ method: "POST" })
 
     return opp;
   });
+
+// ---- Merge duplicate contacts -------------------------------------------------
+
+type ContactLite = {
+  id: string;
+  name: string | null;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  position: string | null;
+  website: string | null;
+  linkedin: string | null;
+  notes: string | null;
+  ai_summary: string | null;
+  company_description: string | null;
+  source_event_id: string | null;
+  date_met: string | null;
+  category: string | null;
+  status: string | null;
+  created_at: string;
+};
+
+const normEmail = (v: string | null) => {
+  const s = (v ?? "").trim().toLowerCase();
+  if (!s || !s.includes("@")) return null;
+  const [local, domain] = s.split("@");
+  const cleanLocal = local.split("+")[0];
+  return `${cleanLocal}@${domain}`;
+};
+const normPhone = (v: string | null) => {
+  const digits = (v ?? "").replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  return digits.slice(-9); // last 9 digits — tolerates country code / spaces / formatting
+};
+const normText = (v: string | null) => (v ?? "").trim().toLowerCase() || null;
+
+type GroupInfo = { members: ContactLite[]; reasons: Set<string> };
+
+function groupDuplicates(rows: ContactLite[]): { group: ContactLite[]; reasons: string[] }[] {
+  const parent = new Map<string, string>();
+  const find = (x: string): string => {
+    const p = parent.get(x) ?? x;
+    if (p === x) return x;
+    const r = find(p);
+    parent.set(x, r);
+    return r;
+  };
+  const union = (a: string, b: string) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  };
+  rows.forEach((r) => parent.set(r.id, r.id));
+
+  const reasonsByRoot = new Map<string, Set<string>>();
+  const addReason = (id: string, reason: string) => {
+    const root = find(id);
+    const set = reasonsByRoot.get(root) ?? new Set<string>();
+    set.add(reason);
+    reasonsByRoot.set(root, set);
+  };
+
+  const byKey = new Map<string, { id: string; reason: string }>();
+  const link = (key: string | null, reason: string, id: string) => {
+    if (!key) return;
+    const prev = byKey.get(key);
+    if (prev) {
+      union(prev.id, id);
+      addReason(id, reason);
+    } else {
+      byKey.set(key, { id, reason });
+    }
+  };
+  for (const r of rows) {
+    const e = normEmail(r.email);
+    const p = normPhone(r.phone);
+    const n = normText(r.name), c = normText(r.company);
+    link(e && `e:${e}`, "Same email", r.id);
+    link(p && `p:${p}`, "Same phone", r.id);
+    if (n && c) link(`nc:${n}|${c}`, "Same name + company", r.id);
+  }
+
+  // migrate reasons whose root changed after later unions
+  const finalReasons = new Map<string, Set<string>>();
+  for (const [root, set] of reasonsByRoot) {
+    const newRoot = find(root);
+    const target = finalReasons.get(newRoot) ?? new Set<string>();
+    set.forEach((s) => target.add(s));
+    finalReasons.set(newRoot, target);
+  }
+
+  const groups = new Map<string, ContactLite[]>();
+  for (const r of rows) {
+    const root = find(r.id);
+    const arr = groups.get(root) ?? [];
+    arr.push(r);
+    groups.set(root, arr);
+  }
+  return [...groups.entries()]
+    .filter(([, g]) => g.length > 1)
+    .map(([root, g]) => ({ group: g, reasons: [...(finalReasons.get(root) ?? new Set())] }));
+}
+
+export const previewDuplicateContacts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const s = context.supabase;
+    const { data, error } = await s.from("contacts").select("*").order("created_at", { ascending: true });
+    if (error) throw error;
+    const groups = groupDuplicates((data ?? []) as any);
+    return {
+      groupCount: groups.length,
+      duplicateCount: groups.reduce((n, g) => n + (g.group.length - 1), 0),
+      groups: groups.map(({ group, reasons }) => ({
+        keep: group[0].id,
+        keepLabel: group[0].name || group[0].company || group[0].email || "(unnamed)",
+        reasons,
+        members: group.map((m) => ({ id: m.id, label: m.name || m.company || m.email || "(unnamed)" })),
+      })),
+    };
+  });
+
+export const mergeDuplicateContacts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { selection?: { keepId: string; dupeIds: string[] }[] } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
+    const s = context.supabase;
+    const { data: rows, error } = await s.from("contacts").select("*").order("created_at", { ascending: true });
+    if (error) throw error;
+    const allRows = (rows ?? []) as any as ContactLite[];
+    const byId = new Map(allRows.map((r) => [r.id, r]));
+
+    let plan: { keep: ContactLite; dupes: ContactLite[] }[];
+    if (data.selection && data.selection.length) {
+      plan = data.selection
+        .map((sel) => {
+          const keep = byId.get(sel.keepId);
+          const dupes = sel.dupeIds.map((id) => byId.get(id)).filter(Boolean) as ContactLite[];
+          return keep && dupes.length ? { keep, dupes } : null;
+        })
+        .filter(Boolean) as any;
+    } else {
+      const groups = groupDuplicates(allRows);
+      plan = groups.map(({ group }) => ({ keep: group[0], dupes: group.slice(1) }));
+    }
+
+    let merged = 0;
+    for (const { keep, dupes } of plan) {
+      const patch: any = {};
+      const fields: (keyof ContactLite)[] = [
+        "name","company","email","phone","position","website","linkedin",
+        "notes","ai_summary","company_description","source_event_id","date_met","status",
+      ];
+      for (const f of fields) {
+        if (!keep[f]) {
+          const filled = dupes.find((d) => d[f]);
+          if (filled) patch[f] = filled[f];
+        }
+      }
+      const notesPieces = [keep.notes, ...dupes.map((d) => d.notes)].filter(Boolean) as string[];
+      const uniqueNotes = [...new Set(notesPieces.map((n) => n.trim()))].join("\n---\n");
+      if (uniqueNotes && uniqueNotes !== (keep.notes ?? "").trim()) patch.notes = uniqueNotes;
+
+      if (Object.keys(patch).length) {
+        await s.from("contacts").update(patch).eq("id", keep.id);
+      }
+      const dupIds = dupes.map((d) => d.id);
+      await s.from("opportunities").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
+      await s.from("interviews").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
+      await s.from("event_attendees").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
+      await s.from("founders").update({ contact_id: keep.id } as any).in("contact_id", dupIds);
+      await s.from("contacts").delete().in("id", dupIds);
+      merged += dupIds.length;
+    }
+    return { mergedCount: merged, groupCount: plan.length };
+  });
+
+

@@ -76,11 +76,30 @@ export const extractBusinessCard = createServerFn({ method: "POST" })
     const content: string = json?.choices?.[0]?.message?.content ?? "{}";
 
     let parsed: any = {};
+    const extractFirstJsonObject = (s: string): string | null => {
+      const start = s.indexOf("{");
+      if (start === -1) return null;
+      let depth = 0, inStr = false, esc = false;
+      for (let i = start; i < s.length; i++) {
+        const ch = s[i];
+        if (inStr) {
+          if (esc) esc = false;
+          else if (ch === "\\") esc = true;
+          else if (ch === '"') inStr = false;
+        } else {
+          if (ch === '"') inStr = true;
+          else if (ch === "{") depth++;
+          else if (ch === "}") { depth--; if (depth === 0) return s.slice(start, i + 1); }
+        }
+      }
+      return null;
+    };
+    const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(cleaned);
     } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
+      const obj = extractFirstJsonObject(cleaned);
+      if (obj) { try { parsed = JSON.parse(obj); } catch { parsed = {}; } }
     }
 
     const category = ["founder", "investor", "ecosystem", "vendor"].includes(parsed.category) ? parsed.category : "unknown";

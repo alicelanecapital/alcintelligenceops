@@ -1,39 +1,49 @@
-## Diagnosis
+## 1. Auto-fill Name from Company (not just placeholder)
 
-The 403 comes from Google's OAuth server, not your app. Your callback (`/auth/google/callback`) and secrets are wired correctly — Google is refusing to show the consent screen to your account. With the scopes this integration requests (Gmail readonly + Calendar read/write), the two realistic causes are:
+In the Review-scanned-contact dialog and Add Contact dialog, the Name field currently only *shows* "Defaults to company if blank" as placeholder — the field stays empty until save. Change it so:
 
-1. **Consent screen is in "Testing" and your email isn't a Test user.** Google returns exactly this 403 page.
-2. **`gmail.readonly` is a "restricted" scope.** In Testing mode it works for listed test users only. In Production mode it requires Google verification (and a security assessment) — without that, users see 403/access-denied.
+- When Company is filled (via scan pre-fill or manual `onBlur`) and Name is still empty, set `form.name = form.company` in state immediately so the user sees "Wellness Corporate" in Name and can edit it.
+- Same behavior in `EditContactDialog` when Company changes and Name is blank.
+- Keep the existing save-time fallback as a safety net.
 
-No code change will fix this — it's a Google Cloud Console config issue.
+## 2. Inline "Add new event" in the Source event dropdown
 
-## Fix (in Google Cloud Console, on the same project that owns your OAuth Client ID)
+Replace the plain `<select>` for Source event in `AddContactDialog`, `EditContactDialog`, and the business-card scan review step with a small combobox:
 
-**APIs & Services → OAuth consent screen**
-- User type: **External**
-- Publishing status: **Testing** (leave it here for now)
-- **Test users** → Add your Google account (`georgia@alicelanecapital.com`) and any teammate who needs to connect. Save.
-- **Scopes** → confirm these are added:
-  - `openid`, `.../auth/userinfo.email`
-  - `.../auth/calendar.readonly`
-  - `.../auth/calendar.events`
-  - `.../auth/gmail.readonly`
+- Options = alphabetically sorted existing events + sticky "+ Add new event…" item at the bottom.
+- Selecting it opens a lightweight inline prompt (Name + optional Date) that calls a `createEvent` server function (or existing helper in `src/lib/db.ts` — confirm during build).
+- On success: invalidate `["events"]`, auto-select the new event; the sorted render places it in the correct position automatically.
+- Store the selected event id in the sticky localStorage key.
 
-**APIs & Services → Enabled APIs**
-- Enable **Google Calendar API** and **Gmail API** on the same project.
+## 3. Friendly delete confirmation (replace native `confirm()`)
 
-**APIs & Services → Credentials → your OAuth 2.0 Client ID (Web application)**
-- Authorized redirect URIs must include **both** exactly:
-  - `https://id-preview--11ff6cba-0e12-4f91-9089-4c2aaab66c8a.lovable.app/auth/google/callback`
-  - `https://alcintelligenceops.lovable.app/auth/google/callback`
-- Confirm the Client ID saved in Lovable is from **this same client** (Web application type, not iOS/Android/Desktop).
+The "Alice Lane" screenshot is the browser's native `window.confirm("Delete Christiaan?")` from the trash icon. Replace with shadcn `AlertDialog`:
 
-Then retry **Connect Google** while signed into a listed Test user account.
+- Title: "Delete contact?"
+- Description: "This will permanently delete **{name}** and cannot be undone. Related meetings, opportunities and event attendance will keep their history but lose the link to this contact."
+- Buttons: "Cancel" (outline), "Delete" (destructive).
+- Wire up in both `contacts.index.tsx` (list + card views) and `contacts.$id.tsx` (detail). Single local `contactToDelete` state so only one dialog instance mounts.
 
-## If you want any Google user (not just test users) to connect
+## 4. Swap Company and Name field order
 
-You'll need to either:
-- Publish the consent screen and complete Google's **verification + Gmail restricted-scope security assessment**, or
-- Drop `gmail.readonly` from `GOOGLE_SCOPES` in `src/lib/google-oauth.functions.ts` (Calendar-only stays in the lighter "sensitive" tier and is much easier to verify).
+In every contact surface, put **Company first, then Name**:
 
-Tell me which path you want and I'll take it from there — no code changes needed for the immediate 403 fix.
+- `contacts.$id.tsx` — detail/view page: reorder the header and the field grid so Company is shown/read first.
+- `EditContactDialog.tsx` — reorder the grid so Company row is above Name.
+- `AddContactDialog` in `contacts.index.tsx` — same reorder.
+- Business-card scan review dialog — same reorder in the review form.
+
+This is a pure presentation swap: no state key renames, no data migration, no label changes. Behavior 1 (name auto-fills from company) still applies — now the flow reads naturally top-to-bottom: type Company → Name auto-populates below.
+
+## Files to touch
+
+- `src/routes/contacts.index.tsx`
+- `src/routes/contacts.$id.tsx`
+- `src/components/EditContactDialog.tsx`
+- Business-card scan dialog component (confirm exact filename during build)
+- `src/lib/contacts.functions.ts` or `src/lib/db.ts` — add `createEvent` if not already exposed.
+
+## Out of scope
+
+- No schema changes, no new packages.
+- No changes to merge-duplicates or AI description behavior.

@@ -4,10 +4,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchContacts, createContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
-import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { generateCompanyDescription, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
 import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
+import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
+import { EditContactDialog } from "@/components/EditContactDialog";
+import { EventSelect } from "@/components/EventSelect";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,12 +21,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
+
 
 export const Route = createFileRoute("/contacts/")({
   component: () => <AppShell><ContactsIndex /></AppShell>,
@@ -33,6 +40,7 @@ function ContactsIndex() {
   const [addOpen, setAddOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [scannedForm, setScannedForm] = useState<any | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
   const [groupByEvent, setGroupByEvent] = useState(false);
@@ -79,9 +87,12 @@ function ContactsIndex() {
         title="Contacts"
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setMergeOpen(true)}>
+              <GitMerge className="h-4 w-4 mr-1" /> Merge duplicates
+            </Button>
             <Button variant="outline" onClick={() => setScanOpen(true)}>
-              <Camera className="h-4 w-4 mr-1" /> Scan business card
+              <Camera className="h-4 w-4 mr-1" /> Scan card / QR
             </Button>
             <Button onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4 mr-1" /> Add contact
@@ -180,73 +191,125 @@ function ContactsIndex() {
           initialForm={scannedForm}
         />
       )}
+
+      <MergeDuplicatesDialog open={mergeOpen} onClose={() => setMergeOpen(false)} />
     </div>
   );
+}
+
+function useContactRowActions() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<any | null>(null);
+  const del = useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => { toast.success("Contact deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
+  return { editing, setEditing, del };
 }
 
 function ContactCard({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: () => deleteContact(c.id),
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
   return (
-    <Link to="/contacts/$id" params={{ id: c.id }}>
-      <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+    <>
+      <Card className="hover:border-primary/50 transition-colors h-full relative">
         <CardContent className="p-5 space-y-2">
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-2">
+            <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0">
               <div className="font-serif text-lg leading-tight">{primary}</div>
               {secondary && <div className="text-xs text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+            </Link>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true); }}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
           </div>
-          {(c.source_event || c.date_met) && (
-            <div className="text-[11px] text-muted-foreground">
-              {c.source_event?.name ? `Met at ${c.source_event.name}` : "Met"} {c.date_met ? `· ${new Date(c.date_met).toLocaleDateString()}` : ""}
+          <Link to="/contacts/$id" params={{ id: c.id }} className="block space-y-2">
+            {(c.source_event || c.date_met) && (
+              <div className="text-[11px] text-muted-foreground">
+                {c.source_event?.name ? `Met at ${c.source_event.name}` : "Met"} {c.date_met ? `· ${new Date(c.date_met).toLocaleDateString()}` : ""}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+              {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+              {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+              {c.website && <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" /> website</span>}
+              {c.linkedin && <span className="inline-flex items-center gap-1"><LinkedinIcon className="h-3 w-3" /> linkedin</span>}
             </div>
-          )}
-          <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-            {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-            {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
-            {c.website && <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" /> website</span>}
-            {c.linkedin && <span className="inline-flex items-center gap-1"><LinkedinIcon className="h-3 w-3" /> linkedin</span>}
-          </div>
-          <div className="pt-2 flex justify-end">
-            <span className="text-xs text-primary inline-flex items-center gap-1">Open <ArrowRight className="h-3 w-3" /></span>
-          </div>
+            <div className="pt-2 flex justify-end">
+              <span className="text-xs text-primary inline-flex items-center gap-1">Open <ArrowRight className="h-3 w-3" /></span>
+            </div>
+          </Link>
         </CardContent>
       </Card>
-    </Link>
+      {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+    </>
   );
 }
+
 
 function ContactListRow({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: () => deleteContact(c.id),
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
   return (
-    <Link to="/contacts/$id" params={{ id: c.id }}>
+    <>
       <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-serif text-base leading-tight truncate">{primary}</span>
-            <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+        <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-serif text-base leading-tight truncate">{primary}</span>
+              <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+            </div>
+            {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
           </div>
-          {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+          <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
+            {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+            {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+          </div>
+        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setConfirming(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          <ArrowRight className="h-3.5 w-3.5 text-primary" />
         </div>
-        <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
-          {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-          {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
-        </div>
-        <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0" />
       </div>
-    </Link>
+      {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+      <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+    </>
   );
 }
+
+
 
 function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean; onClose: () => void; onExtracted: (form: any) => void }) {
   const [mode, setMode] = useState<"choose" | "camera" | "preview">("choose");
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const extract = useServerFn(extractBusinessCard);
 
@@ -259,22 +322,47 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
     }
   }, [open]);
 
+  // Attach the stream reactively once the <video> element is actually mounted.
+  useEffect(() => {
+    if (mode !== "camera" || !stream) return;
+    const v = videoRef.current;
+    if (!v) return;
+    v.srcObject = stream;
+    const tryPlay = () => {
+      v.play().catch((err) => {
+        toast.error("Couldn't start video preview: " + (err?.message ?? "unknown"));
+      });
+    };
+    if (v.readyState >= 1) {
+      tryPlay();
+    } else {
+      v.addEventListener("loadedmetadata", tryPlay, { once: true });
+      return () => v.removeEventListener("loadedmetadata", tryPlay);
+    }
+  }, [mode, stream]);
+
   function stopCamera() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setStream(null);
   }
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      streamRef.current = stream;
+      let s: MediaStream;
+      try {
+        s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch {
+        // Laptops usually don't have an "environment" camera — fall back to any
+        s = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      setStream(s);
       setMode("camera");
-      // video element renders on next tick once mode switches
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 0);
     } catch (e: any) {
       toast.error("Could not access the camera: " + (e?.message ?? "permission denied"));
     }
   }
+
 
   function captureFromVideo() {
     const video = videoRef.current;
@@ -314,6 +402,28 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         // non-fatal
       }
 
+      // Try QR first — much faster and more accurate when present
+      const qrRaw = await decodeQrFromDataUrl(capturedDataUrl);
+      if (qrRaw) {
+        const parsed = parseQrToContact(qrRaw);
+        if (parsed.name || parsed.company || parsed.email || parsed.phone || parsed.website) {
+          toast.success("QR code decoded");
+          onExtracted({
+            name: parsed.name ?? "",
+            company: parsed.company ?? "",
+            position: parsed.position ?? "",
+            email: parsed.email ?? "",
+            phone: parsed.phone ?? "",
+            website: parsed.website ?? "",
+            linkedin: parsed.linkedin ?? "",
+            notes: parsed.notes ?? "",
+            category: "founder",
+          });
+          setExtracting(false);
+          return;
+        }
+      }
+
       const result: ExtractedBusinessCard = await extract({ data: { imageBase64: base64, mimeType: mimeType || "image/jpeg" } });
 
       if (!result.name && !result.company && !result.email) {
@@ -345,10 +455,11 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
     }
   }
 
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Scan business card</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Scan business card or QR</DialogTitle></DialogHeader>
 
         {mode === "choose" && (
           <div className="grid grid-cols-2 gap-3 py-4">
@@ -382,7 +493,15 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         {mode === "camera" && (
           <div className="space-y-3">
             <div className="relative rounded-md overflow-hidden bg-black">
-              <video ref={videoRef} autoPlay playsInline className="w-full block" />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                onCanPlay={() => videoRef.current?.play().catch(() => {})}
+                className="w-full block aspect-[1.6/1] object-cover bg-black"
+              />
+
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
                   className="relative w-[88%] aspect-[1.6/1] rounded-lg border-2 border-white/90"
@@ -423,19 +542,57 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
   );
 }
 
+const LAST_EVENT_KEY = "contacts:last_source_event_id";
+const LAST_DATE_KEY = "contacts:last_date_met";
+function readLastEvent(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_EVENT_KEY) : null; } catch { return null; }
+}
+function readLastDate(): string | null {
+  try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_DATE_KEY) : null; } catch { return null; }
+}
+
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
-  const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const [form, setForm] = useState<any>(initialForm ?? { category: "founder" });
+
+  const buildInitial = () => {
+    const base = initialForm ?? { category: "founder" };
+    const lastEvent = readLastEvent();
+    const lastDate = readLastDate();
+    const name = base.name?.trim() ? base.name : (base.company ?? "");
+    return {
+      ...base,
+      name,
+      source_event_id: base.source_event_id ?? lastEvent ?? null,
+      date_met: base.date_met ?? lastDate ?? "",
+    };
+  };
+
+  const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const lastAutoCompanyRef = useRef<string>("");
 
   useEffect(() => {
-    if (open) setForm(initialForm ?? { category: "founder" });
+    if (open) { setForm(buildInitial()); lastAutoCompanyRef.current = ""; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialForm]);
+
+  // Auto-generate AI description when scanned data prefills a company
+  useEffect(() => {
+    if (!open) return;
+    if (!initialForm?.company?.trim()) return;
+    if (form.company_description?.trim()) return;
+    autoGenerateIfEmpty();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialForm]);
 
   const m = useMutation({
-    mutationFn: () => createContact({ ...form, source_event_id: form.source_event_id || defaultEventId || null, date_met: form.date_met || new Date().toISOString().slice(0, 10) }),
+    mutationFn: () => {
+      const resolvedName = (form.name?.trim() || form.company?.trim() || "").trim();
+      const sourceEventId = form.source_event_id || defaultEventId || null;
+      const dateMet = form.date_met || new Date().toISOString().slice(0, 10);
+      return createContact({ ...form, name: resolvedName, source_event_id: sourceEventId, date_met: dateMet });
+    },
     onSuccess: () => {
       toast.success("Contact added");
       qc.invalidateQueries({ queryKey: ["contacts"] });
@@ -445,11 +602,8 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     onError: (e: any) => toast.error(e.message ?? "Failed to add"),
   });
 
-  async function handleGenerateDescription() {
-    if (!form.company?.trim()) {
-      toast.error("Enter a company name first");
-      return;
-    }
+  async function runGenerate() {
+    if (!form.company?.trim()) { toast.error("Enter a company name first"); return; }
     setGeneratingDescription(true);
     try {
       const { description } = await generateDescription({ data: { company: form.company, website: form.website, position: form.position } });
@@ -461,6 +615,38 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     }
   }
 
+  async function autoGenerateIfEmpty() {
+    const c = form.company?.trim() || (initialForm?.company ?? "").trim();
+    if (!c || c.length < 2) return;
+    if (form.company_description?.trim()) return;
+    const key = c.toLowerCase();
+    if (lastAutoCompanyRef.current === key) return;
+    lastAutoCompanyRef.current = key;
+    setGeneratingDescription(true);
+    try {
+      const { description } = await generateDescription({ data: { company: c, website: form.website, position: form.position } });
+      setForm((f: any) => (f.company_description?.trim() ? f : { ...f, company_description: description }));
+    } catch { /* silent auto-fail */ } finally {
+      setGeneratingDescription(false);
+    }
+  }
+
+  function setEventSticky(v: string) {
+    setForm({ ...form, source_event_id: v || null });
+    try { if (v) window.localStorage.setItem(LAST_EVENT_KEY, v); else window.localStorage.removeItem(LAST_EVENT_KEY); } catch {}
+  }
+  function setDateSticky(v: string) {
+    setForm({ ...form, date_met: v });
+    try { if (v) window.localStorage.setItem(LAST_DATE_KEY, v); } catch {}
+  }
+  function clearSticky() {
+    try { window.localStorage.removeItem(LAST_EVENT_KEY); window.localStorage.removeItem(LAST_DATE_KEY); } catch {}
+    setForm({ ...form, source_event_id: null, date_met: "" });
+    toast.success("Cleared sticky event & date");
+  }
+
+  const hasSticky = !!(readLastEvent() || readLastDate());
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -468,45 +654,62 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
           <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Name*"><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label="Company">
+            <Input
+              value={form.company ?? ""}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onBlur={() => {
+                setForm((f: any) => (f.name?.trim() ? f : { ...f, name: f.company ?? "" }));
+                autoGenerateIfEmpty();
+              }}
+            />
+          </Field>
           <Field label="Category">
             <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </Field>
-          <Field label="Company"><Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} /></Field>
+          <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
           <Field label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></Field>
           <Field label="Website"><Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
           <Field label="Source event">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? defaultEventId ?? ""} onChange={(e) => setForm({ ...form, source_event_id: e.target.value || null })}>
-              <option value="">— none —</option>
-              {(events.data ?? []).map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
-            </select>
+            <EventSelect value={form.source_event_id ?? defaultEventId ?? ""} onChange={setEventSticky} />
           </Field>
-          <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setForm({ ...form, date_met: e.target.value })} /></Field>
+
+          <Field label="Date met"><Input type="date" value={form.date_met ?? ""} onChange={(e) => setDateSticky(e.target.value)} /></Field>
+          {hasSticky && (
+            <div className="col-span-2 -mt-1">
+              <button type="button" onClick={clearSticky} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" /> Sticky event & date remembered from your last contact — click to clear
+              </button>
+            </div>
+          )}
           <div className="col-span-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Company description</Label>
+              <Label className="text-sm">
+                Company description
+                {generatingDescription && <span className="ml-2 text-xs text-muted-foreground">Generating with AI…</span>}
+              </Label>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={handleGenerateDescription}
+                onClick={runGenerate}
                 disabled={generatingDescription || !form.company?.trim()}
               >
                 <Sparkles className="h-3 w-3 mr-1" />
-                {generatingDescription ? "Generating…" : "Generate with AI"}
+                {generatingDescription ? "Generating…" : "Regenerate"}
               </Button>
             </div>
             <textarea
               className="w-full min-h-[70px] px-3 py-2 border rounded-md text-sm bg-background mt-1"
               value={form.company_description ?? ""}
               onChange={(e) => setForm({ ...form, company_description: e.target.value })}
-              placeholder="What does this company do?"
+              placeholder="Auto-generated when you fill in a company"
             />
           </div>
           <div className="col-span-2">
@@ -516,7 +719,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => m.mutate()} disabled={!form.name || m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
+          <Button onClick={() => m.mutate()} disabled={(!form.name?.trim() && !form.company?.trim()) || m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -533,3 +736,108 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export { AddContactDialog };
+
+function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const preview = useServerFn(previewDuplicateContacts);
+  const merge = useServerFn(mergeDuplicateContacts);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ groupCount: number; duplicateCount: number; groups: any[] } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [merging, setMerging] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setResult(null); setSelected(new Set()); return; }
+    setLoading(true);
+    preview()
+      .then((r: any) => {
+        setResult(r);
+        setSelected(new Set(r.groups.map((g: any) => g.keep)));
+      })
+      .catch((e: any) => toast.error(e.message ?? "Failed to scan"))
+      .finally(() => setLoading(false));
+  }, [open, preview]);
+
+  function toggle(keep: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(keep)) next.delete(keep); else next.add(keep);
+      return next;
+    });
+  }
+
+  async function handleMerge() {
+    if (!result) return;
+    const selection = result.groups
+      .filter((g: any) => selected.has(g.keep))
+      .map((g: any) => ({ keepId: g.keep, dupeIds: g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.id) }));
+    if (!selection.length) { toast.error("Select at least one group to merge"); return; }
+    setMerging(true);
+    try {
+      const r: any = await merge({ data: { selection } });
+      toast.success(`Merged ${r.mergedCount} duplicate${r.mergedCount === 1 ? "" : "s"} across ${r.groupCount} group${r.groupCount === 1 ? "" : "s"}`);
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Merge failed");
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  const selectedDupeCount = result
+    ? result.groups.filter((g: any) => selected.has(g.keep)).reduce((n: number, g: any) => n + (g.members.length - 1), 0)
+    : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Merge duplicate contacts</DialogTitle></DialogHeader>
+        {loading && <div className="py-6 text-sm text-muted-foreground">Scanning contacts…</div>}
+        {!loading && result && (
+          <div className="space-y-3">
+            {result.groupCount === 0 ? (
+              <div className="text-sm text-muted-foreground">No duplicates found — your contacts list is clean.</div>
+            ) : (
+              <>
+                <div className="text-sm">
+                  Found <strong>{result.groupCount}</strong> duplicate group{result.groupCount === 1 ? "" : "s"}. Uncheck any you want to keep separate.
+                </div>
+                <div className="max-h-72 overflow-y-auto border rounded-md divide-y">
+                  {result.groups.map((g: any) => (
+                    <label key={g.keep} className="flex items-start gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40">
+                      <Checkbox checked={selected.has(g.keep)} onCheckedChange={() => toggle(g.keep)} className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="font-medium">Keep: {g.keepLabel}</span>
+                          {(g.reasons ?? []).map((r: string) => (
+                            <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Merging: {g.members.filter((m: any) => m.id !== g.keep).map((m: any) => m.label).join(", ")}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Matched by email, phone (last 9 digits), or name + company. All related meetings, opportunities and events stay linked to the kept contact.
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          {result && result.groupCount > 0 && (
+            <Button onClick={handleMerge} disabled={merging || selectedDupeCount === 0}>
+              {merging ? "Merging…" : `Merge ${selectedDupeCount}`}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
