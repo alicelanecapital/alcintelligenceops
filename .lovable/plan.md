@@ -1,29 +1,24 @@
 ## Problem
 
-The `<video>` element in the scan modal stays black. The stream is acquired successfully (permission dialog resolves), but the frame never paints.
+Saving a scanned contact fails with:
+> Could not find the 'company_description' column of 'contacts' in the schema cache
 
-Root cause: we attach `srcObject` inside a `setTimeout(0)` after flipping `mode` to `"camera"`. In a Radix Dialog the content mounts through a portal + animation, so `videoRef.current` is often still `null` on the next tick, or the element is attached but `play()` rejects silently because the element isn't yet in the layout tree. There is also no `onLoadedMetadata` handler, so we never retry `play()` once dimensions are known.
+The `contacts` table has no `company_description` column, but the Add/Review Contact dialog writes to it.
 
 ## Fix
 
-Rewire the camera lifecycle so the stream is attached *reactively* once the video element exists, not via `setTimeout`:
+Add the missing column via a migration:
 
-1. Store the `MediaStream` in React state (`stream`), not just a ref.
-2. Trigger `getUserMedia` from the user's click as today (keeps the gesture), but only `setStream(...)` + `setMode("camera")` — do not touch the video element in the click handler.
-3. Add a `useEffect` keyed on `[mode, stream]` that:
-   - finds `videoRef.current`,
-   - assigns `srcObject = stream`,
-   - awaits `loadedmetadata` (via event listener) then calls `video.play()`,
-   - logs any `play()` rejection to `toast` so failures stop being silent.
-4. Add `onCanPlay={() => videoRef.current?.play().catch(()=>{})}` on the `<video>` as a second safety net.
-5. Give the video a guaranteed non-zero box before the stream loads: keep `aspect-[1.6/1] object-cover w-full` and add `bg-black` so a blank frame is obviously the video, not a layout collapse.
-6. On `stopCamera()` / dialog close, also clear `video.srcObject = null` and `setStream(null)` so a re-open starts clean.
-7. Keep the existing `facingMode: "environment"` → `{ video: true }` fallback.
+```sql
+ALTER TABLE public.contacts ADD COLUMN company_description text;
+```
+
+No RLS/GRANT changes needed — existing policies on `public.contacts` already cover all columns.
 
 ## Files touched
 
-- `src/routes/contacts.index.tsx` — only the `ScanBusinessCardDialog` component (camera lifecycle). No other UI or business logic changes.
+- New migration only. No code changes; `src/lib/contacts.ts` and `contacts.index.tsx` already reference `company_description`.
 
 ## Verification
 
-After the change, open Contacts → Scan business card → Use camera. Expect: live webcam feed inside the framed overlay within ~1s. If `play()` still rejects, a toast surfaces the reason instead of a silent black frame.
+Re-open Scan business card → save. The row should insert without the schema-cache error, and the description entered in the dialog should persist on the contact.

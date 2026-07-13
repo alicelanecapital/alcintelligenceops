@@ -227,6 +227,7 @@ export type Database = {
           ai_summary: string | null
           category: string
           company: string | null
+          company_description: string | null
           created_at: string
           date_met: string | null
           email: string | null
@@ -253,6 +254,7 @@ export type Database = {
           ai_summary?: string | null
           category?: string
           company?: string | null
+          company_description?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           ai_summary?: string | null
           category?: string
           company?: string | null
+          company_description?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
