@@ -143,62 +143,106 @@ function ContactsIndex() {
   );
 }
 
+function useContactRowActions() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<any | null>(null);
+  const del = useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => { toast.success("Contact deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
+  return { editing, setEditing, del };
+}
+
 function ContactCard({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
+  const [editing, setEditing] = useState(false);
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: () => deleteContact(c.id),
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
   return (
-    <Link to="/contacts/$id" params={{ id: c.id }}>
-      <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+    <>
+      <Card className="hover:border-primary/50 transition-colors h-full relative">
         <CardContent className="p-5 space-y-2">
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-2">
+            <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0">
               <div className="font-serif text-lg leading-tight">{primary}</div>
               {secondary && <div className="text-xs text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+            </Link>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (confirm(`Delete ${primary}?`)) del.mutate(); }}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
           </div>
-          {(c.source_event || c.date_met) && (
-            <div className="text-[11px] text-muted-foreground">
-              {c.source_event?.name ? `Met at ${c.source_event.name}` : "Met"} {c.date_met ? `· ${new Date(c.date_met).toLocaleDateString()}` : ""}
+          <Link to="/contacts/$id" params={{ id: c.id }} className="block space-y-2">
+            {(c.source_event || c.date_met) && (
+              <div className="text-[11px] text-muted-foreground">
+                {c.source_event?.name ? `Met at ${c.source_event.name}` : "Met"} {c.date_met ? `· ${new Date(c.date_met).toLocaleDateString()}` : ""}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+              {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+              {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+              {c.website && <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" /> website</span>}
+              {c.linkedin && <span className="inline-flex items-center gap-1"><LinkedinIcon className="h-3 w-3" /> linkedin</span>}
             </div>
-          )}
-          <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-            {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-            {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
-            {c.website && <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" /> website</span>}
-            {c.linkedin && <span className="inline-flex items-center gap-1"><LinkedinIcon className="h-3 w-3" /> linkedin</span>}
-          </div>
-          <div className="pt-2 flex justify-end">
-            <span className="text-xs text-primary inline-flex items-center gap-1">Open <ArrowRight className="h-3 w-3" /></span>
-          </div>
+            <div className="pt-2 flex justify-end">
+              <span className="text-xs text-primary inline-flex items-center gap-1">Open <ArrowRight className="h-3 w-3" /></span>
+            </div>
+          </Link>
         </CardContent>
       </Card>
-    </Link>
+      {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+    </>
   );
 }
 
 function ContactListRow({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
+  const [editing, setEditing] = useState(false);
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: () => deleteContact(c.id),
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Delete failed"),
+  });
   return (
-    <Link to="/contacts/$id" params={{ id: c.id }}>
+    <>
       <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-serif text-base leading-tight truncate">{primary}</span>
-            <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+        <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-serif text-base leading-tight truncate">{primary}</span>
+              <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+            </div>
+            {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
           </div>
-          {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+          <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
+            {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+            {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+          </div>
+        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { if (confirm(`Delete ${primary}?`)) del.mutate(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+          <ArrowRight className="h-3.5 w-3.5 text-primary" />
         </div>
-        <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
-          {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-          {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
-        </div>
-        <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0" />
       </div>
-    </Link>
+      {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
+    </>
   );
 }
+
 
 function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean; onClose: () => void; onExtracted: (form: any) => void }) {
   const [mode, setMode] = useState<"choose" | "camera" | "preview">("choose");
