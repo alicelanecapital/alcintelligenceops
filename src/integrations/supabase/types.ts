@@ -2296,6 +2296,30 @@ export type Database = {
           },
         ]
       }
+      team_members: {
+        Row: {
+          color: string
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       timeline_events: {
         Row: {
           actor: string | null
