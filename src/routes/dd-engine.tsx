@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Play, Plus, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
@@ -35,6 +36,7 @@ function DDEngine() {
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunitiesWithDDStatus });
   const navigate = useNavigate();
   const [view, setView] = useState<"active" | "archived">("active");
+  const [displayMode, setDisplayMode] = useViewMode("dd-engine");
 
   const opportunities = useMemo(
     () => (q.data ?? []).filter((opp: any) => (view === "archived" ? !!opp.archived : !opp.archived)),
@@ -73,14 +75,17 @@ function DDEngine() {
         actions={<AddOpportunity />}
       />
 
-      <Tabs value={view} onValueChange={(v) => setView(v as "active" | "archived")} className="mt-6">
-        <TabsList>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="archived">Archived ({archivedCount})</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex items-center justify-between mt-6">
+        <Tabs value={view} onValueChange={(v) => setView(v as "active" | "archived")}>
+          <TabsList>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="archived">Archived ({archivedCount})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <ViewToggle mode={displayMode} onChange={setDisplayMode} />
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-4 mt-6">
+      <div className={displayMode === "card" ? "grid md:grid-cols-2 gap-4 mt-6" : "flex flex-col gap-3 mt-6"}>
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
           const sector = opp.dd_detected_sector ? SECTOR_LABELS[opp.dd_detected_sector] : null;

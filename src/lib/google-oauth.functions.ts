@@ -63,12 +63,18 @@ export const getGoogleConnectionStatus = createServerFn({ method: "POST" })
     const email = context.claims.email as string | undefined;
     if (!email) return { connected: false, email: null };
 
-    const { data } = await context.supabase
-      .from("google_oauth_connections")
-      .select("user_email, connected_at")
+    // last_synced_at is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
+    // generated Supabase types -- cast until types.ts is regenerated post-migration.
+    const { data } = await (context.supabase.from("google_oauth_connections") as any)
+      .select("user_email, connected_at, last_synced_at")
       .eq("user_email", email)
       .maybeSingle();
-    return { connected: !!data, email: data?.user_email ?? null, connectedAt: data?.connected_at ?? null };
+    return {
+      connected: !!data,
+      email: data?.user_email ?? null,
+      connectedAt: data?.connected_at ?? null,
+      lastSyncedAt: data?.last_synced_at ?? null,
+    };
   });
 
 export const disconnectGoogle = createServerFn({ method: "POST" })

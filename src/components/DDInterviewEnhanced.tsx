@@ -8,6 +8,7 @@ import { fetchFrameworkRoundDetail } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
+import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
   const navigate = useNavigate();
@@ -24,11 +25,16 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [uploadChannel, setUploadChannel] = useState<{ dedicated_email: string } | null>(null);
   const [receivedDocs, setReceivedDocs] = useState<any[]>([]);
   const [syncingDocs, setSyncingDocs] = useState(false);
+  const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [uploadingTranscript, setUploadingTranscript] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const getOrCreateChannelFn = useServerFn(getOrCreateUploadChannel);
   const syncDocsFn = useServerFn(syncUploadChannelDocuments);
   const getSignedUrlFn = useServerFn(getSignedDocumentUrl);
+  const generateBriefFn = useServerFn(generateStakeholderBrief);
 
   // Questions and required documents are admin-editable (see /admin/dd-framework)
   // and live in dd_framework_rounds/questions/documents rather than the old
@@ -54,11 +60,13 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     setCurrentQuestion(0);
     setTranscript('');
     setAiAnalysis(null);
+    setStakeholderBrief(null);
 
     (async () => {
-      const { data: existing, error: findError } = await supabase
-        .from('dd_interviews')
-        .select('id, status, transcript, ai_analysis, detected_sector, sector_confidence')
+      // stakeholder_brief is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
+      // generated Supabase types -- cast until types.ts is regenerated post-migration.
+      const { data: existing, error: findError } = await (supabase.from('dd_interviews') as any)
+        .select('id, status, transcript, ai_analysis, detected_sector, sector_confidence, stakeholder_brief')
         .eq('opportunity_id', opportunityId)
         .eq('round', round)
         .maybeSingle();
@@ -72,6 +80,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           setInterviewRowId(existing.id);
           if (existing.transcript) setTranscript(existing.transcript);
           if (existing.ai_analysis) setAiAnalysis(existing.ai_analysis);
+          if (existing.stakeholder_brief) setStakeholderBrief(existing.stakeholder_brief);
           if (existing.detected_sector) {
             setSector(existing.detected_sector);
             setSectorConfidence(existing.sector_confidence ? Math.round(existing.sector_confidence) : 0);
@@ -168,6 +177,49 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     } catch (error) {
       console.error('Transcription failed:', error);
       toast.error('Transcription failed.');
+    }
+  };
+
+  // Upload a transcript file directly, for rounds where recording wasn't started live.
+  const handleTranscriptFile = async (file: File) => {
+    setUploadingTranscript(true);
+    try {
+      const text = await file.text();
+      setTranscript(text);
+      if (interviewRowId) {
+        await supabase.from('dd_interviews').update({ transcript: text, transcript_source: 'manual' }).eq('id', interviewRowId);
+      }
+      toast.success('Transcript uploaded');
+
+      if (round === 1 && text) {
+        const detection = await detectSector({ data: { responses: [text] } });
+        setSector(detection.sector);
+        setSectorConfidence(detection.confidence);
+        if (interviewRowId && detection.sector) {
+          await supabase.from('dd_interviews').update({
+            detected_sector: detection.sector,
+            sector_confidence: detection.confidence,
+          }).eq('id', interviewRowId);
+        }
+      }
+    } catch (error: any) {
+      toast.error('Failed to read transcript file: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setUploadingTranscript(false);
+    }
+  };
+
+  // AI-generated brief on who's likely to attend from outside Alice Lane, and what to know about them.
+  const handleGenerateBrief = async () => {
+    if (!interviewRowId) return;
+    setGeneratingBrief(true);
+    try {
+      const brief = await generateBriefFn({ data: { opportunityId, interviewId: interviewRowId, round } });
+      setStakeholderBrief(brief);
+    } catch (error: any) {
+      toast.error('Failed to generate stakeholder brief: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setGeneratingBrief(false);
     }
   };
 
@@ -332,6 +384,45 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
       </div>
 
+      {/* Pre-Interview Stakeholder Brief */}
+      <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold text-indigo-900">🧭 Pre-interview stakeholder brief</p>
+          <button
+            onClick={handleGenerateBrief}
+            disabled={!interviewRowId || generatingBrief}
+            className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {generatingBrief ? 'Generating…' : stakeholderBrief ? 'Regenerate' : 'Generate brief'}
+          </button>
+        </div>
+        {stakeholderBrief ? (
+          <div className="space-y-3">
+            {stakeholderBrief.relationship_history && (
+              <p className="text-xs text-indigo-800">{stakeholderBrief.relationship_history}</p>
+            )}
+            {Array.isArray(stakeholderBrief.attendees) && stakeholderBrief.attendees.length > 0 && (
+              <div className="grid sm:grid-cols-2 gap-2">
+                {stakeholderBrief.attendees.map((a: any, idx: number) => (
+                  <div key={idx} className="bg-white rounded border border-indigo-200 p-2">
+                    <p className="text-sm font-medium text-indigo-900">{a.name} <span className="text-xs font-normal text-indigo-600">— {a.role}</span></p>
+                    <p className="text-xs text-indigo-700">{a.org}</p>
+                    {a.notes && <p className="text-xs text-indigo-800 mt-1">{a.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {Array.isArray(stakeholderBrief.talking_points) && stakeholderBrief.talking_points.length > 0 && (
+              <ul className="text-xs text-indigo-800 space-y-1">
+                {stakeholderBrief.talking_points.map((t: string, idx: number) => <li key={idx}>• {t}</li>)}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-indigo-700">Generate an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company.</p>
+        )}
+      </div>
+
       {/* Sector Detection Badge */}
       {sector && (
         <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
@@ -381,9 +472,24 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
                   🎤 Start Recording
                 </button>
                 <span className="text-sm text-gray-500">Tap to begin</span>
+                <button
+                  onClick={() => transcriptFileInputRef.current?.click()}
+                  disabled={uploadingTranscript}
+                  className="ml-auto px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
+                </button>
+                <input
+                  ref={transcriptFileInputRef}
+                  type="file"
+                  accept=".txt,.md,text/plain"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+                />
               </>
             )}
           </div>
+          <p className="text-[11px] text-gray-500 -mt-2 mb-2">Didn't record live? Upload a transcript file (.txt) instead.</p>
           {transcript && (
             <div className="mt-4 p-3 bg-white rounded border border-gray-300">
               <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>

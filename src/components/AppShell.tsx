@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, CalendarDays, CheckSquare, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut } from "lucide-react";
+import { LayoutDashboard, Calendar, CalendarDays, CheckSquare, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -41,6 +41,7 @@ const navGroups = [
     label: "Admin",
     items: [
       { to: "/admin/dd-framework", label: "DD Framework", icon: ShieldCheck },
+      { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },
 ];

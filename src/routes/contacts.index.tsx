@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { ViewToggle, useViewMode } from "@/components/ViewToggle";
+import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
 
 export const Route = createFileRoute("/contacts/")({
   component: () => <AppShell><ContactsIndex /></AppShell>,
@@ -29,15 +31,28 @@ function ContactsIndex() {
   const [addOpen, setAddOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [scannedForm, setScannedForm] = useState<any | null>(null);
+  const [letter, setLetter] = useState<string | null>(null);
+  const [view, setView] = useViewMode("contacts");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
+
+  const primaryLabel = (c: ContactRow) => c.company || c.name;
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return q.data ?? [];
-    return (q.data ?? []).filter((c) =>
-      [c.name, c.company, c.email, c.position].filter(Boolean).some((v) => v!.toLowerCase().includes(s)),
-    );
+    let rows = q.data ?? [];
+    if (s) {
+      rows = rows.filter((c) =>
+        [c.name, c.company, c.email, c.position].filter(Boolean).some((v) => v!.toLowerCase().includes(s)),
+      );
+    }
+    return [...rows].sort((a, b) => primaryLabel(a).localeCompare(primaryLabel(b)));
   }, [q.data, search]);
+
+  const availableLetters = useMemo(() => new Set(filtered.map((c) => firstLetterOf(primaryLabel(c)))), [filtered]);
+  const displayed = useMemo(
+    () => (letter ? filtered.filter((c) => firstLetterOf(primaryLabel(c)) === letter) : filtered),
+    [filtered, letter],
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
@@ -57,7 +72,7 @@ function ContactsIndex() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <Tabs value={category} onValueChange={setCategory}>
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
@@ -72,16 +87,32 @@ function ContactsIndex() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((c) => <ContactCard key={c.id} c={c} />)}
-        {q.isSuccess && !filtered.length && (
-          <div className="col-span-full rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-            No contacts match. Try a different filter or add one.
-          </div>
-        )}
+      <div className="mb-6">
+        <AlphabetChips active={letter} onChange={setLetter} available={availableLetters} />
       </div>
+
+      {view === "card" ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {displayed.map((c) => <ContactCard key={c.id} c={c} />)}
+          {q.isSuccess && !displayed.length && (
+            <div className="col-span-full rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+              No contacts match. Try a different filter or add one.
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border divide-y divide-border bg-card">
+          {displayed.map((c) => <ContactListRow key={c.id} c={c} />)}
+          {q.isSuccess && !displayed.length && (
+            <div className="p-12 text-center text-muted-foreground">
+              No contacts match. Try a different filter or add one.
+            </div>
+          )}
+        </div>
+      )}
 
       <AddContactDialog open={addOpen} onClose={() => setAddOpen(false)} />
 
@@ -132,6 +163,29 @@ function ContactCard({ c }: { c: ContactRow }) {
           </div>
         </CardContent>
       </Card>
+    </Link>
+  );
+}
+
+function ContactListRow({ c }: { c: ContactRow }) {
+  const primary = c.company || c.name;
+  const secondary = c.company ? c.name : c.position;
+  return (
+    <Link to="/contacts/$id" params={{ id: c.id }}>
+      <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-serif text-base leading-tight truncate">{primary}</span>
+            <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+          </div>
+          {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+        </div>
+        <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
+          {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+          {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0" />
+      </div>
     </Link>
   );
 }

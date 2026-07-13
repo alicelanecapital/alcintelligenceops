@@ -27,6 +27,7 @@ import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
+import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 import { Route as AuthGoogleCallbackRouteImport } from './routes/auth.google.callback'
 
@@ -120,6 +121,11 @@ const AdminDdFrameworkRoute = AdminDdFrameworkRouteImport.update({
   path: '/admin/dd-framework',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAccountsRoute = AdminAccountsRouteImport.update({
+  id: '/admin/accounts',
+  path: '/admin/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DdInterviewOpportunityIdRoundRoute =
   DdInterviewOpportunityIdRoundRouteImport.update({
     id: '/dd-interview/$opportunityId/$round',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
   '/tasks': typeof TasksRoute
+  '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
   '/tasks': typeof TasksRoute
+  '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/events-old': typeof EventsOldRoute
   '/tasks': typeof TasksRoute
+  '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/events-old'
     | '/tasks'
+    | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/events-old'
     | '/tasks'
+    | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/events-old'
     | '/tasks'
+    | '/admin/accounts'
     | '/admin/dd-framework'
     | '/api/transcribe'
     | '/companies/$id'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   EventsOldRoute: typeof EventsOldRoute
   TasksRoute: typeof TasksRoute
+  AdminAccountsRoute: typeof AdminAccountsRoute
   AdminDdFrameworkRoute: typeof AdminDdFrameworkRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDdFrameworkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/accounts': {
+      id: '/admin/accounts'
+      path: '/admin/accounts'
+      fullPath: '/admin/accounts'
+      preLoaderRoute: typeof AdminAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dd-interview/$opportunityId/$round': {
       id: '/dd-interview/$opportunityId/$round'
       path: '/dd-interview/$opportunityId/$round'
@@ -454,6 +474,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   EventsOldRoute: EventsOldRoute,
   TasksRoute: TasksRoute,
+  AdminAccountsRoute: AdminAccountsRoute,
   AdminDdFrameworkRoute: AdminDdFrameworkRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   CompaniesIdRoute: CompaniesIdRoute,
@@ -469,3 +490,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
