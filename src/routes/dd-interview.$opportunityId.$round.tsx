@@ -2,9 +2,10 @@ import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { DDInterviewEnhanced } from "@/components/DDInterviewEnhanced";
+import { DiscProfileCard } from "@/components/DiscProfileCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/dd-interview/$opportunityId/$round")({
@@ -38,14 +39,39 @@ function DDInterviewPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-4"
-        onClick={() => navigate({ to: "/dd-engine" })}
-      >
-        <ChevronLeft className="h-4 w-4 mr-1" /> Back to opportunities
-      </Button>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate({ to: "/dd-engine" })}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" /> Back to opportunities
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={roundNumber <= 1}
+            onClick={() => navigate({ to: `/dd-interview/${opportunityId}/${roundNumber - 1}` })}
+            title="Previous round"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground w-24 text-center">Round {roundNumber} of 5</span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={roundNumber >= 5}
+            onClick={() => navigate({ to: `/dd-interview/${opportunityId}/${roundNumber + 1}` })}
+            title="Next round"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {opp.data && (
         <div className="sticky top-0 z-10 mb-6 rounded-lg border border-border bg-card/95 backdrop-blur px-5 py-4 shadow-sm">
@@ -65,6 +91,8 @@ function DDInterviewPage() {
           </p>
         </div>
       )}
+
+      <DiscProfileCard opportunityId={opportunityId} initialProfile={opp.data?.disc_profile ?? null} />
 
       <DDInterviewEnhanced opportunityId={opportunityId} round={roundNumber} />
     </div>
