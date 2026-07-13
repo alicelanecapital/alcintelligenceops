@@ -18,11 +18,6 @@ const LAST_DATE_KEY = "contacts:last_date_met";
 export function EditContactDialog({ open, onClose, contact }: { open: boolean; onClose: () => void; contact: any }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<any>(contact);
-  const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents, enabled: open });
-  const sortedEvents = useMemo(
-    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
-    [events.data],
-  );
   const generateDescription = useServerFn(generateCompanyDescription);
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const lastAutoCompanyRef = useRef<string>("");
@@ -61,6 +56,12 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
     }
   }
 
+  function onCompanyBlur() {
+    // Auto-fill Name from Company if Name is still blank
+    setForm((f: any) => (f.name?.trim() ? f : { ...f, name: f.company ?? "" }));
+    autoGenerateIfEmpty();
+  }
+
   async function autoGenerateIfEmpty() {
     const c = form.company?.trim();
     if (!c || c.length < 2) return;
@@ -88,27 +89,25 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>Edit contact</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <F label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></F>
+          <F label="Company">
+            <Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} onBlur={onCompanyBlur} />
+          </F>
           <F label="Category">
             <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </F>
-          <F label="Company">
-            <Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} onBlur={autoGenerateIfEmpty} />
-          </F>
+          <F label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></F>
           <F label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></F>
           <F label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></F>
           <F label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></F>
           <F label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></F>
           <F label="Website"><Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} /></F>
           <F label="Source event">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.source_event_id ?? ""} onChange={(e) => setEventSticky(e.target.value)}>
-              <option value="">— none —</option>
-              {sortedEvents.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
-            </select>
+            <EventSelect value={form.source_event_id} onChange={setEventSticky} />
           </F>
           <F label="Date met"><Input type="date" value={form.date_met ? String(form.date_met).slice(0, 10) : ""} onChange={(e) => setDateSticky(e.target.value)} /></F>
+
           <F label="Status"><Input value={form.status ?? ""} onChange={(e) => setForm({ ...form, status: e.target.value })} /></F>
           <div className="col-span-2">
             <div className="flex items-center justify-between">
