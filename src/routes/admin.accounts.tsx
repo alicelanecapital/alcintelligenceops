@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getGoogleConnectionStatus, disconnectGoogle, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
+import { getGoogleConnectionStatus, disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
 import { syncGoogleCalendarEvents, listTeamGoogleConnections } from "@/lib/google-calendar-sync.functions";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,10 +67,10 @@ function AccountsScreen() {
     onError: (e: any) => toast.error(e.message ?? "Sync failed"),
   });
 
-  function connect() {
-    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+  async function connect() {
+    const { clientId } = await getGoogleOAuthClientId();
     if (!clientId) {
-      toast.error("Google OAuth isn't configured yet (VITE_GOOGLE_OAUTH_CLIENT_ID missing)");
+      toast.error("Google OAuth isn't configured yet (GOOGLE_OAUTH_CLIENT_ID missing on the server)");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/google/callback`;
