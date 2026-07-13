@@ -215,11 +215,22 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch {
+        // Laptops usually don't have an "environment" camera — fall back to any
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       streamRef.current = stream;
       setMode("camera");
-      // video element renders on next tick once mode switches
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 0);
+      // wait for the <video> to mount, attach the stream, then explicitly play
+      setTimeout(async () => {
+        const v = videoRef.current;
+        if (!v) return;
+        v.srcObject = stream;
+        try { await v.play(); } catch { /* autoplay may reject; user gesture already granted */ }
+      }, 0);
     } catch (e: any) {
       toast.error("Could not access the camera: " + (e?.message ?? "permission denied"));
     }
@@ -331,7 +342,7 @@ function ScanBusinessCardDialog({ open, onClose, onExtracted }: { open: boolean;
         {mode === "camera" && (
           <div className="space-y-3">
             <div className="relative rounded-md overflow-hidden bg-black">
-              <video ref={videoRef} autoPlay playsInline className="w-full block" />
+              <video ref={videoRef} autoPlay playsInline muted className="w-full block aspect-[1.6/1] object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
                   className="relative w-[88%] aspect-[1.6/1] rounded-lg border-2 border-white/90"
