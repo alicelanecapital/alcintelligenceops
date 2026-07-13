@@ -187,7 +187,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         }
       });
       setAiAnalysis(analysis);
-      await supabase.from('dd_interviews').update({ ai_analysis: analysis }).eq('id', interviewRowId);
+      await supabase.from('dd_interviews').update({ ai_analysis: analysis as any }).eq('id', interviewRowId);
     } catch (error: any) {
       console.error('Analysis generation failed:', error);
       toast.error('Analysis generation failed: ' + (error?.message ?? 'unknown error'));
@@ -258,7 +258,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     (async () => {
       try {
         const channel = await getOrCreateChannelFn({ data: { opportunityId } });
-        if (!cancelled) setUploadChannel(channel);
+        if (!cancelled && channel?.dedicated_email) setUploadChannel({ dedicated_email: channel.dedicated_email });
       } catch (error: any) {
         console.error('Failed to load upload channel:', error);
       }
@@ -305,7 +305,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   };
 
   // Sector-specific module
-  const sectorModule = sector && SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES];
+  const sectorModule = sector ? SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES] : null;
 
   if (framework.isLoading || !roundData) {
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;

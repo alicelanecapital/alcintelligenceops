@@ -1,13 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 
-function server() {
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-  return createClient<Database>(url, key, { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } });
+async function adminClient() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
 }
+
 
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
@@ -18,7 +16,7 @@ export const GOOGLE_SCOPES = [
 
 /** Reads this user's stored Google tokens, refreshing the access token first if it's expired. */
 export async function getValidGoogleAccessToken(userEmail: string): Promise<string | null> {
-  const s = server();
+  const s = await adminClient();
   const { data: conn } = await s.from("google_oauth_connections").select("*").eq("user_email", userEmail).maybeSingle();
   if (!conn) return null;
 
