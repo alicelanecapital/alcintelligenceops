@@ -305,7 +305,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   };
 
   // Sector-specific module
-  const sectorModule = sector && SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES];
+  const sectorModule = sector ? SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES] : null;
 
   if (framework.isLoading || !roundData) {
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
