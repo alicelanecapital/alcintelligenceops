@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getGoogleConnectionStatus, disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
+import { disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
 import { syncGoogleCalendarEvents, listTeamGoogleConnections } from "@/lib/google-calendar-sync.functions";
 import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES } from "@/lib/team-member-colors";
@@ -24,12 +24,10 @@ export const Route = createFileRoute("/admin/accounts")({ component: () => <AppS
 function AccountsScreen() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const statusFn = useServerFn(getGoogleConnectionStatus);
   const disconnectFn = useServerFn(disconnectGoogle);
   const syncFn = useServerFn(syncGoogleCalendarEvents);
   const teamFn = useServerFn(listTeamGoogleConnections);
 
-  const status = useQuery({ queryKey: ["google-connection"], queryFn: () => statusFn() });
   const connections = useQuery({ queryKey: ["team-google-connections"], queryFn: () => teamFn() });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
 
@@ -41,7 +39,6 @@ function AccountsScreen() {
     if (!result) return;
     if (result === "connected") {
       toast.success("Google account connected");
-      qc.invalidateQueries({ queryKey: ["google-connection"] });
       qc.invalidateQueries({ queryKey: ["team-google-connections"] });
     } else if (result === "error") {
       toast.error("Google connection failed: " + (params.get("google_message") ?? "unknown error"));
@@ -50,24 +47,22 @@ function AccountsScreen() {
   }, []);
 
   const disconnectMut = useMutation({
-    mutationFn: () => disconnectFn(),
+    mutationFn: (targetEmail: string) => disconnectFn({ data: { targetEmail } }),
     onSuccess: () => {
       toast.success("Google disconnected");
-      qc.invalidateQueries({ queryKey: ["google-connection"] });
       qc.invalidateQueries({ queryKey: ["team-google-connections"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to disconnect"),
   });
 
   const syncMut = useMutation({
-    mutationFn: () => syncFn(),
+    mutationFn: (targetEmail: string) => syncFn({ data: { targetEmail } }),
     onSuccess: (result: any) => {
       if (result.reason === "not_connected") {
-        toast.error("Connect your Google account first");
+        toast.error("That account isn't connected yet");
         return;
       }
       toast.success(`Synced ${result.synced} calendar event${result.synced === 1 ? "" : "s"}`);
-      qc.invalidateQueries({ queryKey: ["google-connection"] });
       qc.invalidateQueries({ queryKey: ["team-google-connections"] });
       qc.invalidateQueries({ queryKey: ["upcoming-calendar-meetings"] });
       qc.invalidateQueries({ queryKey: ["all-meetings"] });
@@ -90,7 +85,11 @@ function AccountsScreen() {
     onError: (e: any) => toast.error(e.message ?? "Failed to remove account"),
   });
 
-  async function connect() {
+  // targetEmail is the roster row being connected -- not necessarily the signed-in app
+  // user's own email. Google's own account chooser lets you pick which Google identity to
+  // authorize, so anyone signed in here can connect any Google account they personally have
+  // access to (e.g. a second Gmail address of their own registered under a different row).
+  async function connect(targetEmail: string) {
     const { clientId } = await getGoogleOAuthClientId();
     if (!clientId) {
       toast.error("Google OAuth isn't configured yet (GOOGLE_OAUTH_CLIENT_ID missing on the server)");
@@ -104,7 +103,7 @@ function AccountsScreen() {
       scope: GOOGLE_SCOPES,
       access_type: "offline",
       prompt: "consent",
-      state: user?.email ?? "",
+      state: targetEmail,
     });
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
@@ -123,9 +122,10 @@ function AccountsScreen() {
       />
 
       <p className="text-xs text-muted-foreground mb-4">
-        Registering an account here just gives it a name and a colour, used to tell calendar events apart on the Meetings
-        screen — it does not connect or sync anything by itself. Each person has to sign in to this app as themselves and
-        click "Connect Google" to actually sync their own calendar; nobody else can do that on their behalf.
+        Registering an account here gives it a name and a colour, used to tell calendar events apart on the Meetings screen.
+        Click "Connect Google" on any row to link its calendar — Google's own account picker lets you choose which Google
+        identity to authorize, so you can connect a second Google account of your own (registered under a different row)
+        without needing to sign into this app as anyone else.
       </p>
 
       {!iAmRegistered && (
@@ -175,24 +175,20 @@ function AccountsScreen() {
                   {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
 
-                {isMe ? (
-                  status.data?.connected ? (
-                    <>
-                      <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
-                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                        {syncMut.isPending ? "Syncing…" : "Sync now"}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => disconnectMut.mutate()} disabled={disconnectMut.isPending}>
-                        <Unlink className="h-3.5 w-3.5 mr-1" /> Disconnect
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" onClick={connect}>
-                      <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
+                {conn ? (
+                  <>
+                    <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                      {syncMut.isPending ? "Syncing…" : "Sync now"}
                     </Button>
-                  )
+                    <Button size="sm" variant="outline" onClick={() => disconnectMut.mutate(m.email)} disabled={disconnectMut.isPending}>
+                      <Unlink className="h-3.5 w-3.5 mr-1" /> Disconnect
+                    </Button>
+                  </>
                 ) : (
-                  conn ? <Badge variant="outline">Connected</Badge> : <Badge variant="secondary">Not connected</Badge>
+                  <Button size="sm" onClick={() => connect(m.email)}>
+                    <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
+                  </Button>
                 )}
 
                 <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>

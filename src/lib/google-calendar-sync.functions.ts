@@ -77,13 +77,19 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
   return { synced: rows.length, reason: "ok" };
 }
 
-/** Pulls this user's primary Google Calendar (past week to next 90 days) and upserts into google_calendar_events. */
+/**
+ * Syncs a Google account's calendars into google_calendar_events. Defaults to the caller's
+ * own connection, but accepts targetEmail so any signed-in teammate can sync any account
+ * registered on the Admin > Accounts roster -- e.g. a second Google account of their own
+ * registered under a different roster row than their app login.
+ */
 export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
+  .inputValidator((d?: { targetEmail?: string }) => d ?? {})
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const email = context.claims.email as string | undefined;
-    if (!email) throw new Error("Not signed in");
-    return syncCalendarForUser(email);
+  .handler(async ({ context, data }) => {
+    const sessionEmail = context.claims.email as string | undefined;
+    if (!sessionEmail) throw new Error("Not signed in");
+    return syncCalendarForUser(data?.targetEmail ?? sessionEmail);
   });
 
 /** Admin visibility: every team member who has connected Google, for the Accounts screen. */

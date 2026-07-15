@@ -84,11 +84,22 @@ export const getGoogleConnectionStatus = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Disconnects a Google account. Defaults to the caller's own connection, but accepts
+ * targetEmail so any signed-in teammate can manage any account registered on the Admin >
+ * Accounts roster -- e.g. Georgia connecting/disconnecting a second Google account of her
+ * own (ga@firstserve.co.za) that's registered under a different roster row than her app
+ * login. Uses the admin client since this intentionally isn't restricted to the caller's
+ * own row (same team-wide trust model as the team_members roster itself).
+ */
 export const disconnectGoogle = createServerFn({ method: "POST" })
+  .inputValidator((d?: { targetEmail?: string }) => d ?? {})
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const email = context.claims.email as string | undefined;
-    if (!email) throw new Error("Not signed in");
-    await context.supabase.from("google_oauth_connections").delete().eq("user_email", email);
+  .handler(async ({ context, data }) => {
+    const sessionEmail = context.claims.email as string | undefined;
+    if (!sessionEmail) throw new Error("Not signed in");
+    const targetEmail = data?.targetEmail ?? sessionEmail;
+    const s = await adminClient();
+    await s.from("google_oauth_connections").delete().eq("user_email", targetEmail);
     return { ok: true };
   });
