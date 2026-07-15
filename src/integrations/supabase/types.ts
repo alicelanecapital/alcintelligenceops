@@ -1386,6 +1386,8 @@ export type Database = {
       google_calendar_events: {
         Row: {
           attendees: Json | null
+          calendar_id: string | null
+          calendar_name: string | null
           created_at: string
           description: string | null
           end_time: string | null
@@ -1401,6 +1403,8 @@ export type Database = {
         }
         Insert: {
           attendees?: Json | null
+          calendar_id?: string | null
+          calendar_name?: string | null
           created_at?: string
           description?: string | null
           end_time?: string | null
@@ -1416,6 +1420,8 @@ export type Database = {
         }
         Update: {
           attendees?: Json | null
+          calendar_id?: string | null
+          calendar_name?: string | null
           created_at?: string
           description?: string | null
           end_time?: string | null
@@ -1616,9 +1622,11 @@ export type Database = {
           event_id: string | null
           founder_id: string | null
           founder_name: string | null
+          hidden: boolean
           id: string
           industry: string | null
           interviewer_name: string | null
+          is_private: boolean
           meeting_type: string | null
           organisation_id: string | null
           started_at: string | null
@@ -1637,9 +1645,11 @@ export type Database = {
           event_id?: string | null
           founder_id?: string | null
           founder_name?: string | null
+          hidden?: boolean
           id?: string
           industry?: string | null
           interviewer_name?: string | null
+          is_private?: boolean
           meeting_type?: string | null
           organisation_id?: string | null
           started_at?: string | null
@@ -1658,9 +1668,11 @@ export type Database = {
           event_id?: string | null
           founder_id?: string | null
           founder_name?: string | null
+          hidden?: boolean
           id?: string
           industry?: string | null
           interviewer_name?: string | null
+          is_private?: boolean
           meeting_type?: string | null
           organisation_id?: string | null
           started_at?: string | null
@@ -1921,6 +1933,7 @@ export type Database = {
       }
       opportunities: {
         Row: {
+          ai_overview: Json | null
           assigned_partner: string | null
           company_id: string | null
           contact_id: string | null
@@ -1942,6 +1955,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_overview?: Json | null
           assigned_partner?: string | null
           company_id?: string | null
           contact_id?: string | null
@@ -1963,6 +1977,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_overview?: Json | null
           assigned_partner?: string | null
           company_id?: string | null
           contact_id?: string | null
