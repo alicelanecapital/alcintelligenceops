@@ -130,8 +130,9 @@ export const createBooking = createServerFn({ method: "POST" })
     if (error) throw error;
 
     // Best-effort: block the slot on the real Google Calendar and email the client
-    // an invite. The booking is already confirmed internally either way -- this
-    // just fails silently if the owner hasn't (re)connected with calendar.events yet.
+    // an invite. The booking is already confirmed internally either way -- track
+    // whether the invite actually went out so the client isn't falsely promised one.
+    let inviteSent = false;
     try {
       const accessToken = await getValidGoogleAccessToken(link.user_email);
       if (accessToken) {
@@ -150,11 +151,14 @@ export const createBooking = createServerFn({ method: "POST" })
           const json = await res.json();
           if (json.id) {
             await (supabaseAdmin.from("bookings" as any) as any).update({ google_event_id: json.id }).eq("id", booking.id);
+            inviteSent = true;
           }
+        } else {
+          console.error(`Google Calendar event creation failed [${res.status}]: ${(await res.text()).slice(0, 300)}`);
         }
       }
-    } catch {
-      // non-fatal
+    } catch (err) {
+      console.error("Google Calendar invite step failed:", err);
     }
 
     await supabaseAdmin.from("meetings").insert({
@@ -165,5 +169,5 @@ export const createBooking = createServerFn({ method: "POST" })
       outcome: "Scheduled via booking link",
     });
 
-    return { ok: true, startTime: startTime.toISOString(), endTime: endTime.toISOString() };
+    return { ok: true, startTime: startTime.toISOString(), endTime: endTime.toISOString(), inviteSent };
   });
