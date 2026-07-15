@@ -102,6 +102,22 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const generateOverviewFn = useServerFn(generateOpportunityOverview);
   const generateAnomalyQuestionsFn = useServerFn(generateAnomalyQuestions);
 
+  // Regenerates DISC profile, AI overview, and stakeholder brief every time this round loads
+  // (not just once when first created) -- no manual "Generate" button, and any new information
+  // populated since the last visit (new contacts, new documents, a later round's transcript)
+  // surfaces automatically on refresh instead of needing a round action to trigger it.
+  const refreshAllOnLoad = (id: string) => {
+    generateDiscFn({ data: { opportunityId } })
+      .then(() => qc.invalidateQueries({ queryKey: ['opportunity-company-details', opportunityId] }))
+      .catch(() => { /* not enough data yet, ignore */ });
+    generateOverviewFn({ data: { opportunityId } })
+      .then(() => qc.invalidateQueries({ queryKey: ['opportunity-company-details', opportunityId] }))
+      .catch(() => { /* not enough data yet, ignore */ });
+    generateBriefFn({ data: { opportunityId, interviewId: id, round } })
+      .then((brief) => setStakeholderBrief(brief))
+      .catch(() => { /* not enough contact data yet, ignore */ });
+  };
+
   // Surface these two up to the parent's fixed overview panel whenever they change (including
   // on initial load from the existing dd_interviews row). Sector is stored as a single-letter
   // code (A-E) -- surface the human-readable module name, not the raw code.
@@ -194,15 +210,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
             setSector(existing.detected_sector);
             setSectorConfidence(existing.sector_confidence ? Math.round(existing.sector_confidence) : 0);
           }
-          if (existing.stakeholder_brief) {
-            setStakeholderBrief(existing.stakeholder_brief);
-          } else {
-            // No brief on file yet -- generate one automatically so the round always opens
-            // with a brief already in place, rather than waiting for a manual click.
-            generateBriefFn({ data: { opportunityId, interviewId: existing.id, round } })
-              .then((brief) => { if (!cancelled) setStakeholderBrief(brief); })
-              .catch(() => { /* not enough contact data yet, ignore */ });
-          }
+          // Show the cached brief immediately (no flicker), then refresh everything in the
+          // background so any new information shows up without a manual click or round action.
+          if (existing.stakeholder_brief) setStakeholderBrief(existing.stakeholder_brief);
+          refreshAllOnLoad(existing.id);
         }
         return;
       }
@@ -233,6 +244,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               setSector(raceWinner.detected_sector);
               setSectorConfidence(raceWinner.sector_confidence ? Math.round(raceWinner.sector_confidence) : 0);
             }
+            refreshAllOnLoad(raceWinner.id);
             return;
           }
         }
@@ -241,9 +253,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       }
       if (!cancelled) {
         setInterviewRowId(created.id);
-        generateBriefFn({ data: { opportunityId, interviewId: created.id, round } })
-          .then((brief) => { if (!cancelled) setStakeholderBrief(brief); })
-          .catch(() => { /* not enough contact data yet, ignore */ });
+        refreshAllOnLoad(created.id);
       }
     })();
 
