@@ -24,6 +24,16 @@ async function fetchOpportunityCompanyDetails(opportunityId: string) {
   return data as any;
 }
 
+async function fetchCompletedRounds(opportunityId: string): Promise<number[]> {
+  const { data, error } = await supabase
+    .from("dd_interviews")
+    .select("round, status")
+    .eq("opportunity_id", opportunityId)
+    .eq("status", "completed");
+  if (error) throw error;
+  return (data ?? []).map((r) => r.round);
+}
+
 function DDInterviewPage() {
   const { opportunityId, round } = useParams({ from: "/dd-interview/$opportunityId/$round" });
   const navigate = useNavigate();
@@ -34,6 +44,10 @@ function DDInterviewPage() {
     queryFn: () => fetchOpportunityCompanyDetails(opportunityId),
   });
   const frameworkRounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
+  const completedRounds = useQuery({
+    queryKey: ["dd-interview-statuses", opportunityId],
+    queryFn: () => fetchCompletedRounds(opportunityId),
+  });
   // Lifted from DDInterviewEnhanced so the fixed overview panel above can render them
   // alongside DISC/AI overview, instead of DDInterviewEnhanced rendering them inline.
   const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
@@ -75,6 +89,7 @@ function DDInterviewPage() {
           current={roundNumber}
           onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
           orientation="horizontal"
+          completedRounds={completedRounds.data}
         />
       </div>
 

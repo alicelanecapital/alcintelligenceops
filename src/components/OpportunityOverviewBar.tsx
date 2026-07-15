@@ -58,7 +58,7 @@ export function OpportunityOverviewBar({
       <div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-serif text-lg leading-tight">
-            About {companyName ? <span className="font-bold">{companyName}</span> : "the Business"}
+            <span className="font-bold">About</span> {companyName ? <span className="font-bold">{companyName}</span> : "the Business"}
           </span>
           {sector && <Badge variant="outline" className="whitespace-nowrap text-[10px]">{sector}</Badge>}
         </div>
@@ -66,7 +66,7 @@ export function OpportunityOverviewBar({
       </div>
       <div>
         <span className="font-serif text-lg leading-tight">
-          About {founderName ? <span className="font-bold">{founderName}</span> : "the Founder"}
+          <span className="font-bold">About</span> {founderName ? <span className="font-bold">{founderName}</span> : "the Founder"}
         </span>
       </div>
 

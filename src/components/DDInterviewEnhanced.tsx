@@ -123,11 +123,20 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     internalSteps: q.internal_steps ?? [],
     redFlags: q.red_flags ?? [],
   }));
-  // This round's own required documents -- shown specifically (not merged with any other
-  // round's) in the Document Analysis step, cross-referenced against what's arrived.
+  // Round 1 has no earlier round to have already requested documents ahead of time, so its
+  // "Documents Required" step (moved near the end of round 1's own stepper, right before
+  // Internal Verification) merges in round 2's required documents too -- everything the
+  // interviewee needs to have in before continuing. Every later round shows only its own.
+  const isFirstRound = round === 1;
   const requiredDocuments = useQuery({
     queryKey: ['dd-framework-required-documents', round],
-    queryFn: () => fetchRoundOwnDocuments(round),
+    queryFn: async () => {
+      if (isFirstRound) {
+        const [own, next] = await Promise.all([fetchRoundOwnDocuments(1), fetchRoundOwnDocuments(2)]);
+        return [...own, ...next];
+      }
+      return fetchRoundOwnDocuments(round);
+    },
   });
   const isDocumentReceived = (docName: string) => {
     const needle = docName.toLowerCase();
@@ -145,7 +154,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     setTranscript('');
     setAiAnalysis(null);
     setStakeholderBrief(null);
-    setActiveStep('documents');
+    // Round 1's stepper leads with Interview Questions (Documents Required moves to near the
+    // end there); every later round leads with Document Analysis.
+    setActiveStep(round === 1 ? 'questions' : 'documents');
 
     (async () => {
       // stakeholder_brief is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
@@ -425,6 +436,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         completed_at: new Date().toISOString(),
       }).eq('id', interviewRowId);
       refreshOpportunityIntelligence();
+      qc.invalidateQueries({ queryKey: ['dd-interview-statuses', opportunityId] });
 
       if (round < 5) {
         // Documents required for the next round are only sent out now, at the point of
@@ -614,12 +626,17 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   // Sector-specific module
   const sectorModule = sector ? SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES] : null;
 
-  const SUB_STEPS: { key: typeof activeStep; label: string }[] = [
-    { key: 'documents', label: 'Document Analysis' },
-    { key: 'questions', label: 'Interview Questions' },
-    { key: 'software', label: sectorModule ? `${sectorModule.name} Questions` : 'Sector Questions' },
-    { key: 'verification', label: 'Internal Verification' },
-  ];
+  const documentsStep = { key: 'documents' as const, label: isFirstRound ? 'Documents Required' : 'Document Analysis' };
+  const questionsStep = { key: 'questions' as const, label: 'Interview Questions' };
+  const softwareStep = { key: 'software' as const, label: sectorModule ? `${sectorModule.name} Questions` : 'Sector Questions' };
+  const verificationStep = { key: 'verification' as const, label: 'Internal Verification' };
+  // Round 1's Documents Required merges in round 2's requirements (see requiredDocuments
+  // above), so it reads more naturally as a final checklist just before moving on, rather
+  // than as the first thing reviewed.
+  const SUB_STEPS: { key: typeof activeStep; label: string }[] = isFirstRound
+    ? [questionsStep, softwareStep, documentsStep, verificationStep]
+    : [documentsStep, questionsStep, softwareStep, verificationStep];
+  const isLastStep = SUB_STEPS[SUB_STEPS.length - 1].key === activeStep;
 
   if (framework.isLoading || !roundData) {
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
@@ -672,7 +689,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   everything, for round 1, since there's no earlier meeting). */}
               <div className="p-4 bg-blue-50 border border-blue-200 rounded">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-blue-900">📄 Documents Required for This Round</p>
+                  <p className="text-sm font-semibold text-blue-900">📄 {isFirstRound ? 'Documents Required' : 'Documents Received'}</p>
                   {uploadChannel && (
                     <button
                       type="button"
@@ -1028,7 +1045,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         </div>
       </div>
 
-      {/* Round Gates */}
+      {/* Round Gates -- only surfaced on the final sub-step, since advancing (or holding/
+          terminating) is a whole-round decision made once everything else has been reviewed. */}
+      {isLastStep && (
       <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">
         <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
         {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
@@ -1098,6 +1117,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
