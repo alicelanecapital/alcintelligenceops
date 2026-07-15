@@ -9,6 +9,7 @@ import {
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
 } from "@/lib/dd-framework-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,16 +74,17 @@ function DDFrameworkAdmin() {
 
 function RoundMetaCard({ round, onSaved }: { round: { round: number; title: string; subtitle: string | null; purpose: string | null; duration: string | null }; onSaved: () => void }) {
   const [title, setTitle] = useState(round.title);
-  const [subtitle, setSubtitle] = useState(round.subtitle ?? "");
   const [purpose, setPurpose] = useState(round.purpose ?? "");
   const [duration, setDuration] = useState(round.duration ?? "");
 
   useEffect(() => {
-    setTitle(round.title); setSubtitle(round.subtitle ?? ""); setPurpose(round.purpose ?? ""); setDuration(round.duration ?? "");
+    setTitle(round.title); setPurpose(round.purpose ?? ""); setDuration(round.duration ?? "");
   }, [round]);
 
   const m = useMutation({
-    mutationFn: () => updateFrameworkRound(round.round, { title, subtitle, purpose, duration }),
+    // Subtitle isn't edited here anymore, but keep it unchanged rather than dropping it --
+    // RoundStepper still displays it in the left rail.
+    mutationFn: () => updateFrameworkRound(round.round, { title, subtitle: round.subtitle ?? "", purpose, duration }),
     onSuccess: () => { toast.success("Round details saved"); onSaved(); },
     onError: (e: any) => toast.error(e.message ?? "Failed to save"),
   });
@@ -100,10 +102,6 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
             <Label className="text-sm">Duration</Label>
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1" />
           </div>
-        </div>
-        <div>
-          <Label className="text-sm">Subtitle</Label>
-          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
         </div>
         <div>
           <Label className="text-sm">Purpose</Label>
@@ -148,10 +146,10 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-serif text-2xl">Questions ({questions.length})</h2>
+        <h2 className="font-serif text-2xl">Questions</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
       </div>
-      <div className="space-y-3">
+      <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
         {questions.map((question, idx) => (
           <QuestionCard
             key={question.id}
@@ -163,7 +161,7 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
             onSaved={onChanged}
           />
         ))}
-      </div>
+      </Accordion>
     </div>
   );
 }
@@ -194,10 +192,12 @@ function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
   const addFlag = () => setRedFlags((flags) => [...flags, { text: "", severity: "MONITOR" }]);
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-3">
+    <AccordionItem value={question.id}>
+      <AccordionTrigger className="text-sm">
+        <span className="text-left">{questionText || `Question ${index + 1}`}</span>
+      </AccordionTrigger>
+      <AccordionContent>
         <div className="flex items-start justify-between gap-2">
-          <span className="text-xs font-semibold text-muted-foreground mt-2">Q{index + 1}</span>
           <div className="flex-1 space-y-3">
             <div>
               <Label className="text-xs">Question</Label>
@@ -240,11 +240,11 @@ function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
             <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
           </div>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-3">
           <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save question</Button>
         </div>
-      </CardContent>
-    </Card>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 

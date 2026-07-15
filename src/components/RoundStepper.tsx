@@ -25,10 +25,10 @@ export function RoundStepper({ rounds, current, onSelect }: { rounds: StepperRou
               )}
             />
             <span className="min-w-0">
-              <span className={cn("block text-sm font-medium truncate", active ? "text-primary" : "text-foreground")}>
-                Round {r.round}: {r.title}
+              <span className={cn("block text-sm font-medium", active ? "text-primary" : "text-foreground")}>
+                {r.title}
               </span>
-              {r.subtitle && <span className="block text-xs text-muted-foreground truncate">{r.subtitle}</span>}
+              {r.subtitle && <span className="block text-xs text-muted-foreground whitespace-normal break-words">{r.subtitle}</span>}
             </span>
           </button>
         );

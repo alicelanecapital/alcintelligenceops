@@ -18,10 +18,24 @@ import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock } from "luci
 import { startInterview } from "@/lib/interviews.functions";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
-import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
+
+/** The same real-world event often appears more than once because several team
+ * members' synced calendars (and shared/subscribed calendars) all pick it up
+ * independently -- collapse to one row per title + start time. */
+function dedupeEvents(events: any[]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const ev of events) {
+    const key = `${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ev);
+  }
+  return out;
+}
 
 function InterviewsIndex() {
   const qc = useQueryClient();
@@ -31,6 +45,7 @@ function InterviewsIndex() {
   const [view, setView] = useViewMode("meetings");
 
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
+  const dedupedUpcoming = dedupeEvents(upcoming.data ?? []);
 
   const togglePrivateMut = useMutation({
     mutationFn: ({ id, isPrivate }: { id: string; isPrivate: boolean }) => setInterviewPrivate(id, isPrivate),
@@ -59,14 +74,37 @@ function InterviewsIndex() {
         actions={<NewInterview />}
       />
 
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-serif text-lg">Founder interviews</div>
+        <ViewToggle mode={view} onChange={setView} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <InterviewColumn
+          title="Client meetings"
+          items={clientMeetings}
+          view={view}
+          emptyText="No client meetings yet. Start your first founder meeting to build the memo."
+          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
+          onDismiss={(i) => dismissMut.mutate(i.id)}
+        />
+        <InterviewColumn
+          title="Private meetings"
+          items={privateMeetings}
+          view={view}
+          emptyText="No private meetings."
+          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
+          onDismiss={(i) => dismissMut.mutate(i.id)}
+        />
+      </div>
+
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-serif text-lg">Upcoming meetings</div>
-          <SyncGoogleButton />
+          <div className="font-serif text-lg">Events</div>
         </div>
-        {upcoming.data && upcoming.data.length > 0 ? (
+        {dedupedUpcoming.length > 0 ? (
           <div className="rounded-lg border border-border divide-y divide-border bg-card">
-            {upcoming.data.slice(0, 8).map((ev: any) => {
+            {dedupedUpcoming.slice(0, 8).map((ev: any) => {
               // A shared calendar (e.g. Tendai's, synced into whoever's account subscribes to it) is
               // identified by calendar name/id rather than by whose Google account did the syncing --
               // shown in a solid red/white treatment regardless of the syncing account's own colour.
@@ -110,34 +148,11 @@ function InterviewsIndex() {
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground bg-card">
-            No synced calendar meetings yet. Click "Sync Google" above to connect and sync your calendar.
+            No synced calendar events yet. Connect a Google account in Accounts to sync your calendar.
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-serif text-lg">Founder interviews</div>
-        <ViewToggle mode={view} onChange={setView} />
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <InterviewColumn
-          title="Client meetings"
-          items={clientMeetings}
-          view={view}
-          emptyText="No client meetings yet. Start your first founder meeting to build the memo."
-          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
-          onDismiss={(i) => dismissMut.mutate(i.id)}
-        />
-        <InterviewColumn
-          title="Private meetings"
-          items={privateMeetings}
-          view={view}
-          emptyText="No private meetings."
-          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
-          onDismiss={(i) => dismissMut.mutate(i.id)}
-        />
-      </div>
     </div>
   );
 }
