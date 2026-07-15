@@ -54,7 +54,15 @@ function renderSpeakerColoredTranscript(text: string) {
   });
 }
 
-export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
+export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefChange, onSectorChange }: {
+  opportunityId: string;
+  round: number;
+  /** Surfaces the stakeholder brief/detected-sector up to the parent route, which now renders
+   * them (alongside DISC/AI overview) in the fixed "About the Business" / "About {founder}"
+   * panel above the round content, instead of inline here. */
+  onStakeholderBriefChange?: (brief: any) => void;
+  onSectorChange?: (sector: string | null, confidence: number) => void;
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [isRecording, setIsRecording] = useState(false);
@@ -90,6 +98,17 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const generateDiscFn = useServerFn(generateDiscProfile);
   const generateOverviewFn = useServerFn(generateOpportunityOverview);
   const generateAnomalyQuestionsFn = useServerFn(generateAnomalyQuestions);
+
+  // Surface these two up to the parent's fixed overview panel whenever they change (including
+  // on initial load from the existing dd_interviews row). Sector is stored as a single-letter
+  // code (A-E) -- surface the human-readable module name, not the raw code.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onStakeholderBriefChange?.(stakeholderBrief); }, [stakeholderBrief]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const name = sector ? SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES]?.name ?? sector : null;
+    onSectorChange?.(name, sectorConfidence);
+  }, [sector, sectorConfidence]);
 
   // Questions and required documents are admin-editable (see /admin/dd-framework)
   // and live in dd_framework_rounds/questions/documents rather than the old
@@ -594,54 +613,12 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Pre-Interview Stakeholder Brief -- auto-generated, no manual trigger */}
-      <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-        <p className="text-sm font-semibold text-indigo-900 mb-2">🧭 Pre-interview stakeholder brief</p>
-        {stakeholderBrief ? (
-          <div className="space-y-3">
-            {stakeholderBrief.relationship_history && (
-              <p className="text-xs text-indigo-800">{stakeholderBrief.relationship_history}</p>
-            )}
-            {Array.isArray(stakeholderBrief.attendees) && stakeholderBrief.attendees.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-2">
-                {stakeholderBrief.attendees.map((a: any, idx: number) => (
-                  <div key={idx} className="bg-white rounded border border-indigo-200 p-2">
-                    <p className="text-sm font-medium text-indigo-900">{a.name} <span className="text-xs font-normal text-indigo-600">— {a.role}</span></p>
-                    <p className="text-xs text-indigo-700">{a.org}</p>
-                    {a.notes && <p className="text-xs text-indigo-800 mt-1">{a.notes}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-            {Array.isArray(stakeholderBrief.talking_points) && stakeholderBrief.talking_points.length > 0 && (
-              <ul className="text-xs text-indigo-800 space-y-1">
-                {stakeholderBrief.talking_points.map((t: string, idx: number) => <li key={idx}>• {t}</li>)}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-indigo-700">Generating an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company…</p>
-        )}
-      </div>
-
-      {/* Sector Detection Badge */}
-      {sector && (
-        <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
-          <p className="text-sm font-semibold text-teal-900">
-            🎯 Sector Detected: {sectorModule?.name} ({sectorConfidence}% confidence)
-          </p>
-          <p className="text-xs text-teal-700 mt-1">
-            Sector-specific questions and verification steps will be loaded for this business type.
-          </p>
-        </div>
-      )}
-
-      {/* Documents Sent -- must be reviewed before the meeting/recording starts, so this sits
+      {/* Documents Received -- must be reviewed before the meeting/recording starts, so this sits
           above Round recording. Auto-refreshes on load with anything sent since the last
           meeting (or everything, for round 1, since there's no earlier meeting). */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-blue-900">📄 Documents Sent</p>
+          <p className="text-sm font-semibold text-blue-900">📄 Documents Received</p>
           {uploadChannel && (
             <button
               type="button"

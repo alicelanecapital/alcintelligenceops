@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { BrainCircuit, Sparkles } from "lucide-react";
+import { BrainCircuit, Sparkles, Target } from "lucide-react";
 
 type DiscDimension = { score: number; label: string; evidence: string };
 type DiscProfile = {
@@ -31,14 +31,14 @@ const DIMENSIONS: { key: keyof DiscProfile; label: string; color: string }[] = [
 ];
 
 /**
- * Fixed, compact summary of the opportunity: company details, DISC profile, and AI overview.
- * Always fully visible (no collapse toggle) -- purely presentational, since both the DISC
- * profile and the AI overview are generated automatically in the background (by
- * DDInterviewEnhanced) as new round data comes in, and simply appear here once the parent's
- * opportunity query refetches. No manual regenerate controls by design.
+ * Fixed, always-visible (not collapsible) two-column summary of the opportunity:
+ * "About the Business" (detected sector, AI overview) and "About {founder}" (pre-interview
+ * stakeholder brief, DISC profile). All four fill in automatically as round data comes in --
+ * no manual regenerate controls by design.
  */
 export function OpportunityOverviewBar({
   companyName, founderName, sector, description, discProfile, overview,
+  detectedSector, detectedSectorConfidence, stakeholderBrief,
 }: {
   companyName?: string;
   founderName?: string;
@@ -46,109 +46,144 @@ export function OpportunityOverviewBar({
   description?: string;
   discProfile: DiscProfile | null;
   overview: Overview | null;
+  detectedSector?: string | null;
+  detectedSectorConfidence?: number;
+  stakeholderBrief?: any;
 }) {
   return (
-    <div className="sticky top-0 z-10 mb-6 rounded-lg border border-border bg-card/95 backdrop-blur shadow-sm">
-      <div className="px-5 py-3 flex items-center gap-4 flex-wrap">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-serif text-lg leading-tight">{companyName}</span>
-            {sector && <Badge variant="outline" className="whitespace-nowrap text-[10px]">{sector}</Badge>}
-            {founderName && <span className="text-xs text-muted-foreground">Founder: {founderName}</span>}
+    <div className="mb-6 grid md:grid-cols-2 gap-4">
+      {/* Column 1: About the Business */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-serif text-lg leading-tight">About the Business</span>
+          {companyName && <span className="text-xs text-muted-foreground truncate">{companyName}</span>}
+          {sector && <Badge variant="outline" className="whitespace-nowrap text-[10px]">{sector}</Badge>}
+        </div>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+
+        <div className="p-3 bg-teal-50 border border-teal-200 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <Target className="h-3.5 w-3.5 text-teal-700" />
+            <span className="text-sm font-semibold text-teal-900">Sector Detected</span>
           </div>
-          {overview?.headline && <div className="text-xs text-muted-foreground mt-0.5 truncate">{overview.headline}</div>}
+          {detectedSector ? (
+            <>
+              <p className="text-sm text-teal-900">{detectedSector} <span className="text-xs text-teal-700">({detectedSectorConfidence ?? 0}% confidence)</span></p>
+              <p className="text-xs text-teal-700 mt-1">Sector-specific questions and verification steps will be loaded for this business type.</p>
+            </>
+          ) : (
+            <p className="text-xs text-teal-700">Not detected yet — this fills in automatically once a round has been recorded and analysed.</p>
+          )}
         </div>
 
-        {discProfile && (
-          <div className="flex items-center gap-1 shrink-0">
-            {DIMENSIONS.map(({ key, label, color }) => {
-              const dim = discProfile[key] as DiscDimension | undefined;
-              if (!dim) return null;
-              return (
-                <span key={key} title={`${dim.label} (${dim.score})`} className={`h-6 w-6 rounded-full ${color} text-white text-[10px] font-semibold flex items-center justify-center`}>
-                  {label}
-                </span>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-border px-5 py-4 space-y-4">
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-medium">AI overview</span>
-              {overview?.rounds_covered && overview.rounds_covered.length > 0 && (
-                <span className="text-xs text-muted-foreground">Rounds {overview.rounds_covered.join(", ")}</span>
-              )}
-            </div>
-            {overview ? (
-              <div className="space-y-2 text-sm">
-                {overview.summary && <p className="text-muted-foreground">{overview.summary}</p>}
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {overview.key_strengths && overview.key_strengths.length > 0 && (
-                    <div>
-                      <div className="text-xs font-medium text-green-700 mb-1">Strengths</div>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {overview.key_strengths.map((s, i) => <li key={i}>• {s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                  {overview.key_risks && overview.key_risks.length > 0 && (
-                    <div>
-                      <div className="text-xs font-medium text-red-700 mb-1">Risks</div>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {overview.key_risks.map((s, i) => <li key={i}>• {s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                {overview.recommendation && <p className="text-xs italic text-muted-foreground">{overview.recommendation}</p>}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-3.5 w-3.5 text-amber-700" />
+            <span className="text-sm font-semibold text-amber-900">AI overview</span>
+            {overview?.rounds_covered && overview.rounds_covered.length > 0 && (
+              <span className="text-xs text-amber-700">Rounds {overview.rounds_covered.join(", ")}</span>
             )}
           </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <BrainCircuit className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-medium">DISC personality profile</span>
-            </div>
-            {discProfile ? (
-              <div className="space-y-2">
-                {discProfile.primary_style && (
-                  <div className="text-sm">
-                    Primary style: <span className="font-medium">{discProfile.primary_style}</span>
-                    {discProfile.secondary_style ? ` · Secondary: ${discProfile.secondary_style}` : ""}
+          {overview ? (
+            <div className="space-y-2 text-sm">
+              {overview.summary && <p className="text-amber-900">{overview.summary}</p>}
+              <div className="grid sm:grid-cols-2 gap-3">
+                {overview.key_strengths && overview.key_strengths.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-green-700 mb-1">Strengths</div>
+                    <ul className="text-xs text-amber-800 space-y-0.5">
+                      {overview.key_strengths.map((s, i) => <li key={i}>• {s}</li>)}
+                    </ul>
                   </div>
                 )}
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {DIMENSIONS.map(({ key, label, color }) => {
-                    const dim = discProfile[key] as DiscDimension | undefined;
-                    if (!dim) return null;
-                    return (
-                      <div key={key} className="border border-border rounded-md p-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">{label} · {dim.label}</span>
-                          <span className="text-[10px] text-muted-foreground">{dim.score}</span>
-                        </div>
-                        <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
-                          <div className={`h-full ${color}`} style={{ width: `${Math.min(100, Math.max(0, dim.score))}%` }} />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">{dim.evidence}</p>
-                      </div>
-                    );
-                  })}
-                </div>
+                {overview.key_risks && overview.key_risks.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-red-700 mb-1">Risks</div>
+                    <ul className="text-xs text-amber-800 space-y-0.5">
+                      {overview.key_risks.map((s, i) => <li key={i}>• {s}</li>)}
+                    </ul>
+                  </div>
+                )}
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
-            )}
+              {overview.recommendation && <p className="text-xs italic text-amber-700">{overview.recommendation}</p>}
+            </div>
+          ) : (
+            <p className="text-xs text-amber-700">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Column 2: About the Founder */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-serif text-lg leading-tight">About {founderName || "the Founder"}</span>
+        </div>
+
+        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded">
+          <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Pre-interview stakeholder brief</p>
+          {stakeholderBrief ? (
+            <div className="space-y-2">
+              {stakeholderBrief.relationship_history && (
+                <p className="text-xs text-indigo-800">{stakeholderBrief.relationship_history}</p>
+              )}
+              {Array.isArray(stakeholderBrief.attendees) && stakeholderBrief.attendees.length > 0 && (
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {stakeholderBrief.attendees.map((a: any, idx: number) => (
+                    <div key={idx} className="bg-white rounded border border-indigo-200 p-2">
+                      <p className="text-sm font-medium text-indigo-900">{a.name} <span className="text-xs font-normal text-indigo-600">— {a.role}</span></p>
+                      <p className="text-xs text-indigo-700">{a.org}</p>
+                      {a.notes && <p className="text-xs text-indigo-800 mt-1">{a.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {Array.isArray(stakeholderBrief.talking_points) && stakeholderBrief.talking_points.length > 0 && (
+                <ul className="text-xs text-indigo-800 space-y-1">
+                  {stakeholderBrief.talking_points.map((t: string, idx: number) => <li key={idx}>• {t}</li>)}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-indigo-700">Generating an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company…</p>
+          )}
+        </div>
+
+        <div className="p-3 bg-cyan-50 border border-cyan-200 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <BrainCircuit className="h-3.5 w-3.5 text-cyan-700" />
+            <span className="text-sm font-semibold text-cyan-900">DISC personality profile</span>
           </div>
+          {discProfile ? (
+            <div className="space-y-2">
+              {discProfile.primary_style && (
+                <div className="text-sm text-cyan-900">
+                  Primary style: <span className="font-medium">{discProfile.primary_style}</span>
+                  {discProfile.secondary_style ? ` · Secondary: ${discProfile.secondary_style}` : ""}
+                </div>
+              )}
+              <div className="grid sm:grid-cols-2 gap-2">
+                {DIMENSIONS.map(({ key, label, color }) => {
+                  const dim = discProfile[key] as DiscDimension | undefined;
+                  if (!dim) return null;
+                  return (
+                    <div key={key} className="border border-cyan-200 bg-white rounded-md p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium">{label} · {dim.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{dim.score}</span>
+                      </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
+                        <div className={`h-full ${color}`} style={{ width: `${Math.min(100, Math.max(0, dim.score))}%` }} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{dim.evidence}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-cyan-700">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
+          )}
+        </div>
       </div>
     </div>
   );

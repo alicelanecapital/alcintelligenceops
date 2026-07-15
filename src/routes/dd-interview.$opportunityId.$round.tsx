@@ -41,6 +41,11 @@ function DDInterviewPage() {
   });
   const documents = nextRoundDocuments.data ?? [];
   const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
+  // Lifted from DDInterviewEnhanced so the fixed overview panel above can render them
+  // alongside DISC/AI overview, instead of DDInterviewEnhanced rendering them inline.
+  const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
+  const [detectedSector, setDetectedSector] = useState<string | null>(null);
+  const [detectedSectorConfidence, setDetectedSectorConfidence] = useState(0);
 
   const companyName = opp.data?.company?.name ?? opp.data?.founder?.startup_name ?? opp.data?.name;
   const founderName = opp.data?.founder?.name;
@@ -61,6 +66,9 @@ function DDInterviewPage() {
           description={description}
           discProfile={opp.data?.disc_profile ?? null}
           overview={opp.data?.ai_overview ?? null}
+          detectedSector={detectedSector}
+          detectedSectorConfidence={detectedSectorConfidence}
+          stakeholderBrief={stakeholderBrief}
         />
       )}
 
@@ -99,7 +107,12 @@ function DDInterviewPage() {
         </aside>
 
         <div className="min-w-0">
-          <DDInterviewEnhanced opportunityId={opportunityId} round={roundNumber} />
+          <DDInterviewEnhanced
+            opportunityId={opportunityId}
+            round={roundNumber}
+            onStakeholderBriefChange={setStakeholderBrief}
+            onSectorChange={(s, c) => { setDetectedSector(s); setDetectedSectorConfidence(c); }}
+          />
         </div>
       </div>
     </div>
