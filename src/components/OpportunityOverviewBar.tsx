@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, BrainCircuit, Sparkles } from "lucide-react";
+import { BrainCircuit, Sparkles } from "lucide-react";
 
 type DiscDimension = { score: number; label: string; evidence: string };
 type DiscProfile = {
@@ -33,10 +32,10 @@ const DIMENSIONS: { key: keyof DiscProfile; label: string; color: string }[] = [
 
 /**
  * Fixed, compact summary of the opportunity: company details, DISC profile, and AI overview.
- * Purely presentational -- both the DISC profile and the AI overview are generated
- * automatically in the background (by DDInterviewEnhanced) as new round data comes in, and
- * simply appear here once the parent's opportunity query refetches. No manual regenerate
- * controls by design.
+ * Always fully visible (no collapse toggle) -- purely presentational, since both the DISC
+ * profile and the AI overview are generated automatically in the background (by
+ * DDInterviewEnhanced) as new round data comes in, and simply appear here once the parent's
+ * opportunity query refetches. No manual regenerate controls by design.
  */
 export function OpportunityOverviewBar({
   companyName, founderName, sector, description, discProfile, overview,
@@ -48,11 +47,9 @@ export function OpportunityOverviewBar({
   discProfile: DiscProfile | null;
   overview: Overview | null;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="sticky top-0 z-10 mb-6 rounded-lg border border-border bg-card/95 backdrop-blur shadow-sm">
-      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left px-5 py-3 flex items-center gap-4 flex-wrap">
+      <div className="px-5 py-3 flex items-center gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-serif text-lg leading-tight">{companyName}</span>
@@ -75,12 +72,9 @@ export function OpportunityOverviewBar({
             })}
           </div>
         )}
+      </div>
 
-        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-      </button>
-
-      {expanded && (
-        <div className="border-t border-border px-5 py-4 space-y-4">
+      <div className="border-t border-border px-5 py-4 space-y-4">
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
 
           <div>
@@ -155,8 +149,7 @@ export function OpportunityOverviewBar({
               <p className="text-xs text-muted-foreground">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
             )}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

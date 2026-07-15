@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
-import { fetchFrameworkRoundDetail, fetchRoundDocumentsForDisplay } from '@/lib/dd-framework-admin';
+import { fetchFrameworkRoundDetail } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
@@ -64,7 +64,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [sectorConfidence, setSectorConfidence] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
   const [interviewRowId, setInterviewRowId] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
   const [uploadChannel, setUploadChannel] = useState<{ dedicated_email: string } | null>(null);
@@ -104,13 +103,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     internalSteps: q.internal_steps ?? [],
     redFlags: q.red_flags ?? [],
   }));
-  // Shown to the interviewee as prep for their *next* meeting -- see fetchRoundDocumentsForDisplay.
-  const nextRoundDocuments = useQuery({
-    queryKey: ['dd-framework-next-round-documents', round],
-    queryFn: () => fetchRoundDocumentsForDisplay(round),
-  });
-  const documents = nextRoundDocuments.data ?? [];
-
   // Every round needs its own dd_interviews row before responses/documents/analysis
   // can be saved against it (dd_round_responses.interview_id is a foreign key into
   // dd_interviews, not opportunities). Get-or-create it on mount for this opportunity+round.
@@ -874,31 +866,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           </button>
         </div>
       </div>
-
-      {/* Related Documents */}
-      {documents.length > 0 && (
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-gray-900 mb-3">📋 Related documents for the next round:</p>
-        <div className="grid grid-cols-2 gap-2">
-          {documents.map(doc => (
-            <div key={doc.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
-              <input
-                type="checkbox"
-                className="mt-1"
-                onChange={(e) => setVerificationTracking({
-                  ...verificationTracking,
-                  [doc.name]: e.target.checked
-                })}
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                <p className="text-xs text-gray-600">{doc.purpose}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      )}
 
       {/* Verification Triangle */}
       <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
