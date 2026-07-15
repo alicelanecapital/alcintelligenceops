@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
@@ -9,16 +9,20 @@ import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection'
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
 import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
+import { generateDiscProfile } from '@/lib/dd-personality.functions';
+import { generateOpportunityOverview } from '@/lib/dd-overview.functions';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
   const navigate = useNavigate();
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const qc = useQueryClient();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [sector, setSector] = useState<string | null>(null);
   const [sectorConfidence, setSectorConfidence] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
   const [interviewRowId, setInterviewRowId] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
@@ -35,6 +39,8 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const syncDocsFn = useServerFn(syncUploadChannelDocuments);
   const getSignedUrlFn = useServerFn(getSignedDocumentUrl);
   const generateBriefFn = useServerFn(generateStakeholderBrief);
+  const generateDiscFn = useServerFn(generateDiscProfile);
+  const generateOverviewFn = useServerFn(generateOpportunityOverview);
 
   // Questions and required documents are admin-editable (see /admin/dd-framework)
   // and live in dd_framework_rounds/questions/documents rather than the old
@@ -48,7 +54,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     internalSteps: q.internal_steps ?? [],
     redFlags: q.red_flags ?? [],
   }));
-  const question = questions[currentQuestion];
   const documents = framework.data?.documents ?? [];
 
   // Every round needs its own dd_interviews row before responses/documents/analysis
@@ -57,7 +62,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   useEffect(() => {
     let cancelled = false;
     setInterviewRowId(null);
-    setCurrentQuestion(0);
     setTranscript('');
     setAiAnalysis(null);
     setStakeholderBrief(null);
@@ -104,6 +108,33 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     return () => { cancelled = true; };
   }, [opportunityId, round]);
 
+  // Silently regenerates the DISC profile and AI overview in the background whenever new
+  // round data comes in (a transcript is captured, analysis runs, or the round is completed),
+  // then invalidates the opportunity query so OpportunityOverviewBar picks up the fresh data.
+  // Deliberately fire-and-forget with no loading UI -- there's no manual "Generate" control.
+  const refreshOpportunityIntelligence = () => {
+    (async () => {
+      try { await generateDiscFn({ data: { opportunityId } }); } catch { /* not enough data yet, ignore */ }
+      try { await generateOverviewFn({ data: { opportunityId } }); } catch { /* not enough data yet, ignore */ }
+      qc.invalidateQueries({ queryKey: ['opportunity-company-details', opportunityId] });
+    })();
+  };
+
+  // Persist the single whole-round transcript against every question in this round, so the
+  // existing per-question response records stay populated without needing a manual "save" step.
+  const persistTranscriptAgainstAllQuestions = async (text: string) => {
+    if (!interviewRowId || !questions.length) return;
+    const rows = questions.map((q) => ({
+      interview_id: interviewRowId,
+      question_number: q.number,
+      question_text: q.question,
+      founder_response: text,
+      response_type: 'transcribed',
+      response_source: 'transcript',
+    }));
+    await supabase.from('dd_round_responses').upsert(rows, { onConflict: 'interview_id,question_number' });
+  };
+
   // Start recording
   const startRecording = async () => {
     try {
@@ -147,7 +178,8 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     }
   };
 
-  // Transcribe audio via the existing /api/transcribe endpoint (Lovable AI Gateway, server-side key)
+  // Transcribe the single whole-round recording via the existing /api/transcribe endpoint
+  // (Lovable AI Gateway, server-side key).
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
       const formData = new FormData();
@@ -161,9 +193,12 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       const data = await response.json();
       const text = data.text ?? '';
       setTranscript(text);
+      if (interviewRowId) {
+        await supabase.from('dd_interviews').update({ transcript: text, transcript_source: 'whisper' }).eq('id', interviewRowId);
+      }
+      await persistTranscriptAgainstAllQuestions(text);
 
-      // Auto-detect sector from responses
-      if (round === 1 && currentQuestion <= 2 && text) {
+      if (round === 1 && text) {
         const detection = await detectSector({ data: { responses: [text] } });
         setSector(detection.sector);
         setSectorConfidence(detection.confidence);
@@ -174,6 +209,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           }).eq('id', interviewRowId);
         }
       }
+      refreshOpportunityIntelligence();
     } catch (error) {
       console.error('Transcription failed:', error);
       toast.error('Transcription failed.');
@@ -189,6 +225,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       if (interviewRowId) {
         await supabase.from('dd_interviews').update({ transcript: text, transcript_source: 'manual' }).eq('id', interviewRowId);
       }
+      await persistTranscriptAgainstAllQuestions(text);
       toast.success('Transcript uploaded');
 
       if (round === 1 && text) {
@@ -202,6 +239,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           }).eq('id', interviewRowId);
         }
       }
+      refreshOpportunityIntelligence();
     } catch (error: any) {
       toast.error('Failed to read transcript file: ' + (error?.message ?? 'unknown error'));
     } finally {
@@ -223,12 +261,18 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     }
   };
 
-  // Generate AI analysis
+  // Generate AI analysis: assimilates the single whole-round transcript against every
+  // question in this round to produce meaningful deductions (red flags, follow-ups, etc).
   const generateAnalysis = async () => {
     if (!interviewRowId) {
       toast.error('This round is still loading — try again in a moment.');
       return;
     }
+    if (!transcript) {
+      toast.error('Record or upload this round\'s transcript first.');
+      return;
+    }
+    setAnalyzing(true);
     try {
       const analysis = await generateAnalysisReport({
         data: {
@@ -240,35 +284,13 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       });
       setAiAnalysis(analysis);
       await supabase.from('dd_interviews').update({ ai_analysis: analysis as any }).eq('id', interviewRowId);
+      refreshOpportunityIntelligence();
     } catch (error: any) {
       console.error('Analysis generation failed:', error);
       toast.error('Analysis generation failed: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setAnalyzing(false);
     }
-  };
-
-  // Save response
-  const saveResponse = async () => {
-    if (!interviewRowId) {
-      toast.error('This round is still loading — try again in a moment.');
-      return;
-    }
-    const { error } = await supabase.from('dd_round_responses').upsert({
-      interview_id: interviewRowId,
-      question_number: currentQuestion + 1,
-      question_text: question.question,
-      founder_response: transcript,
-      response_type: 'transcribed',
-      response_source: 'transcript'
-    }, { onConflict: 'interview_id,question_number' });
-
-    if (error) {
-      console.error('Failed to save response:', error);
-      toast.error('Failed to save response: ' + error.message);
-      return;
-    }
-
-    await supabase.from('dd_interviews').update({ transcript }).eq('id', interviewRowId);
-    toast.success('Response saved');
   };
 
   // Format time display
@@ -287,6 +309,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         status: 'completed',
         completed_at: new Date().toISOString(),
       }).eq('id', interviewRowId);
+      refreshOpportunityIntelligence();
 
       if (round < 5) {
         toast.success(`Round ${round} complete`);
@@ -363,7 +386,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
   }
 
-  if (!question) {
+  if (!questions.length) {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg">
         <h1 className="text-3xl font-bold mb-2">{roundData.title}</h1>
@@ -435,196 +458,201 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         </div>
       )}
 
-      {/* Current Question */}
-      <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm font-semibold text-gray-600 mb-2">
-          QUESTION {currentQuestion + 1} OF {questions.length}
-        </p>
-        <h2 className="text-2xl font-bold mb-4">{question.question}</h2>
-
-        {/* Why This Matters */}
-        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
-          <p className="text-sm font-semibold text-blue-900 mb-2">💡 Why this matters:</p>
-          <p className="text-sm text-blue-800">{question.why}</p>
-        </div>
-
-        {/* Recording Section */}
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            {isRecording ? (
-              <>
-                <button
-                  onClick={stopRecording}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  ⏹ Stop Recording
-                </button>
-                <span className="text-lg font-mono font-semibold text-red-600">
-                  {formatTime(recordingTime)}
-                </span>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={startRecording}
-                  className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-                >
-                  🎤 Start Recording
-                </button>
-                <span className="text-sm text-gray-500">Tap to begin</span>
-                <button
-                  onClick={() => transcriptFileInputRef.current?.click()}
-                  disabled={uploadingTranscript}
-                  className="ml-auto px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-                >
-                  {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
-                </button>
-                <input
-                  ref={transcriptFileInputRef}
-                  type="file"
-                  accept=".txt,.md,text/plain"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-                />
-              </>
-            )}
-          </div>
-          <p className="text-[11px] text-gray-500 -mt-2 mb-2">Didn't record live? Upload a transcript file (.txt) instead.</p>
-          {transcript && (
-            <div className="mt-4 p-3 bg-white rounded border border-gray-300">
-              <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
-              <p className="text-sm text-gray-700">{transcript}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Related Documents */}
-        <div className="mb-6">
-          <p className="text-sm font-semibold text-gray-900 mb-3">📋 Related documents for this round:</p>
-          <div className="grid grid-cols-2 gap-2">
-            {documents.map(doc => (
-              <div key={doc.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  onChange={(e) => setVerificationTracking({
-                    ...verificationTracking,
-                    [doc.name]: e.target.checked
-                  })}
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                  <p className="text-xs text-gray-600">{doc.purpose}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Email Upload Channel */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-          <p className="text-sm font-semibold text-blue-900 mb-2">📧 Email documents in:</p>
-          {uploadChannel ? (
-            <div className="flex items-center gap-2 flex-wrap">
-              <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
+      {/* One recording for the whole round -- we don't record and stop per question */}
+      <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+        <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round recording ({questions.length} questions)</p>
+        <div className="flex items-center justify-between mb-4">
+          {isRecording ? (
+            <>
               <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
-                className="text-xs text-blue-700 underline"
+                onClick={stopRecording}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
               >
-                Copy
+                ⏹ Stop Recording
               </button>
-              <button
-                type="button"
-                onClick={handleSyncDocuments}
-                disabled={syncingDocs}
-                className="ml-auto px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {syncingDocs ? 'Checking…' : 'Check for new documents'}
-              </button>
-            </div>
+              <span className="text-lg font-mono font-semibold text-red-600">
+                {formatTime(recordingTime)}
+              </span>
+            </>
           ) : (
-            <p className="text-xs text-blue-700">Loading upload address…</p>
-          )}
-          {receivedDocs.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {receivedDocs.map((doc) => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  onClick={() => openDocument(doc)}
-                  className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
-                >
-                  <span>{doc.file_name}</span>
-                  <span className="text-blue-600">View</span>
-                </button>
-              ))}
-            </div>
+            <>
+              <button
+                onClick={startRecording}
+                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+              >
+                🎤 Start Recording
+              </button>
+              <span className="text-sm text-gray-500">Records the entire round in one go</span>
+              <button
+                onClick={() => transcriptFileInputRef.current?.click()}
+                disabled={uploadingTranscript}
+                className="ml-auto px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+              >
+                {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
+              </button>
+              <input
+                ref={transcriptFileInputRef}
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+              />
+            </>
           )}
         </div>
-
-        {/* Verification Triangle */}
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
-          <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
-          <div className="grid grid-cols-3 gap-4">
-            {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
-              <div key={idx} className="text-center">
-                <div className="text-2xl mb-2">
-                  {source.name === 'Founder Word' && '👤'}
-                  {source.name === 'Documents' && '📄'}
-                  {source.name === 'Independent Observation' && '🔎'}
-                </div>
-                <p className="text-xs font-semibold text-orange-900">{source.name}</p>
-                <p className="text-xs text-orange-700 mt-1">{source.description}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-orange-700 mt-3 text-center">
-            ✅ Every claim requires validation from all 3 sources
-          </p>
-        </div>
-
-        {/* Sector Module Questions */}
-        {sectorModule && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
-            <p className="text-sm font-semibold text-amber-900 mb-3">
-              🏭 {sectorModule.name} - Sector-Specific Questions:
-            </p>
-            <ul className="space-y-2">
-              {sectorModule.additionalQuestions.map((q, idx) => (
-                <li key={idx} className="text-sm text-amber-800 flex gap-2">
-                  <span>•</span>
-                  <span>{q}</span>
-                </li>
-              ))}
-            </ul>
+        <p className="text-[11px] text-gray-500 -mt-2 mb-2">Didn't record live? Upload a transcript file (.txt) instead.</p>
+        {transcript && (
+          <div className="mt-4 p-3 bg-white rounded border border-gray-300 max-h-48 overflow-y-auto">
+            <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{transcript}</p>
           </div>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={saveResponse}
-            disabled={!interviewRowId}
-            className="px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Save Response
-          </button>
+        <div className="flex justify-end mt-4">
           <button
             onClick={generateAnalysis}
-            disabled={!interviewRowId}
+            disabled={!interviewRowId || !transcript || analyzing}
             className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Analyze
-          </button>
-          <button
-            onClick={() => setCurrentQuestion(Math.min(currentQuestion + 1, questions.length - 1))}
-            className="ml-auto px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
-          >
-            Next Question →
+            {analyzing ? 'Analysing…' : 'Analyze recording'}
           </button>
         </div>
       </div>
+
+      {/* All questions for this round, collapsed by default -- reference material to guide
+          the single recording above, not separate per-question recordings. */}
+      <div className="mb-8">
+        <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to cover this round</p>
+        <Accordion type="multiple" className="rounded-lg border border-gray-200 bg-gray-50 px-3">
+          {questions.map((q, idx) => (
+            <AccordionItem key={idx} value={String(idx)}>
+              <AccordionTrigger className="text-sm">
+                <span className="text-left">Q{idx + 1}. {q.question}</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 text-sm">
+                  {q.why && (
+                    <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                      <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why this matters:</p>
+                      <p className="text-xs text-blue-800">{q.why}</p>
+                    </div>
+                  )}
+                  {q.redFlags.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Red flags to watch for:</p>
+                      <ul className="text-xs text-gray-600 space-y-0.5">
+                        {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+
+      {/* Related Documents */}
+      <div className="mb-6">
+        <p className="text-sm font-semibold text-gray-900 mb-3">📋 Related documents for this round:</p>
+        <div className="grid grid-cols-2 gap-2">
+          {documents.map(doc => (
+            <div key={doc.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+              <input
+                type="checkbox"
+                className="mt-1"
+                onChange={(e) => setVerificationTracking({
+                  ...verificationTracking,
+                  [doc.name]: e.target.checked
+                })}
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                <p className="text-xs text-gray-600">{doc.purpose}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Email Upload Channel */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+        <p className="text-sm font-semibold text-blue-900 mb-2">📧 Email documents in:</p>
+        {uploadChannel ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+              className="text-xs text-blue-700 underline"
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={handleSyncDocuments}
+              disabled={syncingDocs}
+              className="ml-auto px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {syncingDocs ? 'Checking…' : 'Check for new documents'}
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-blue-700">Loading upload address…</p>
+        )}
+        {receivedDocs.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {receivedDocs.map((doc) => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => openDocument(doc)}
+                className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
+              >
+                <span>{doc.file_name}</span>
+                <span className="text-blue-600">View</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Verification Triangle */}
+      <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
+        <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
+        <div className="grid grid-cols-3 gap-4">
+          {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
+            <div key={idx} className="text-center">
+              <div className="text-2xl mb-2">
+                {source.name === 'Founder Word' && '👤'}
+                {source.name === 'Documents' && '📄'}
+                {source.name === 'Independent Observation' && '🔎'}
+              </div>
+              <p className="text-xs font-semibold text-orange-900">{source.name}</p>
+              <p className="text-xs text-orange-700 mt-1">{source.description}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-orange-700 mt-3 text-center">
+          ✅ Every claim requires validation from all 3 sources
+        </p>
+      </div>
+
+      {/* Sector Module Questions */}
+      {sectorModule && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
+          <p className="text-sm font-semibold text-amber-900 mb-3">
+            🏭 {sectorModule.name} - Sector-Specific Questions:
+          </p>
+          <ul className="space-y-2">
+            {sectorModule.additionalQuestions.map((q, idx) => (
+              <li key={idx} className="text-sm text-amber-800 flex gap-2">
+                <span>•</span>
+                <span>{q}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Internal Verification Checklist */}
       <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
@@ -693,28 +721,26 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       )}
 
       {/* Round Gates */}
-      {currentQuestion === questions.length - 1 && (
-        <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">
-          <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
-          {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
-            <div className="p-4 bg-red-100 border border-red-300 rounded">
-              <p className="text-red-900 font-semibold">⛔ Cannot proceed to next round</p>
-              <p className="text-red-800 text-sm mt-2">Walk Away flags must be resolved before continuing due diligence.</p>
-            </div>
-          ) : (
-            <div className="p-4 bg-green-100 border border-green-300 rounded">
-              <p className="text-green-900 font-semibold">✅ Clear to proceed to next round</p>
-              <button
-                onClick={handleAdvance}
-                disabled={!interviewRowId || advancing}
-                className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {advancing ? 'Saving…' : round < 5 ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">
+        <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
+        {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
+          <div className="p-4 bg-red-100 border border-red-300 rounded">
+            <p className="text-red-900 font-semibold">⛔ Cannot proceed to next round</p>
+            <p className="text-red-800 text-sm mt-2">Walk Away flags must be resolved before continuing due diligence.</p>
+          </div>
+        ) : (
+          <div className="p-4 bg-green-100 border border-green-300 rounded">
+            <p className="text-green-900 font-semibold">✅ Clear to proceed to next round</p>
+            <button
+              onClick={handleAdvance}
+              disabled={!interviewRowId || advancing}
+              className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {advancing ? 'Saving…' : round < 5 ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

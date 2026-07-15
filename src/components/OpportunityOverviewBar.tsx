@@ -1,10 +1,5 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { generateDiscProfile } from "@/lib/dd-personality.functions";
-import { generateOpportunityOverview } from "@/lib/dd-overview.functions";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { ChevronDown, ChevronUp, BrainCircuit, Sparkles } from "lucide-react";
 
 type DiscDimension = { score: number; label: string; evidence: string };
@@ -36,52 +31,24 @@ const DIMENSIONS: { key: keyof DiscProfile; label: string; color: string }[] = [
   { key: "conscientiousness", label: "C", color: "bg-blue-500" },
 ];
 
+/**
+ * Fixed, compact summary of the opportunity: company details, DISC profile, and AI overview.
+ * Purely presentational -- both the DISC profile and the AI overview are generated
+ * automatically in the background (by DDInterviewEnhanced) as new round data comes in, and
+ * simply appear here once the parent's opportunity query refetches. No manual regenerate
+ * controls by design.
+ */
 export function OpportunityOverviewBar({
-  opportunityId, companyName, founderName, sector, description,
-  initialDiscProfile, initialOverview,
+  companyName, founderName, sector, description, discProfile, overview,
 }: {
-  opportunityId: string;
   companyName?: string;
   founderName?: string;
   sector?: string;
   description?: string;
-  initialDiscProfile: DiscProfile | null;
-  initialOverview: Overview | null;
+  discProfile: DiscProfile | null;
+  overview: Overview | null;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [profile, setProfile] = useState<DiscProfile | null>(initialDiscProfile);
-  const [overview, setOverview] = useState<Overview | null>(initialOverview);
-  const [generatingDisc, setGeneratingDisc] = useState(false);
-  const [generatingOverview, setGeneratingOverview] = useState(false);
-
-  const generateDiscFn = useServerFn(generateDiscProfile);
-  const generateOverviewFn = useServerFn(generateOpportunityOverview);
-
-  async function handleGenerateDisc() {
-    setGeneratingDisc(true);
-    try {
-      const result = await generateDiscFn({ data: { opportunityId } });
-      setProfile(result);
-      toast.success("DISC profile updated");
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to generate DISC profile");
-    } finally {
-      setGeneratingDisc(false);
-    }
-  }
-
-  async function handleGenerateOverview() {
-    setGeneratingOverview(true);
-    try {
-      const result = await generateOverviewFn({ data: { opportunityId } });
-      setOverview(result);
-      toast.success("AI overview updated");
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to generate AI overview");
-    } finally {
-      setGeneratingOverview(false);
-    }
-  }
 
   return (
     <div className="sticky top-0 z-10 mb-6 rounded-lg border border-border bg-card/95 backdrop-blur shadow-sm">
@@ -95,10 +62,10 @@ export function OpportunityOverviewBar({
           {overview?.headline && <div className="text-xs text-muted-foreground mt-0.5 truncate">{overview.headline}</div>}
         </div>
 
-        {profile && (
+        {discProfile && (
           <div className="flex items-center gap-1 shrink-0">
             {DIMENSIONS.map(({ key, label, color }) => {
-              const dim = profile[key] as DiscDimension | undefined;
+              const dim = discProfile[key] as DiscDimension | undefined;
               if (!dim) return null;
               return (
                 <span key={key} title={`${dim.label} (${dim.score})`} className={`h-6 w-6 rounded-full ${color} text-white text-[10px] font-semibold flex items-center justify-center`}>
@@ -117,17 +84,12 @@ export function OpportunityOverviewBar({
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span className="text-sm font-medium">AI overview</span>
-                {overview?.rounds_covered && overview.rounds_covered.length > 0 && (
-                  <span className="text-xs text-muted-foreground">Rounds {overview.rounds_covered.join(", ")}</span>
-                )}
-              </div>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleGenerateOverview} disabled={generatingOverview}>
-                {generatingOverview ? "Generating…" : overview ? "Regenerate" : "Generate overview"}
-              </Button>
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-medium">AI overview</span>
+              {overview?.rounds_covered && overview.rounds_covered.length > 0 && (
+                <span className="text-xs text-muted-foreground">Rounds {overview.rounds_covered.join(", ")}</span>
+              )}
             </div>
             {overview ? (
               <div className="space-y-2 text-sm">
@@ -153,31 +115,26 @@ export function OpportunityOverviewBar({
                 {overview.recommendation && <p className="text-xs italic text-muted-foreground">{overview.recommendation}</p>}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No overview generated yet — this synthesises every round recorded so far into a running executive summary.</p>
+              <p className="text-xs text-muted-foreground">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
             )}
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <BrainCircuit className="h-3.5 w-3.5 text-primary" />
-                <span className="text-sm font-medium">DISC personality profile</span>
-              </div>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleGenerateDisc} disabled={generatingDisc}>
-                {generatingDisc ? "Analysing…" : profile ? "Regenerate" : "Generate profile"}
-              </Button>
+            <div className="flex items-center gap-2 mb-2">
+              <BrainCircuit className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-medium">DISC personality profile</span>
             </div>
-            {profile ? (
+            {discProfile ? (
               <div className="space-y-2">
-                {profile.primary_style && (
+                {discProfile.primary_style && (
                   <div className="text-sm">
-                    Primary style: <span className="font-medium">{profile.primary_style}</span>
-                    {profile.secondary_style ? ` · Secondary: ${profile.secondary_style}` : ""}
+                    Primary style: <span className="font-medium">{discProfile.primary_style}</span>
+                    {discProfile.secondary_style ? ` · Secondary: ${discProfile.secondary_style}` : ""}
                   </div>
                 )}
                 <div className="grid sm:grid-cols-2 gap-2">
                   {DIMENSIONS.map(({ key, label, color }) => {
-                    const dim = profile[key] as DiscDimension | undefined;
+                    const dim = discProfile[key] as DiscDimension | undefined;
                     if (!dim) return null;
                     return (
                       <div key={key} className="border border-border rounded-md p-2">
@@ -195,7 +152,7 @@ export function OpportunityOverviewBar({
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No DISC profile generated yet.</p>
+              <p className="text-xs text-muted-foreground">Not enough information yet — this fills in automatically once a round has been recorded and analysed.</p>
             )}
           </div>
         </div>

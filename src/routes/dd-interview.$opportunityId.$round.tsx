@@ -57,13 +57,12 @@ function DDInterviewPage() {
         <div className="min-w-0">
           {opp.data && (
             <OpportunityOverviewBar
-              opportunityId={opportunityId}
               companyName={companyName}
               founderName={founderName}
               sector={sector}
               description={description}
-              initialDiscProfile={opp.data?.disc_profile ?? null}
-              initialOverview={opp.data?.ai_overview ?? null}
+              discProfile={opp.data?.disc_profile ?? null}
+              overview={opp.data?.ai_overview ?? null}
             />
           )}
 
