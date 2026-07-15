@@ -67,21 +67,42 @@ function InterviewsIndex() {
         {upcoming.data && upcoming.data.length > 0 ? (
           <div className="rounded-lg border border-border divide-y divide-border bg-card">
             {upcoming.data.slice(0, 8).map((ev: any) => {
+              // A shared calendar (e.g. Tendai's, synced into whoever's account subscribes to it) is
+              // identified by calendar name/id rather than by whose Google account did the syncing --
+              // shown in a solid red/white treatment regardless of the syncing account's own colour.
+              const isTendaiCalendar = [ev.calendar_name, ev.calendar_id].some((v) => (v ?? "").toLowerCase().includes("tendai"));
               const owner = memberByEmail.get(ev.user_email);
               const classes = owner ? COLOR_CLASSES[owner.color] : DEFAULT_COLOR_CLASSES;
               return (
-                <div key={ev.id} className={`flex items-center gap-3 px-4 py-3 text-sm border-l-4 ${classes.border}`}>
-                  <CalendarClock className="h-4 w-4 text-primary shrink-0" />
+                <div
+                  key={ev.id}
+                  className={
+                    isTendaiCalendar
+                      ? "flex items-center gap-3 px-4 py-3 text-sm border-l-4 border-l-red-800 bg-red-600 text-white"
+                      : `flex items-center gap-3 px-4 py-3 text-sm border-l-4 ${classes.border}`
+                  }
+                >
+                  <CalendarClock className={`h-4 w-4 shrink-0 ${isTendaiCalendar ? "text-white" : "text-primary"}`} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{ev.title}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                    <div className={`text-xs flex items-center gap-3 flex-wrap ${isTendaiCalendar ? "text-white/90" : "text-muted-foreground"}`}>
                       <span>{format(new Date(ev.start_time), "EEE d MMM · HH:mm")}</span>
                       {ev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
-                      {ev.meeting_link && <a href={ev.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline"><Video className="h-3 w-3" />Join</a>}
+                      {ev.meeting_link && (
+                        <a href={ev.meeting_link} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 underline ${isTendaiCalendar ? "text-white" : "text-primary"}`}>
+                          <Video className="h-3 w-3" />Join
+                        </a>
+                      )}
                     </div>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${classes.badge}`}>
-                    {owner?.display_name || ev.user_email}
+                  <span
+                    className={
+                      isTendaiCalendar
+                        ? "text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap bg-red-800 text-white"
+                        : `text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${classes.badge}`
+                    }
+                  >
+                    {isTendaiCalendar ? "Tendai" : (owner?.display_name || ev.user_email)}
                   </span>
                 </div>
               );

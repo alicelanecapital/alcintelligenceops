@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchFrameworkRoundDetail, updateFrameworkRound,
+  fetchAllFrameworkRounds, fetchFrameworkRoundDetail, updateFrameworkRound,
   createFrameworkQuestion, updateFrameworkQuestion, deleteFrameworkQuestion, reorderFrameworkQuestions,
   createFrameworkDocument, updateFrameworkDocument, deleteFrameworkDocument, reorderFrameworkDocuments,
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
@@ -12,8 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { RoundStepper } from "@/components/RoundStepper";
 import { Plus, Trash2, ChevronUp, ChevronDown, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -30,31 +30,41 @@ const SEVERITY_COLORS: Record<string, string> = {
 function DDFrameworkAdmin() {
   const [round, setRound] = useState(1);
   const qc = useQueryClient();
+  const rounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
   const q = useQuery({ queryKey: ["dd-framework-round", round], queryFn: () => fetchFrameworkRoundDetail(round) });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["dd-framework-round", round] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["dd-framework-round", round] });
+    qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-10">
+    <div className="max-w-6xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Admin"
         title="DD Framework"
         description="Adjust the questions, guidance, and required documents for each due diligence round."
       />
 
-      <Tabs value={String(round)} onValueChange={(v) => setRound(Number(v))} className="mb-6">
-        <TabsList>
-          {[1, 2, 3, 4, 5].map((r) => <TabsTrigger key={r} value={String(r)}>Round {r}</TabsTrigger>)}
-        </TabsList>
-      </Tabs>
+      <div className="grid grid-cols-[220px_1fr] gap-6 items-start">
+        <aside className="sticky top-4 shrink-0">
+          <RoundStepper
+            rounds={(rounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+            current={round}
+            onSelect={setRound}
+          />
+        </aside>
 
-      {q.data && (
-        <>
-          <RoundMetaCard round={q.data.round} onSaved={invalidate} />
-          <QuestionsSection round={round} questions={q.data.questions} onChanged={invalidate} />
-          <DocumentsSection round={round} documents={q.data.documents} onChanged={invalidate} />
-        </>
-      )}
+        <div className="min-w-0">
+          {q.data && (
+            <>
+              <RoundMetaCard round={q.data.round} onSaved={invalidate} />
+              <QuestionsSection round={round} questions={q.data.questions} onChanged={invalidate} />
+              <DocumentsSection round={round} documents={q.data.documents} onChanged={invalidate} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
