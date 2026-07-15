@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { LinkIcon, Unlink, RefreshCw, Users, Plus, Trash2, Pencil } from "lucide-react";
+import { LinkIcon, RefreshCw, Users, Plus, Trash2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -46,15 +46,6 @@ function AccountsScreen() {
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
-  const disconnectMut = useMutation({
-    mutationFn: (targetEmail: string) => disconnectFn({ data: { targetEmail } }),
-    onSuccess: () => {
-      toast.success("Google disconnected");
-      qc.invalidateQueries({ queryKey: ["team-google-connections"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed to disconnect"),
-  });
-
   const syncMut = useMutation({
     mutationFn: (targetEmail: string) => syncFn({ data: { targetEmail } }),
     onSuccess: (result: any) => {
@@ -70,17 +61,41 @@ function AccountsScreen() {
     onError: (e: any) => toast.error(e.message ?? "Sync failed"),
   });
 
+  const syncAllMut = useMutation({
+    mutationFn: async (emails: string[]) => {
+      let total = 0;
+      for (const email of emails) {
+        const result: any = await syncFn({ data: { targetEmail: email } });
+        if (result.reason === "ok") total += result.synced;
+      }
+      return total;
+    },
+    onSuccess: (total) => {
+      toast.success(`Synced ${total} calendar event${total === 1 ? "" : "s"} across all connected accounts`);
+      qc.invalidateQueries({ queryKey: ["team-google-connections"] });
+      qc.invalidateQueries({ queryKey: ["upcoming-calendar-meetings"] });
+      qc.invalidateQueries({ queryKey: ["all-meetings"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Sync all failed"),
+  });
+
   const updateColorMut = useMutation({
     mutationFn: ({ id, color }: { id: string; color: TeamMemberColor }) => updateTeamMember(id, { color }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["team-members"] }),
     onError: (e: any) => toast.error(e.message ?? "Failed to update colour"),
   });
 
+  // The trash icon both removes the roster entry and disconnects its Google account (if
+  // connected) in one action -- no separate "Disconnect" button.
   const deleteMemberMut = useMutation({
-    mutationFn: (id: string) => deleteTeamMember(id),
+    mutationFn: async (member: TeamMember) => {
+      await deleteTeamMember(member.id);
+      await disconnectFn({ data: { targetEmail: member.email } });
+    },
     onSuccess: () => {
-      toast.success("Account removed");
+      toast.success("Account removed and disconnected");
       qc.invalidateQueries({ queryKey: ["team-members"] });
+      qc.invalidateQueries({ queryKey: ["team-google-connections"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to remove account"),
   });
@@ -109,6 +124,7 @@ function AccountsScreen() {
   }
 
   const connectionByEmail = new Map((connections.data ?? []).map((c: any) => [c.user_email, c]));
+  const connectedEmails = (connections.data ?? []).map((c: any) => c.user_email as string);
   const myEmail = (user?.email ?? "").toLowerCase();
   const iAmRegistered = (members.data ?? []).some((m) => m.email.toLowerCase() === myEmail);
 
@@ -118,7 +134,17 @@ function AccountsScreen() {
         eyebrow="Admin"
         title="Accounts"
         description="Connect Google accounts so calendar meetings and emailed due-diligence documents show up across the app."
-        actions={<Button size="sm" onClick={() => setDialogState({ open: true, member: null })}><Plus className="h-3.5 w-3.5 mr-1" /> Add account</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            {connectedEmails.length > 0 && (
+              <Button size="sm" variant="outline" onClick={() => syncAllMut.mutate(connectedEmails)} disabled={syncAllMut.isPending}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncAllMut.isPending ? "animate-spin" : ""}`} />
+                {syncAllMut.isPending ? "Syncing all…" : "Sync all"}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setDialogState({ open: true, member: null })}><Plus className="h-3.5 w-3.5 mr-1" /> Add account</Button>
+          </div>
+        }
       />
 
       <p className="text-xs text-muted-foreground mb-4">
@@ -176,15 +202,10 @@ function AccountsScreen() {
                 </select>
 
                 {conn ? (
-                  <>
-                    <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
-                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                      {syncMut.isPending ? "Syncing…" : "Sync now"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => disconnectMut.mutate(m.email)} disabled={disconnectMut.isPending}>
-                      <Unlink className="h-3.5 w-3.5 mr-1" /> Disconnect
-                    </Button>
-                  </>
+                  <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                    {syncMut.isPending ? "Syncing…" : "Sync now"}
+                  </Button>
                 ) : (
                   <Button size="sm" onClick={() => connect(m.email)}>
                     <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
@@ -198,8 +219,8 @@ function AccountsScreen() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-destructive"
-                  title="Remove account"
-                  onClick={() => deleteMemberMut.mutate(m.id)}
+                  title={conn ? "Remove and disconnect account" : "Remove account"}
+                  onClick={() => deleteMemberMut.mutate(m)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

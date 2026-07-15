@@ -6,7 +6,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
 import { getOrCreateBookingLink } from "@/lib/booking.functions";
-import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Copy, CalendarPlus } from "lucide-react";
@@ -101,7 +100,6 @@ function CalendarScreen() {
         description="Events, meetings, and task due dates in one place."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <SyncGoogleButton />
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => subMonths(m, 1))}><ChevronLeft className="h-4 w-4" /></Button>
             <div className="font-serif text-lg w-40 text-center">{format(month, "MMMM yyyy")}</div>
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => addMonths(m, 1))}><ChevronRight className="h-4 w-4" /></Button>

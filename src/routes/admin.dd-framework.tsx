@@ -21,10 +21,12 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/admin/dd-framework")({ component: () => <AppShell><DDFrameworkAdmin /></AppShell> });
 
 const SEVERITIES: FrameworkRedFlag["severity"][] = ["WALK_AWAY", "PRICE_IT_IN", "MONITOR"];
+// Distinctly different hues (not adjacent on the colour wheel) so severities are never
+// mistaken for one another at a glance -- amber/orange previously looked too similar.
 const SEVERITY_COLORS: Record<string, string> = {
   WALK_AWAY: "bg-red-100 text-red-800",
   PRICE_IT_IN: "bg-orange-100 text-orange-800",
-  MONITOR: "bg-amber-100 text-amber-800",
+  MONITOR: "bg-blue-100 text-blue-800",
 };
 
 function DDFrameworkAdmin() {
@@ -89,23 +91,27 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
     <Card className="mb-6">
       <CardHeader><CardTitle className="font-serif text-xl">Round details</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div>
-          <Label className="text-sm">Title</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
-        </div>
-        <div>
-          <Label className="text-sm">Subtitle</Label>
-          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[1fr_160px] gap-3">
           <div>
-            <Label className="text-sm">Purpose</Label>
-            <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} className="mt-1" />
+            <Label className="text-sm">Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
           </div>
           <div>
             <Label className="text-sm">Duration</Label>
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1" />
           </div>
+        </div>
+        <div>
+          <Label className="text-sm">Subtitle</Label>
+          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-sm">Purpose</Label>
+          <textarea
+            value={purpose}
+            onChange={(e) => setPurpose(e.target.value)}
+            className="w-full min-h-[90px] px-3 py-2 border rounded-md text-sm bg-background mt-1"
+          />
         </div>
         <div className="flex justify-end">
           <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save round details</Button>
