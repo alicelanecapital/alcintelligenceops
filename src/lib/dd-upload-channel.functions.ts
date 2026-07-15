@@ -62,7 +62,22 @@ export const syncUploadChannelDocuments = createServerFn({ method: "POST" })
     const accessToken = await getValidGoogleAccessToken(email);
     if (!accessToken) return { imported: 0, reason: "not_connected" as const };
 
-    const query = `to:${channel.dedicated_email} has:attachment`;
+    // Only pull attachments sent since the last meeting -- for round 1 there's no earlier
+    // meeting, so everything sent so far is fair game. Gmail's after:/before: operators
+    // accept a Unix timestamp directly, so this doesn't need day-level rounding.
+    let sinceClause = "";
+    if (data.round > 1) {
+      const { data: previousRound } = await context.supabase
+        .from("dd_interviews")
+        .select("completed_at, started_at")
+        .eq("opportunity_id", data.opportunityId)
+        .eq("round", data.round - 1)
+        .maybeSingle();
+      const cutoff = previousRound?.completed_at ?? previousRound?.started_at;
+      if (cutoff) sinceClause = ` after:${Math.floor(new Date(cutoff).getTime() / 1000)}`;
+    }
+
+    const query = `to:${channel.dedicated_email} has:attachment${sinceClause}`;
     const listRes = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`,
       { headers: { Authorization: `Bearer ${accessToken}` } },

@@ -13,6 +13,8 @@ import { generateDiscProfile } from '@/lib/dd-personality.functions';
 import { generateOpportunityOverview } from '@/lib/dd-overview.functions';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { extractTranscriptText } from '@/lib/extract-transcript-text';
+import { generateAnomalyQuestions } from '@/lib/dd-anomaly-questions.functions';
+import { listExtraQuestions, addExtraQuestion, updateExtraQuestion, deleteExtraQuestion, type ExtraQuestion } from '@/lib/dd-interview-extra-questions';
 
 const SPEAKER_COLOR_CLASSES = [
   'text-blue-700',
@@ -70,15 +72,25 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [syncingDocs, setSyncingDocs] = useState(false);
   const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
   const [uploadingTranscript, setUploadingTranscript] = useState(false);
+  const [extraQuestions, setExtraQuestions] = useState<ExtraQuestion[]>([]);
+  const [generatingAnomalyQuestions, setGeneratingAnomalyQuestions] = useState(false);
+  const [newExtraQuestion, setNewExtraQuestion] = useState('');
+  const [editingExtraQuestionId, setEditingExtraQuestionId] = useState<string | null>(null);
+  const [editingExtraQuestionText, setEditingExtraQuestionText] = useState('');
+  const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
+  const [gateComment, setGateComment] = useState('');
+  const [submittingGateAction, setSubmittingGateAction] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
+  const autoSyncedRef = useRef(false);
   const getOrCreateChannelFn = useServerFn(getOrCreateUploadChannel);
   const syncDocsFn = useServerFn(syncUploadChannelDocuments);
   const getSignedUrlFn = useServerFn(getSignedDocumentUrl);
   const generateBriefFn = useServerFn(generateStakeholderBrief);
   const generateDiscFn = useServerFn(generateDiscProfile);
   const generateOverviewFn = useServerFn(generateOpportunityOverview);
+  const generateAnomalyQuestionsFn = useServerFn(generateAnomalyQuestions);
 
   // Questions and required documents are admin-editable (see /admin/dd-framework)
   // and live in dd_framework_rounds/questions/documents rather than the old
@@ -424,6 +436,22 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
     return () => { cancelled = true; };
   }, [interviewRowId, opportunityId]);
 
+  // Any AI-suggested or manually added questions raised from reviewing this round's documents,
+  // evaluated before the session (separate from the admin-managed framework questions).
+  useEffect(() => {
+    if (!interviewRowId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listExtraQuestions(interviewRowId);
+        if (!cancelled) setExtraQuestions(rows);
+      } catch (error: any) {
+        console.error('Failed to load document-review questions:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [interviewRowId]);
+
   const handleSyncDocuments = async () => {
     if (!interviewRowId) return;
     setSyncingDocs(true);
@@ -439,11 +467,69 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           .eq('interview_id', interviewRowId)
           .order('uploaded_at', { ascending: false });
         setReceivedDocs(docs ?? []);
+        if (result.imported > 0) runAnomalyDetection();
       }
     } catch (error: any) {
       toast.error('Failed to check for new documents: ' + (error?.message ?? 'unknown error'));
     } finally {
       setSyncingDocs(false);
+    }
+  };
+
+  // Automatically check for documents sent since the last meeting as soon as the round is
+  // ready, rather than waiting for a manual click -- documents need to be in before the
+  // meeting starts, so this should happen without the interviewer remembering to ask.
+  useEffect(() => {
+    if (!interviewRowId || !uploadChannel || autoSyncedRef.current) return;
+    autoSyncedRef.current = true;
+    handleSyncDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interviewRowId, uploadChannel]);
+
+  // Reviews received documents (names, categories, sizes, any extracted text) against what
+  // was expected for this round and raises follow-up questions for genuine gaps/anomalies --
+  // fire-and-forget, evaluated before the session so the interviewer can review beforehand.
+  const runAnomalyDetection = async () => {
+    if (!interviewRowId) return;
+    setGeneratingAnomalyQuestions(true);
+    try {
+      const inserted = await generateAnomalyQuestionsFn({ data: { opportunityId, interviewId: interviewRowId, round } });
+      if (inserted.length) setExtraQuestions((prev) => [...prev, ...inserted]);
+    } catch (error: any) {
+      console.error('Anomaly question generation failed:', error);
+    } finally {
+      setGeneratingAnomalyQuestions(false);
+    }
+  };
+
+  const handleAddExtraQuestion = async () => {
+    if (!interviewRowId || !newExtraQuestion.trim()) return;
+    try {
+      const created = await addExtraQuestion(interviewRowId, newExtraQuestion.trim());
+      setExtraQuestions((prev) => [...prev, created]);
+      setNewExtraQuestion('');
+    } catch (error: any) {
+      toast.error('Failed to add question: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
+  const handleSaveExtraQuestionEdit = async (id: string) => {
+    if (!editingExtraQuestionText.trim()) return;
+    try {
+      await updateExtraQuestion(id, editingExtraQuestionText.trim());
+      setExtraQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, question_text: editingExtraQuestionText.trim() } : q)));
+      setEditingExtraQuestionId(null);
+    } catch (error: any) {
+      toast.error('Failed to save question: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
+  const handleDeleteExtraQuestion = async (id: string) => {
+    try {
+      await deleteExtraQuestion(id);
+      setExtraQuestions((prev) => prev.filter((q) => q.id !== id));
+    } catch (error: any) {
+      toast.error('Failed to delete question: ' + (error?.message ?? 'unknown error'));
     }
   };
 
@@ -453,6 +539,38 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       window.open(url, '_blank');
     } catch (error: any) {
       toast.error('Failed to open document: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
+  // "Do not proceed" (hold) or "Terminate deal" -- both require a comment and, unlike
+  // Continue/Advance, don't move to the next round.
+  const handleGateAction = async () => {
+    if (!interviewRowId || !gateAction || !gateComment.trim()) return;
+    setSubmittingGateAction(true);
+    try {
+      if (gateAction === 'hold') {
+        await supabase.from('dd_interviews').update({
+          status: 'on_hold',
+          hold_notes: gateComment.trim(),
+          hold_at: new Date().toISOString(),
+        } as any).eq('id', interviewRowId);
+        toast.success('Round marked as not proceeding');
+      } else {
+        await supabase.from('dd_interviews').update({
+          status: 'terminated',
+          terminated_notes: gateComment.trim(),
+          terminated_at: new Date().toISOString(),
+        } as any).eq('id', interviewRowId);
+        await supabase.from('opportunities').update({ current_stage: 'Declined' }).eq('id', opportunityId);
+        toast.success('Deal marked as terminated');
+      }
+      setGateAction(null);
+      setGateComment('');
+      navigate({ to: '/dd-engine' });
+    } catch (error: any) {
+      toast.error('Failed to save: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setSubmittingGateAction(false);
     }
   };
 
@@ -525,6 +643,134 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           </p>
         </div>
       )}
+
+      {/* Documents Sent -- must be reviewed before the meeting/recording starts, so this sits
+          above Round recording. Auto-refreshes on load with anything sent since the last
+          meeting (or everything, for round 1, since there's no earlier meeting). */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold text-blue-900">📄 Documents Sent</p>
+          {uploadChannel && (
+            <button
+              type="button"
+              onClick={handleSyncDocuments}
+              disabled={syncingDocs}
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {syncingDocs ? 'Checking…' : 'Check for new documents'}
+            </button>
+          )}
+        </div>
+        {uploadChannel ? (
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-xs text-blue-700">Sent to:</span>
+            <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+              className="text-xs text-blue-700 underline"
+            >
+              Copy
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-blue-700">Loading upload address…</p>
+        )}
+        {receivedDocs.length > 0 ? (
+          <div className="space-y-1">
+            {receivedDocs.map((doc) => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => openDocument(doc)}
+                className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
+              >
+                <span>{doc.file_name}</span>
+                <span className="text-blue-600">View</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-blue-700">
+            {round === 1 ? 'No documents received yet.' : 'No documents received since the last meeting.'}
+          </p>
+        )}
+      </div>
+
+      {/* AI-generated (and manually added) questions raised from reviewing the documents above --
+          evaluated before the session starts, fully CRUD-able since these are per-interview,
+          not part of the admin-managed framework question set. */}
+      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold text-amber-900">🧩 Document Review Questions</p>
+          <button
+            type="button"
+            onClick={runAnomalyDetection}
+            disabled={!interviewRowId || generatingAnomalyQuestions}
+            className="px-3 py-1.5 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 disabled:opacity-50"
+          >
+            {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-check documents'}
+          </button>
+        </div>
+        <p className="text-xs text-amber-700 mb-3">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
+        <div className="space-y-2 mb-3">
+          {extraQuestions.map((q) => (
+            <div key={q.id} className="bg-white rounded border border-amber-200 p-2">
+              {editingExtraQuestionId === q.id ? (
+                <div className="flex items-start gap-2">
+                  <textarea
+                    className="flex-1 text-sm border border-amber-300 rounded px-2 py-1"
+                    value={editingExtraQuestionText}
+                    onChange={(e) => setEditingExtraQuestionText(e.target.value)}
+                    rows={2}
+                  />
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                    <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm text-gray-900">{q.question_text}</p>
+                    {q.rationale && <p className="text-xs text-amber-700 mt-1">{q.rationale}</p>}
+                    {q.source === 'ai_document_review' && <span className="text-[10px] text-amber-500">AI-suggested</span>}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Edit
+                    </button>
+                    <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {!extraQuestions.length && (
+            <p className="text-xs text-gray-500">No document-review questions yet.</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newExtraQuestion}
+            onChange={(e) => setNewExtraQuestion(e.target.value)}
+            placeholder="Add a question to raise this round…"
+            className="flex-1 text-sm border border-amber-300 rounded px-2 py-1.5"
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
+          />
+          <button
+            onClick={handleAddExtraQuestion}
+            disabled={!newExtraQuestion.trim()}
+            className="px-3 py-1.5 bg-white border border-amber-300 text-amber-800 text-xs rounded hover:bg-amber-100 disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+      </div>
 
       {/* One recording for the whole round -- we don't record and stop per question.
           Recording controls live at the top; the transcript/upload/analyse step comes
@@ -654,48 +900,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       </div>
       )}
 
-      {/* Email Upload Channel */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-        <p className="text-sm font-semibold text-blue-900 mb-2">📧 Email documents in:</p>
-        {uploadChannel ? (
-          <div className="flex items-center gap-2 flex-wrap">
-            <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
-            <button
-              type="button"
-              onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
-              className="text-xs text-blue-700 underline"
-            >
-              Copy
-            </button>
-            <button
-              type="button"
-              onClick={handleSyncDocuments}
-              disabled={syncingDocs}
-              className="ml-auto px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {syncingDocs ? 'Checking…' : 'Check for new documents'}
-            </button>
-          </div>
-        ) : (
-          <p className="text-xs text-blue-700">Loading upload address…</p>
-        )}
-        {receivedDocs.length > 0 && (
-          <div className="mt-3 space-y-1">
-            {receivedDocs.map((doc) => (
-              <button
-                key={doc.id}
-                type="button"
-                onClick={() => openDocument(doc)}
-                className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
-              >
-                <span>{doc.file_name}</span>
-                <span className="text-blue-600">View</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Verification Triangle */}
       <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
         <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
@@ -817,6 +1021,55 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
               className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {advancing ? 'Saving…' : round < 5 ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
+            </button>
+          </div>
+        )}
+
+        {/* Alternatives to advancing: hold this deal here, or terminate it outright.
+            Both require a comment explaining the decision. */}
+        {gateAction ? (
+          <div className={`mt-4 p-4 rounded border ${gateAction === 'terminate' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'}`}>
+            <p className="text-sm font-semibold text-gray-900 mb-2">
+              {gateAction === 'terminate' ? 'Terminate this deal' : 'Do not proceed to the next round'}
+            </p>
+            <textarea
+              className="w-full text-sm border border-gray-300 rounded px-2 py-1.5"
+              rows={3}
+              placeholder="Add a comment explaining this decision…"
+              value={gateComment}
+              onChange={(e) => setGateComment(e.target.value)}
+            />
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={() => { setGateAction(null); setGateComment(''); }}
+                className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGateAction}
+                disabled={!gateComment.trim() || submittingGateAction}
+                className={`px-4 py-1.5 text-sm text-white rounded disabled:opacity-50 ${gateAction === 'terminate' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-800'}`}
+              >
+                {submittingGateAction ? 'Saving…' : gateAction === 'terminate' ? 'Confirm termination' : 'Confirm hold'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => setGateAction('hold')}
+              disabled={!interviewRowId}
+              className="text-sm text-gray-600 hover:text-gray-900 underline disabled:opacity-50"
+            >
+              Do not proceed to next round
+            </button>
+            <button
+              onClick={() => setGateAction('terminate')}
+              disabled={!interviewRowId}
+              className="text-sm text-red-600 hover:text-red-800 underline disabled:opacity-50"
+            >
+              Terminate deal
             </button>
           </div>
         )}
