@@ -31,7 +31,7 @@ export async function addTeamMember(payload: { email: string; display_name?: str
   return data as TeamMember;
 }
 
-export async function updateTeamMember(id: string, payload: Partial<{ display_name: string; color: TeamMemberColor }>) {
+export async function updateTeamMember(id: string, payload: Partial<{ email: string; display_name: string; color: TeamMemberColor }>) {
   const { data, error } = await (supabase.from("team_members" as any) as any)
     .update(payload)
     .eq("id", id)

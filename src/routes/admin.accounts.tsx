@@ -5,16 +5,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getGoogleConnectionStatus, disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
 import { syncGoogleCalendarEvents, listTeamGoogleConnections } from "@/lib/google-calendar-sync.functions";
-import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMemberColor } from "@/lib/team-members";
+import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES } from "@/lib/team-member-colors";
 import { useAuth } from "@/lib/auth";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { LinkIcon, Unlink, RefreshCw, Users, Plus, Trash2 } from "lucide-react";
+import { LinkIcon, Unlink, RefreshCw, Users, Plus, Trash2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +32,8 @@ function AccountsScreen() {
   const status = useQuery({ queryKey: ["google-connection"], queryFn: () => statusFn() });
   const connections = useQuery({ queryKey: ["team-google-connections"], queryFn: () => teamFn() });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
+
+  const [dialogState, setDialogState] = useState<{ open: boolean; member: TeamMember | null }>({ open: false, member: null });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -109,138 +110,153 @@ function AccountsScreen() {
   }
 
   const connectionByEmail = new Map((connections.data ?? []).map((c: any) => [c.user_email, c]));
+  const myEmail = (user?.email ?? "").toLowerCase();
+  const iAmRegistered = (members.data ?? []).some((m) => m.email.toLowerCase() === myEmail);
 
   return (
     <div className="max-w-4xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Admin"
         title="Accounts"
-        description="Connect your Google account so your calendar meetings and emailed due-diligence documents show up across the app."
+        description="Connect Google accounts so calendar meetings and emailed due-diligence documents show up across the app."
+        actions={<Button size="sm" onClick={() => setDialogState({ open: true, member: null })}><Plus className="h-3.5 w-3.5 mr-1" /> Add account</Button>}
       />
 
-      <Card className="mt-6">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="font-serif text-lg">Your Google account</div>
-              <div className="text-sm text-muted-foreground mt-1">{user?.email}</div>
-              {status.data?.connected && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  Connected {status.data.connectedAt ? format(new Date(status.data.connectedAt), "d MMM yyyy") : ""}
-                  {status.data.lastSyncedAt ? ` · Last synced ${format(new Date(status.data.lastSyncedAt), "d MMM yyyy, HH:mm")}` : " · Never synced"}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {status.data?.connected ? (
-                <>
-                  <Button onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                    {syncMut.isPending ? "Syncing…" : "Sync calendar now"}
-                  </Button>
-                  <Button variant="outline" onClick={() => disconnectMut.mutate()} disabled={disconnectMut.isPending}>
-                    <Unlink className="h-4 w-4 mr-1" /> Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={connect}>
-                  <LinkIcon className="h-4 w-4 mr-1" /> Connect Google
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <p className="text-xs text-muted-foreground mb-4">
+        Registering an account here just gives it a name and a colour, used to tell calendar events apart on the Meetings
+        screen — it does not connect or sync anything by itself. Each person has to sign in to this app as themselves and
+        click "Connect Google" to actually sync their own calendar; nobody else can do that on their behalf.
+      </p>
 
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <div className="font-serif text-lg">Team accounts</div>
+      {!iAmRegistered && (
+        <div className="rounded-lg border border-dashed border-border bg-card p-4 mb-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="text-sm text-muted-foreground">
+            You ({user?.email}) aren't in the list below yet — add yourself to get a colour on the Meetings screen.
           </div>
-          <AddAccountDialog />
+          <Button size="sm" variant="outline" onClick={() => setDialogState({ open: true, member: { id: "", email: user?.email ?? "", display_name: null, color: "blue", created_at: "" } })}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add me
+          </Button>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          Register teammates and shared inboxes here, and give each a colour used to tell their calendar events apart on the
-          Meetings screen. Each person still has to click "Connect Google" themselves from their own signed-in session to
-          actually sync their calendar.
-        </p>
-        <div className="rounded-lg border border-border divide-y divide-border bg-card">
-          {(members.data ?? []).map((m) => {
-            const conn = connectionByEmail.get(m.email);
-            const classes = COLOR_CLASSES[m.color];
-            return (
-              <div key={m.id} className="flex items-center justify-between px-5 py-3 text-sm gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{m.display_name || m.email}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {m.display_name ? `${m.email} · ` : ""}
-                      {conn
-                        ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}${conn.last_synced_at ? ` · Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}` : " · Never synced"}`
-                        : "Not connected yet"}
-                    </div>
+      )}
+
+      <div className="flex items-center gap-2 mb-3">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <div className="font-serif text-lg">Accounts</div>
+      </div>
+
+      <div className="rounded-lg border border-border divide-y divide-border bg-card">
+        {(members.data ?? []).map((m) => {
+          const conn = connectionByEmail.get(m.email);
+          const classes = COLOR_CLASSES[m.color];
+          const isMe = m.email.toLowerCase() === myEmail;
+          return (
+            <div key={m.id} className="flex items-center justify-between px-5 py-3 text-sm gap-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
+                <div className="min-w-0">
+                  <div className="font-medium truncate flex items-center gap-2">
+                    {m.display_name || m.email}
+                    {isMe && <Badge variant="outline" className="text-[10px]">You</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {m.display_name ? `${m.email} · ` : ""}
+                    {conn
+                      ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}${conn.last_synced_at ? ` · Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}` : " · Never synced"}`
+                      : "Not connected yet"}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={m.color}
-                    onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
-                    className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
-                  >
-                    {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  {conn ? <Badge variant="outline">Connected</Badge> : <Badge variant="secondary">Not connected</Badge>}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive"
-                    title="Remove account"
-                    onClick={() => deleteMemberMut.mutate(m.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
               </div>
-            );
-          })}
-          {members.isSuccess && !members.data?.length && (
-            <div className="p-8 text-center text-sm text-muted-foreground">No accounts registered yet. Add one to get started.</div>
-          )}
-        </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <select
+                  value={m.color}
+                  onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
+                  className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
+                >
+                  {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+
+                {isMe ? (
+                  status.data?.connected ? (
+                    <>
+                      <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                        {syncMut.isPending ? "Syncing…" : "Sync now"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => disconnectMut.mutate()} disabled={disconnectMut.isPending}>
+                        <Unlink className="h-3.5 w-3.5 mr-1" /> Disconnect
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={connect}>
+                      <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
+                    </Button>
+                  )
+                ) : (
+                  conn ? <Badge variant="outline">Connected</Badge> : <Badge variant="secondary">Not connected</Badge>
+                )}
+
+                <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-destructive"
+                  title="Remove account"
+                  onClick={() => deleteMemberMut.mutate(m.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+        {members.isSuccess && !members.data?.length && (
+          <div className="p-8 text-center text-sm text-muted-foreground">No accounts registered yet. Add one to get started.</div>
+        )}
       </div>
+
+      <AccountDialog
+        open={dialogState.open}
+        member={dialogState.member}
+        onClose={() => setDialogState({ open: false, member: null })}
+      />
     </div>
   );
 }
 
-function AddAccountDialog() {
+function AccountDialog({ open, member, onClose }: { open: boolean; member: TeamMember | null; onClose: () => void }) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const isEdit = !!member?.id;
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [color, setColor] = useState<TeamMemberColor>("blue");
 
-  const addMut = useMutation({
-    mutationFn: () => addTeamMember({ email: email.trim().toLowerCase(), display_name: displayName.trim() || undefined, color }),
-    onSuccess: () => {
-      toast.success("Account added");
-      qc.invalidateQueries({ queryKey: ["team-members"] });
-      setOpen(false);
-      setEmail("");
-      setDisplayName("");
-      setColor("blue");
+  useEffect(() => {
+    if (open) {
+      setEmail(member?.email ?? "");
+      setDisplayName(member?.display_name ?? "");
+      setColor(member?.color ?? "blue");
+    }
+  }, [open, member]);
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const payload = { email: email.trim().toLowerCase(), display_name: displayName.trim() || undefined, color };
+      return isEdit ? updateTeamMember(member!.id, payload) : addTeamMember(payload as { email: string; color: TeamMemberColor });
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to add account"),
+    onSuccess: () => {
+      toast.success(isEdit ? "Account updated" : "Account added");
+      qc.invalidateQueries({ queryKey: ["team-members"] });
+      onClose();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to save account"),
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1" /> Add account</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Add team account</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? "Edit account" : "Add account"}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
             <Label>Email</Label>
@@ -270,9 +286,9 @@ function AddAccountDialog() {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={() => addMut.mutate()} disabled={!email.trim() || addMut.isPending}>
-            {addMut.isPending ? "Adding…" : "Add account"}
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => saveMut.mutate()} disabled={!email.trim() || saveMut.isPending}>
+            {saveMut.isPending ? "Saving…" : isEdit ? "Save changes" : "Add account"}
           </Button>
         </DialogFooter>
       </DialogContent>
