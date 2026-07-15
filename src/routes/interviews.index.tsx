@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
-import { listInterviews } from "@/lib/interviews";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { listInterviews, setInterviewPrivate, dismissInterview } from "@/lib/interviews";
 import { fetchFounders } from "@/lib/db";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video } from "lucide-react";
+import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock } from "lucide-react";
 import { startInterview } from "@/lib/interviews.functions";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -24,12 +24,31 @@ import { format } from "date-fns";
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
 
 function InterviewsIndex() {
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const [view, setView] = useViewMode("meetings");
 
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
+
+  const togglePrivateMut = useMutation({
+    mutationFn: ({ id, isPrivate }: { id: string; isPrivate: boolean }) => setInterviewPrivate(id, isPrivate),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["interviews"] }),
+    onError: (e: any) => toast.error(e.message ?? "Failed to update"),
+  });
+
+  const dismissMut = useMutation({
+    mutationFn: (id: string) => dismissInterview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["interviews"] });
+      toast.success("Removed from view");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
+  });
+
+  const clientMeetings = (q.data ?? []).filter((i: any) => !i.is_private);
+  const privateMeetings = (q.data ?? []).filter((i: any) => i.is_private);
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
@@ -80,50 +99,109 @@ function InterviewsIndex() {
         <ViewToggle mode={view} onChange={setView} />
       </div>
 
+      <div className="grid md:grid-cols-2 gap-6">
+        <InterviewColumn
+          title="Client meetings"
+          items={clientMeetings}
+          view={view}
+          emptyText="No client meetings yet. Start your first founder meeting to build the memo."
+          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
+          onDismiss={(i) => dismissMut.mutate(i.id)}
+        />
+        <InterviewColumn
+          title="Private meetings"
+          items={privateMeetings}
+          view={view}
+          emptyText="No private meetings."
+          onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
+          onDismiss={(i) => dismissMut.mutate(i.id)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDismiss }: {
+  title: string;
+  items: any[];
+  view: "card" | "list";
+  emptyText: string;
+  onTogglePrivate: (i: any) => void;
+  onDismiss: (i: any) => void;
+}) {
+  const isPrivateColumn = title === "Private meetings";
+  return (
+    <div>
+      <div className="text-sm font-medium text-muted-foreground mb-2">{title} ({items.length})</div>
       {view === "card" ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(q.data ?? []).map((i: any) => (
-            <Link key={i.id} to="/interviews/$id" params={{ id: i.id }}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+        <div className="grid gap-3">
+          {items.map((i) => (
+            <Card key={i.id} className="hover:border-primary/50 transition-colors relative group">
+              <button
+                onClick={(e) => { e.preventDefault(); onDismiss(i); }}
+                title="Dismiss from view"
+                className="absolute top-2 right-2 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground z-10"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <Link to="/interviews/$id" params={{ id: i.id }}>
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between pr-6">
                     <div>
                       <div className="font-serif text-lg leading-tight">{i.founder_name}</div>
                       <div className="text-xs text-muted-foreground mt-1">{i.business_name}</div>
                     </div>
                     <StatusBadge status={i.status} />
                   </div>
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</span>
+                    <button
+                      onClick={(e) => { e.preventDefault(); onTogglePrivate(i); }}
+                      title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
+                      className="inline-flex items-center gap-1 hover:text-foreground"
+                    >
+                      {isPrivateColumn ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                      {isPrivateColumn ? "Mark client" : "Mark private"}
+                    </button>
                   </div>
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+            </Card>
           ))}
-          {q.isSuccess && !q.data?.length && (
-            <div className="col-span-full rounded-lg border border-dashed border-border p-12 text-center bg-card">
-              <div className="font-serif text-xl">No meetings yet</div>
-              <p className="text-sm text-muted-foreground mt-2">Start your first founder meeting to build the memo.</p>
+          {!items.length && (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center bg-card">
+              <p className="text-sm text-muted-foreground">{emptyText}</p>
             </div>
           )}
         </div>
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border bg-card">
-          {(q.data ?? []).map((i: any) => (
-            <Link key={i.id} to="/interviews/$id" params={{ id: i.id }}>
-              <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
-                </div>
-                <StatusBadge status={i.status} />
-              </div>
-            </Link>
+          {items.map((i) => (
+            <div key={i.id} className="flex items-center gap-2 px-5 py-3 hover:bg-muted/40 transition-colors">
+              <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
+                <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
+                <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
+              </Link>
+              <StatusBadge status={i.status} />
+              <button
+                onClick={() => onTogglePrivate(i)}
+                title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+              >
+                {isPrivateColumn ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                onClick={() => onDismiss(i)}
+                title="Dismiss from view"
+                className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ))}
-          {q.isSuccess && !q.data?.length && (
-            <div className="p-12 text-center bg-card">
-              <div className="font-serif text-xl">No meetings yet</div>
-              <p className="text-sm text-muted-foreground mt-2">Start your first founder meeting to build the memo.</p>
+          {!items.length && (
+            <div className="p-8 text-center bg-card">
+              <p className="text-sm text-muted-foreground">{emptyText}</p>
             </div>
           )}
         </div>

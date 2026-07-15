@@ -170,6 +170,23 @@ function Events() {
     })();
   }, [q.data, teamCalendar.data, qc]);
 
+  // Once the "new" star has been seen this visit, clear it in the background so it
+  // doesn't keep showing on every future visit -- but don't invalidate the events
+  // query, so it still displays for the remainder of this session.
+  const clearedNewRef = useRef(false);
+  useEffect(() => {
+    if (clearedNewRef.current) return;
+    if (!q.data) return;
+    const newOnes = q.data.filter((e: any) => e.is_new);
+    if (!newOnes.length) return;
+    clearedNewRef.current = true;
+    (async () => {
+      for (const e of newOnes) {
+        await updateEvent(e.id, { is_new: false });
+      }
+    })();
+  }, [q.data]);
+
   const futureEvents = useMemo(() => {
     const all = (q.data ?? []).filter((e: any) => new Date(e.end_date || e.start_date) >= new Date());
     if (statusFilter === "all") return all;
@@ -194,14 +211,16 @@ function Events() {
       <PageHeader
         eyebrow="Discovery"
         title="Current Events"
-        description="AI-curated conferences worth attending — sector-specific SA and global events on Mining Indaba calibre."
+        description={
+          <>
+            AI-curated conferences worth attending — sector-specific SA and global events on Mining Indaba calibre.
+            {discoverMut.isPending && <span className="block text-xs mt-1">Checking for new events…</span>}
+          </>
+        }
         actions={
-          <div className="flex items-center gap-3">
-            {discoverMut.isPending && <span className="text-xs text-muted-foreground">Checking for new events…</span>}
-            <Button variant="outline" onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Add event
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> Add event
+          </Button>
         }
       />
 
@@ -426,9 +445,13 @@ function EventRow({ e, onEdit, onDelete, onCapture, onToggleBooked, onCheckCalen
             </Badge>
           )}
           {e.booked && (
-            <Badge className="bg-green-600 text-white border-0 gap-1">
+            <button
+              onClick={() => onToggleBooked(e)}
+              title="Click to unmark as booked"
+              className="inline-flex items-center gap-1 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs px-2.5 py-0.5 transition-colors"
+            >
               <CheckCircle2 className="h-3 w-3" /> Booked{e.booked_by ? ` · ${e.booked_by}` : ""}
-            </Badge>
+            </button>
           )}
         </div>
       </div>
@@ -445,22 +468,13 @@ function EventRow({ e, onEdit, onDelete, onCapture, onToggleBooked, onCheckCalen
           </Button>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Button
-            size="sm"
-            variant={e.booked ? "default" : "outline"}
-            className={`h-8 text-xs ${e.booked ? "bg-green-600 hover:bg-green-700" : ""}`}
-            title={e.booked ? `Booked by ${e.booked_by ?? "a team member"}` : "Mark as booked manually"}
-            onClick={() => onToggleBooked(e)}
-          >
-            <CheckCircle2 className="h-3 w-3 mr-1" /> {e.booked ? "Booked" : "Mark booked"}
-          </Button>
-          {!e.booked && (
+        {!e.booked && (
+          <div className="flex flex-col gap-1.5">
             <Button size="sm" variant="outline" className="h-8 text-xs" title="Check your connected Google Calendar for a matching event" onClick={() => onCheckCalendar(e)}>
               Check calendar
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(e)}>

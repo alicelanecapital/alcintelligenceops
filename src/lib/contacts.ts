@@ -86,10 +86,10 @@ export async function deleteContact(id: string) {
 }
 
 export async function fetchContactMeetings(contactId: string) {
-  const { data, error } = await supabase
-    .from("interviews")
+  const { data, error } = await (supabase.from("interviews") as any)
     .select("*")
     .eq("contact_id", contactId)
+    .eq("hidden", false)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];

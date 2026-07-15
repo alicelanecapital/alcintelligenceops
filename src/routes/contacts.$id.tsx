@@ -5,12 +5,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact, createOpportunityFromContact } from "@/lib/contacts.functions";
+import { dismissInterview } from "@/lib/interviews";
 import { EditContactDialog } from "@/components/EditContactDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar } from "lucide-react";
+import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -65,6 +66,15 @@ function ContactProfile() {
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
 
+  const dismissMeetingMut = useMutation({
+    mutationFn: (meetingId: string) => dismissInterview(meetingId),
+    onSuccess: () => {
+      toast.success("Removed from view");
+      qc.invalidateQueries({ queryKey: ["contact-meetings", id] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
+  });
+
   if (q.isLoading) return <div className="p-10 text-sm text-muted-foreground">Loading…</div>;
   if (!q.data) return <div className="p-10 text-sm text-muted-foreground">Contact not found. <Link to="/contacts" className="text-primary">Back</Link></div>;
 
@@ -88,6 +98,12 @@ function ContactProfile() {
             <Button variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-4 w-4 mr-1" /> Request Information
             </Button>
+            <Button variant="outline" title="Edit every field on this record, including notes" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4 mr-1" /> Edit
+            </Button>
+            <Button variant="outline" className="text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
           </div>
         }
       />
@@ -95,23 +111,31 @@ function ContactProfile() {
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">
           <Card>
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="text-base">Details</CardTitle>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
               <InfoRow icon={<Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>} label="Category" />
+              {c.company && <InfoRow icon={<Building2 className="h-4 w-4" />} label={c.company} />}
+              {c.position && <InfoRow icon={<Building2 className="h-4 w-4" />} label={c.position} />}
               {c.email && <InfoRow icon={<Mail className="h-4 w-4" />} label={c.email} />}
               {c.phone && <InfoRow icon={<Phone className="h-4 w-4" />} label={c.phone} />}
               {c.linkedin && <InfoRow icon={<LinkedinIcon className="h-4 w-4" />} label={<a href={c.linkedin} target="_blank" className="hover:underline">LinkedIn</a>} />}
               {c.website && <InfoRow icon={<Globe className="h-4 w-4" />} label={<a href={c.website} target="_blank" className="hover:underline">{c.website}</a>} />}
               {c.date_met && <InfoRow icon={<Calendar className="h-4 w-4" />} label={`Met ${new Date(c.date_met).toLocaleDateString()}`} />}
               {c.status && <InfoRow icon={<Badge variant="secondary">{c.status}</Badge>} label="Status" />}
+              {c.tags && c.tags.length > 0 && (
+                <div className="col-span-2 flex flex-wrap gap-1">
+                  {c.tags.map((t: string) => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {c.company_description && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Company description</CardTitle></CardHeader>
+              <CardContent className="text-sm whitespace-pre-wrap text-muted-foreground">{c.company_description}</CardContent>
+            </Card>
+          )}
 
           {c.notes && (
             <Card>
@@ -128,15 +152,24 @@ function ContactProfile() {
             <CardContent className="space-y-2">
               {(meetings.data ?? []).length === 0 && <div className="text-sm text-muted-foreground">No meetings yet.</div>}
               {(meetings.data ?? []).map((m: any) => (
-                <Link key={m.id} to="/interviews/$id" params={{ id: m.id }} className="block">
-                  <div className="border rounded-md p-3 hover:border-primary/50 transition-colors">
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
-                      <Badge variant="outline">{m.status}</Badge>
+                <div key={m.id} className="relative group">
+                  <button
+                    onClick={(e) => { e.preventDefault(); dismissMeetingMut.mutate(m.id); }}
+                    title="Dismiss from view"
+                    className="absolute top-2 right-2 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground z-10"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <Link to="/interviews/$id" params={{ id: m.id }} className="block">
+                    <div className="border rounded-md p-3 pr-9 hover:border-primary/50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
+                        <Badge variant="outline">{m.status}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </CardContent>
           </Card>

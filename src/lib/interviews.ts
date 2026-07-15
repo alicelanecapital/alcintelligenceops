@@ -11,9 +11,22 @@ export const INTERVIEW_STAGES = [
 ] as const;
 
 export async function listInterviews() {
-  const { data, error } = await supabase.from("interviews").select("*").order("created_at", { ascending: false });
+  const { data, error } = await (supabase.from("interviews") as any)
+    .select("*")
+    .eq("hidden", false)
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function setInterviewPrivate(id: string, isPrivate: boolean) {
+  const { error } = await (supabase.from("interviews") as any).update({ is_private: isPrivate }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function dismissInterview(id: string) {
+  const { error } = await (supabase.from("interviews") as any).update({ hidden: true }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function getInterview(id: string) {
