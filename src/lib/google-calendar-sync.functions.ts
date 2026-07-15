@@ -7,39 +7,58 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
   const accessToken = await getValidGoogleAccessToken(email);
   if (!accessToken) return { synced: 0, reason: "not_connected" };
 
+  // Pull from every calendar visible in the user's own Google Calendar (not just "primary") --
+  // work/shared calendars and auto-generated ones (e.g. Gmail's "Flights" calendar) live under
+  // their own calendarId and were previously missed entirely.
+  const calListRes = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!calListRes.ok) {
+    const text = await calListRes.text().catch(() => "");
+    throw new Error(`Google Calendar list fetch failed [${calListRes.status}]: ${text.slice(0, 300)}`);
+  }
+  const calListJson = await calListRes.json();
+  const calendars: any[] = (calListJson.items ?? []).filter((c: any) => c.selected !== false);
+
   const timeMin = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const timeMax = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
   const params = new URLSearchParams({
     timeMin, timeMax, singleEvents: "true", orderBy: "startTime", maxResults: "250",
   });
 
-  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Google Calendar fetch failed [${res.status}]: ${text.slice(0, 300)}`);
+  const rows: any[] = [];
+  for (const cal of calendars) {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      // Don't let one inaccessible calendar (e.g. a shared calendar with restricted event access) fail the whole sync.
+      continue;
+    }
+    const json = await res.json();
+    const items: any[] = json.items ?? [];
+    for (const ev of items) {
+      const start_time = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
+      if (!start_time) continue;
+      rows.push({
+        user_email: email,
+        google_event_id: ev.id,
+        calendar_id: cal.id,
+        calendar_name: cal.summaryOverride ?? cal.summary ?? null,
+        title: ev.summary ?? "(no title)",
+        description: ev.description ?? null,
+        location: ev.location ?? null,
+        meeting_link: ev.hangoutLink ?? ev.conferenceData?.entryPoints?.[0]?.uri ?? null,
+        start_time,
+        end_time: ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null),
+        is_all_day: !ev.start?.dateTime,
+        attendees: (ev.attendees ?? []).map((a: any) => ({
+          email: a.email, name: a.displayName ?? null, responseStatus: a.responseStatus ?? null,
+        })),
+        updated_at: new Date().toISOString(),
+      });
+    }
   }
-  const json = await res.json();
-  const items: any[] = json.items ?? [];
-
-  const rows = items
-    .map((ev) => ({
-      user_email: email,
-      google_event_id: ev.id,
-      title: ev.summary ?? "(no title)",
-      description: ev.description ?? null,
-      location: ev.location ?? null,
-      meeting_link: ev.hangoutLink ?? ev.conferenceData?.entryPoints?.[0]?.uri ?? null,
-      start_time: ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null),
-      end_time: ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null),
-      is_all_day: !ev.start?.dateTime,
-      attendees: (ev.attendees ?? []).map((a: any) => ({
-        email: a.email, name: a.displayName ?? null, responseStatus: a.responseStatus ?? null,
-      })),
-      updated_at: new Date().toISOString(),
-    }))
-    .filter((r) => !!r.start_time);
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
