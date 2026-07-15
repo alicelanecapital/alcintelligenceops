@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
-import { fetchFrameworkRoundDetail } from '@/lib/dd-framework-admin';
+import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
@@ -87,6 +87,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
   const [gateComment, setGateComment] = useState('');
   const [submittingGateAction, setSubmittingGateAction] = useState(false);
+  const [activeStep, setActiveStep] = useState<'documents' | 'questions' | 'software' | 'verification'>('documents');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -122,6 +123,19 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     internalSteps: q.internal_steps ?? [],
     redFlags: q.red_flags ?? [],
   }));
+  // This round's own required documents -- shown specifically (not merged with any other
+  // round's) in the Document Analysis step, cross-referenced against what's arrived.
+  const requiredDocuments = useQuery({
+    queryKey: ['dd-framework-required-documents', round],
+    queryFn: () => fetchRoundOwnDocuments(round),
+  });
+  const isDocumentReceived = (docName: string) => {
+    const needle = docName.toLowerCase();
+    return receivedDocs.some((d: any) => {
+      const fileBase = (d.file_name ?? '').toLowerCase().replace(/\.[a-z0-9]+$/, '');
+      return fileBase.includes(needle) || needle.includes(fileBase);
+    });
+  };
   // Every round needs its own dd_interviews row before responses/documents/analysis
   // can be saved against it (dd_round_responses.interview_id is a foreign key into
   // dd_interviews, not opportunities). Get-or-create it on mount for this opportunity+round.
@@ -131,6 +145,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     setTranscript('');
     setAiAnalysis(null);
     setStakeholderBrief(null);
+    setActiveStep('documents');
 
     (async () => {
       // stakeholder_brief is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
@@ -412,7 +427,18 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       refreshOpportunityIntelligence();
 
       if (round < 5) {
-        toast.success(`Round ${round} complete`);
+        // Documents required for the next round are only sent out now, at the point of
+        // advancing -- not shown as a standing checklist in the app. Real sending isn't wired
+        // up yet (no confirmed source for the founder's email address); this simulates it so
+        // the trigger point and content are in place ahead of that.
+        try {
+          const nextRoundDocs = await fetchRoundOwnDocuments(round + 1);
+          const docNames = nextRoundDocs.map((d) => d.name).join(', ');
+          console.log(`[Simulated email] Documents required ahead of Round ${round + 1}: ${docNames || '(none specified)'}`);
+          toast.success(docNames ? `Round ${round} complete — email queued requesting: ${docNames}` : `Round ${round} complete`);
+        } catch {
+          toast.success(`Round ${round} complete`);
+        }
         navigate({ to: `/dd-interview/${opportunityId}/${round + 1}` });
       } else {
         toast.success('Due diligence complete for all 5 rounds');
@@ -588,6 +614,13 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   // Sector-specific module
   const sectorModule = sector ? SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES] : null;
 
+  const SUB_STEPS: { key: typeof activeStep; label: string }[] = [
+    { key: 'documents', label: 'Document Analysis' },
+    { key: 'questions', label: 'Interview Questions' },
+    { key: 'software', label: sectorModule ? `${sectorModule.name} Questions` : 'Sector Questions' },
+    { key: 'verification', label: 'Internal Verification' },
+  ];
+
   if (framework.isLoading || !roundData) {
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
   }
@@ -613,340 +646,387 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Documents Received -- must be reviewed before the meeting/recording starts, so this sits
-          above Round recording. Auto-refreshes on load with anything sent since the last
-          meeting (or everything, for round 1, since there's no earlier meeting). */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-blue-900">📄 Documents Received</p>
-          {uploadChannel && (
-            <button
-              type="button"
-              onClick={handleSyncDocuments}
-              disabled={syncingDocs}
-              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {syncingDocs ? 'Checking…' : 'Check for new documents'}
-            </button>
-          )}
-        </div>
-        {uploadChannel ? (
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="text-xs text-blue-700">Sent to:</span>
-            <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
-            <button
-              type="button"
-              onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
-              className="text-xs text-blue-700 underline"
-            >
-              Copy
-            </button>
-          </div>
-        ) : (
-          <p className="text-xs text-blue-700">Loading upload address…</p>
-        )}
-        {receivedDocs.length > 0 ? (
-          <div className="space-y-1">
-            {receivedDocs.map((doc) => (
+      {/* Within-round vertical stepper: Document Analysis / Interview Questions /
+          Sector Questions / Internal Verification. */}
+      <div className="grid grid-cols-[190px_1fr] gap-6 items-start mb-8">
+        <div className="space-y-1">
+          {SUB_STEPS.map((step) => {
+            const active = step.key === activeStep;
+            return (
               <button
-                key={doc.id}
-                type="button"
-                onClick={() => openDocument(doc)}
-                className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
+                key={step.key}
+                onClick={() => setActiveStep(step.key)}
+                className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors ${active ? 'bg-primary/10 text-primary font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <span>{doc.file_name}</span>
-                <span className="text-blue-600">View</span>
+                {step.label}
               </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-blue-700">
-            {round === 1 ? 'No documents received yet.' : 'No documents received since the last meeting.'}
-          </p>
-        )}
-      </div>
-
-      {/* AI-generated (and manually added) questions raised from reviewing the documents above --
-          evaluated before the session starts, fully CRUD-able since these are per-interview,
-          not part of the admin-managed framework question set. */}
-      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-amber-900">🧩 Document Review Questions</p>
-          <button
-            type="button"
-            onClick={runAnomalyDetection}
-            disabled={!interviewRowId || generatingAnomalyQuestions}
-            className="px-3 py-1.5 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 disabled:opacity-50"
-          >
-            {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-check documents'}
-          </button>
+            );
+          })}
         </div>
-        <p className="text-xs text-amber-700 mb-3">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
-        <div className="space-y-2 mb-3">
-          {extraQuestions.map((q) => (
-            <div key={q.id} className="bg-white rounded border border-amber-200 p-2">
-              {editingExtraQuestionId === q.id ? (
-                <div className="flex items-start gap-2">
-                  <textarea
-                    className="flex-1 text-sm border border-amber-300 rounded px-2 py-1"
-                    value={editingExtraQuestionText}
-                    onChange={(e) => setEditingExtraQuestionText(e.target.value)}
-                    rows={2}
-                  />
-                  <div className="flex flex-col gap-1">
-                    <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
-                    <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm text-gray-900">{q.question_text}</p>
-                    {q.rationale && <p className="text-xs text-amber-700 mt-1">{q.rationale}</p>}
-                    {q.source === 'ai_document_review' && <span className="text-[10px] text-amber-500">AI-suggested</span>}
-                  </div>
-                  <div className="flex gap-2 shrink-0">
+
+        <div className="min-w-0 space-y-6">
+          {activeStep === 'documents' && (
+            <>
+              {/* Documents Received -- must be reviewed before the meeting/recording starts.
+                  Auto-refreshes on load with anything sent since the last meeting (or
+                  everything, for round 1, since there's no earlier meeting). */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-blue-900">📄 Documents Required for This Round</p>
+                  {uploadChannel && (
                     <button
-                      onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      type="button"
+                      onClick={handleSyncDocuments}
+                      disabled={syncingDocs}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
                     >
-                      Edit
+                      {syncingDocs ? 'Checking…' : 'Check for new documents'}
                     </button>
-                    <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                  )}
+                </div>
+                {uploadChannel ? (
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    <span className="text-xs text-blue-700">Sent to:</span>
+                    <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+                      className="text-xs text-blue-700 underline"
+                    >
+                      Copy
+                    </button>
                   </div>
+                ) : (
+                  <p className="text-xs text-blue-700 mb-3">Loading upload address…</p>
+                )}
+
+                {requiredDocuments.data && requiredDocuments.data.length > 0 ? (
+                  <div className="space-y-1 mb-3">
+                    {requiredDocuments.data.map((doc) => {
+                      const received = isDocumentReceived(doc.name);
+                      return (
+                        <div key={doc.id} className="flex items-start justify-between gap-2 bg-white px-2 py-1.5 rounded border border-blue-200">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                            {doc.purpose && <p className="text-xs text-gray-600">{doc.purpose}</p>}
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${received ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {received ? 'Received' : 'Missing'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-blue-700 mb-3">No specific documents configured for this round in the DD Framework.</p>
+                )}
+
+                {receivedDocs.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-blue-900">All files received:</p>
+                    {receivedDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => openDocument(doc)}
+                        className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
+                      >
+                        <span>{doc.file_name}</span>
+                        <span className="text-blue-600">View</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* AI-generated (and manually added) questions raised from reviewing the documents
+                  above -- evaluated before the session starts, fully CRUD-able since these are
+                  per-interview, not part of the admin-managed framework question set. */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-amber-900">🧩 Document Review Questions</p>
+                  <button
+                    type="button"
+                    onClick={runAnomalyDetection}
+                    disabled={!interviewRowId || generatingAnomalyQuestions}
+                    className="px-3 py-1.5 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-check documents'}
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700 mb-3">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
+                <div className="space-y-2 mb-3">
+                  {extraQuestions.map((q) => (
+                    <div key={q.id} className="bg-white rounded border border-amber-200 p-2">
+                      {editingExtraQuestionId === q.id ? (
+                        <div className="flex items-start gap-2">
+                          <textarea
+                            className="flex-1 text-sm border border-amber-300 rounded px-2 py-1"
+                            value={editingExtraQuestionText}
+                            onChange={(e) => setEditingExtraQuestionText(e.target.value)}
+                            rows={2}
+                          />
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                            <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm text-gray-900">{q.question_text}</p>
+                            {q.rationale && <p className="text-xs text-amber-700 mt-1">{q.rationale}</p>}
+                            {q.source === 'ai_document_review' && <span className="text-[10px] text-amber-500">AI-suggested</span>}
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Edit
+                            </button>
+                            <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!extraQuestions.length && (
+                    <p className="text-xs text-gray-500">No document-review questions yet.</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newExtraQuestion}
+                    onChange={(e) => setNewExtraQuestion(e.target.value)}
+                    placeholder="Add a question to raise this round…"
+                    className="flex-1 text-sm border border-amber-300 rounded px-2 py-1.5"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
+                  />
+                  <button
+                    onClick={handleAddExtraQuestion}
+                    disabled={!newExtraQuestion.trim()}
+                    className="px-3 py-1.5 bg-white border border-amber-300 text-amber-800 text-xs rounded hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeStep === 'questions' && (
+            <>
+              {/* One recording for the whole round -- we don't record and stop per question. */}
+              <div className="p-4 bg-gray-100 rounded-lg">
+                <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round recording ({questions.length} questions)</p>
+                <div className="flex items-center gap-4">
+                  {isRecording ? (
+                    <>
+                      <button
+                        onClick={stopRecording}
+                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        ⏹ End Recording
+                      </button>
+                      <span className="text-lg font-mono font-semibold text-red-600">
+                        {formatTime(recordingTime)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={startRecording}
+                        className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+                      >
+                        🎤 Start Recording
+                      </button>
+                      <span className="text-sm text-gray-500">Records the entire round in one go</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* All questions for this round, collapsed by default -- reference material to
+                  guide the single recording above, not separate per-question recordings. */}
+              <div>
+                <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to cover this round</p>
+                <Accordion type="multiple" className="rounded-lg border border-gray-200 bg-gray-50 px-3">
+                  {questions.map((q, idx) => (
+                    <AccordionItem key={idx} value={String(idx)}>
+                      <AccordionTrigger className="text-sm">
+                        <span className="text-left">Q{idx + 1}. {q.question}</span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3 text-sm">
+                          {q.why && (
+                            <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                              <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why this matters:</p>
+                              <p className="text-xs text-blue-800">{q.why}</p>
+                            </div>
+                          )}
+                          {q.redFlags.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Red flags to watch for:</p>
+                              <ul className="text-xs text-gray-600 space-y-0.5">
+                                {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+
+              {/* Transcript, upload, and analysis -- comes after the questions since it's the
+                  follow-up step once the round recording is done. */}
+              <div className="p-4 bg-gray-100 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
+                  <button
+                    onClick={() => transcriptFileInputRef.current?.click()}
+                    disabled={uploadingTranscript}
+                    className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
+                  </button>
+                  <input
+                    ref={transcriptFileInputRef}
+                    type="file"
+                    accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+                  />
+                </div>
+                <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
+                {transcript && (
+                  <div className="p-3 bg-white rounded border border-gray-300 max-h-64 overflow-y-auto space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
+                    {renderSpeakerColoredTranscript(transcript)}
+                  </div>
+                )}
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={generateAnalysis}
+                    disabled={!interviewRowId || !transcript || analyzing}
+                    className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {analyzing ? 'Analysing…' : 'Analyze recording'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeStep === 'software' && (
+            sectorModule ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded">
+                <p className="text-sm font-semibold text-amber-900 mb-3">
+                  🏭 {sectorModule.name} - Sector-Specific Questions:
+                </p>
+                <ul className="space-y-2">
+                  {sectorModule.additionalQuestions.map((q, idx) => (
+                    <li key={idx} className="text-sm text-amber-800 flex gap-2">
+                      <span>•</span>
+                      <span>{q}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
+            )
+          )}
+
+          {activeStep === 'verification' && (
+            <>
+              <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist:</p>
+                <div className="space-y-2">
+                  {questions.slice(0, 4).map((q, idx) => (
+                    <label key={idx} className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4" />
+                      <span className="text-sm text-gray-700">{q.internalSteps[0]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {aiAnalysis && (
+                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-bold mb-4">📊 AI Analysis Results</h3>
+
+                  {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+                      <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags:</p>
+                      {aiAnalysis.redFlags.map((flag: any, idx: number) => (
+                        <div key={idx} className="mb-2 text-sm">
+                          <span className={`font-semibold ${
+                            flag.severity === 'WALK_AWAY' ? 'text-red-700' :
+                            flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
+                            'text-yellow-700'
+                          }`}>
+                            {flag.severity}:
+                          </span>
+                          <span className="text-red-800 ml-2">{flag.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {aiAnalysis.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 && (
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI-Generated Follow-up Questions:</p>
+                      {aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
+                        <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {aiAnalysis.voiceAnalysis && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+                      <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Analysis:</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
+                          <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
+                        </div>
+                        <div>
+                          <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> markers</p>
+                          <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          ))}
-          {!extraQuestions.length && (
-            <p className="text-xs text-gray-500">No document-review questions yet.</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newExtraQuestion}
-            onChange={(e) => setNewExtraQuestion(e.target.value)}
-            placeholder="Add a question to raise this round…"
-            className="flex-1 text-sm border border-amber-300 rounded px-2 py-1.5"
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
-          />
-          <button
-            onClick={handleAddExtraQuestion}
-            disabled={!newExtraQuestion.trim()}
-            className="px-3 py-1.5 bg-white border border-amber-300 text-amber-800 text-xs rounded hover:bg-amber-100 disabled:opacity-50"
-          >
-            Add
-          </button>
-        </div>
-      </div>
 
-      {/* One recording for the whole round -- we don't record and stop per question.
-          Recording controls live at the top; the transcript/upload/analyse step comes
-          after the questions below, since that's the natural order of use. */}
-      <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-        <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round recording ({questions.length} questions)</p>
-        <div className="flex items-center gap-4">
-          {isRecording ? (
-            <>
-              <button
-                onClick={stopRecording}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                ⏹ End Recording
-              </button>
-              <span className="text-lg font-mono font-semibold text-red-600">
-                {formatTime(recordingTime)}
-              </span>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={startRecording}
-                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-              >
-                🎤 Start Recording
-              </button>
-              <span className="text-sm text-gray-500">Records the entire round in one go</span>
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+                <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
+                <div className="grid grid-cols-3 gap-4">
+                  {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
+                    <div key={idx} className="text-center">
+                      <div className="text-2xl mb-2">
+                        {source.name === 'Founder Word' && '👤'}
+                        {source.name === 'Documents' && '📄'}
+                        {source.name === 'Independent Observation' && '🔎'}
+                      </div>
+                      <p className="text-xs font-semibold text-orange-900">{source.name}</p>
+                      <p className="text-xs text-orange-700 mt-1">{source.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-orange-700 mt-3 text-center">
+                  ✅ Every claim requires validation from all 3 sources
+                </p>
+              </div>
             </>
           )}
         </div>
       </div>
-
-      {/* All questions for this round, collapsed by default -- reference material to guide
-          the single recording above, not separate per-question recordings. */}
-      <div className="mb-8">
-        <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to cover this round</p>
-        <Accordion type="multiple" className="rounded-lg border border-gray-200 bg-gray-50 px-3">
-          {questions.map((q, idx) => (
-            <AccordionItem key={idx} value={String(idx)}>
-              <AccordionTrigger className="text-sm">
-                <span className="text-left">Q{idx + 1}. {q.question}</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-3 text-sm">
-                  {q.why && (
-                    <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-                      <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why this matters:</p>
-                      <p className="text-xs text-blue-800">{q.why}</p>
-                    </div>
-                  )}
-                  {q.redFlags.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1">Red flags to watch for:</p>
-                      <ul className="text-xs text-gray-600 space-y-0.5">
-                        {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </div>
-
-      {/* Transcript, upload, and analysis -- comes after the questions since it's the follow-up
-          step once the round recording is done. */}
-      <div className="mb-8 p-4 bg-gray-100 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
-          <button
-            onClick={() => transcriptFileInputRef.current?.click()}
-            disabled={uploadingTranscript}
-            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-          >
-            {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
-          </button>
-          <input
-            ref={transcriptFileInputRef}
-            type="file"
-            accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-          />
-        </div>
-        <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
-        {transcript && (
-          <div className="p-3 bg-white rounded border border-gray-300 max-h-64 overflow-y-auto space-y-1">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
-            {renderSpeakerColoredTranscript(transcript)}
-          </div>
-        )}
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={generateAnalysis}
-            disabled={!interviewRowId || !transcript || analyzing}
-            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {analyzing ? 'Analysing…' : 'Analyze recording'}
-          </button>
-        </div>
-      </div>
-
-      {/* Verification Triangle */}
-      <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
-        <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
-        <div className="grid grid-cols-3 gap-4">
-          {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
-            <div key={idx} className="text-center">
-              <div className="text-2xl mb-2">
-                {source.name === 'Founder Word' && '👤'}
-                {source.name === 'Documents' && '📄'}
-                {source.name === 'Independent Observation' && '🔎'}
-              </div>
-              <p className="text-xs font-semibold text-orange-900">{source.name}</p>
-              <p className="text-xs text-orange-700 mt-1">{source.description}</p>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-orange-700 mt-3 text-center">
-          ✅ Every claim requires validation from all 3 sources
-        </p>
-      </div>
-
-      {/* Sector Module Questions */}
-      {sectorModule && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
-          <p className="text-sm font-semibold text-amber-900 mb-3">
-            🏭 {sectorModule.name} - Sector-Specific Questions:
-          </p>
-          <ul className="space-y-2">
-            {sectorModule.additionalQuestions.map((q, idx) => (
-              <li key={idx} className="text-sm text-amber-800 flex gap-2">
-                <span>•</span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Internal Verification Checklist */}
-      <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist:</p>
-        <div className="space-y-2">
-          {questions.slice(0, 4).map((q, idx) => (
-            <label key={idx} className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4" />
-              <span className="text-sm text-gray-700">{q.internalSteps[0]}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* AI Analysis Results */}
-      {aiAnalysis && (
-        <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-bold mb-4">📊 AI Analysis Results</h3>
-
-          {/* Red Flags */}
-          {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags:</p>
-              {aiAnalysis.redFlags.map((flag: any, idx: number) => (
-                <div key={idx} className="mb-2 text-sm">
-                  <span className={`font-semibold ${
-                    flag.severity === 'WALK_AWAY' ? 'text-red-700' :
-                    flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
-                    'text-yellow-700'
-                  }`}>
-                    {flag.severity}:
-                  </span>
-                  <span className="text-red-800 ml-2">{flag.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Follow-up Questions */}
-          {aiAnalysis.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI-Generated Follow-up Questions:</p>
-              {aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
-              ))}
-            </div>
-          )}
-
-          {/* Voice Analysis */}
-          {aiAnalysis.voiceAnalysis && (
-            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded">
-              <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Analysis:</p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
-                  <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
-                </div>
-                <div>
-                  <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> markers</p>
-                  <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Round Gates */}
       <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">

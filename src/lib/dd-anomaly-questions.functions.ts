@@ -36,18 +36,13 @@ export const generateAnomalyQuestions = createServerFn({ method: "POST" })
     if (interviewError) throw new Error(interviewError.message);
     if (!interview) throw new Error("Interview round not found");
 
-    // Documents expected to have arrived before this round are whatever the previous round's
-    // page told the interviewee to prepare -- i.e. dd_framework_documents for round-1 (or, for
-    // round 1, there's nothing expected yet since there's no earlier round to have requested it).
-    let expectedDocs: { name: string; purpose: string | null }[] = [];
-    if (data.round > 1) {
-      const { data: expected, error: expectedError } = await (supabaseAdmin.from("dd_framework_documents" as any) as any)
-        .select("name, purpose")
-        .eq("round", data.round - 1)
-        .order("sort_order");
-      if (expectedError) throw new Error(expectedError.message);
-      expectedDocs = expected ?? [];
-    }
+    // Documents expected for this round are this round's own dd_framework_documents entries.
+    const { data: expected, error: expectedError } = await (supabaseAdmin.from("dd_framework_documents" as any) as any)
+      .select("name, purpose")
+      .eq("round", data.round)
+      .order("sort_order");
+    if (expectedError) throw new Error(expectedError.message);
+    const expectedDocs: { name: string; purpose: string | null }[] = expected ?? [];
 
     const { data: received, error: receivedError } = await (supabaseAdmin.from("dd_interview_documents" as any) as any)
       .select("file_name, file_size_bytes, document_category, extracted_text, uploaded_at")

@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { DDInterviewEnhanced } from "@/components/DDInterviewEnhanced";
 import { OpportunityOverviewBar } from "@/components/OpportunityOverviewBar";
 import { RoundStepper } from "@/components/RoundStepper";
-import { fetchAllFrameworkRounds, fetchRoundDocumentsForDisplay } from "@/lib/dd-framework-admin";
+import { fetchAllFrameworkRounds } from "@/lib/dd-framework-admin";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,13 +34,6 @@ function DDInterviewPage() {
     queryFn: () => fetchOpportunityCompanyDetails(opportunityId),
   });
   const frameworkRounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
-  // Shown to the interviewee as prep for their *next* meeting -- see fetchRoundDocumentsForDisplay.
-  const nextRoundDocuments = useQuery({
-    queryKey: ["dd-framework-next-round-documents", roundNumber],
-    queryFn: () => fetchRoundDocumentsForDisplay(roundNumber),
-  });
-  const documents = nextRoundDocuments.data ?? [];
-  const [verificationTracking, setVerificationTracking] = useState<Record<string, boolean>>({});
   // Lifted from DDInterviewEnhanced so the fixed overview panel above can render them
   // alongside DISC/AI overview, instead of DDInterviewEnhanced rendering them inline.
   const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
@@ -48,7 +41,9 @@ function DDInterviewPage() {
   const [detectedSectorConfidence, setDetectedSectorConfidence] = useState(0);
 
   const companyName = opp.data?.company?.name ?? opp.data?.founder?.startup_name ?? opp.data?.name;
-  const founderName = opp.data?.founder?.name;
+  // Opportunities sourced from Contacts/Events (contact_id-based, no founder_id link) have no
+  // separate founder record -- the opportunity's own name IS the person, so fall back to it.
+  const founderName = opp.data?.founder?.name ?? opp.data?.name;
   const sector = opp.data?.company?.industry ?? opp.data?.founder?.sector ?? opp.data?.industry;
   const description = opp.data?.description;
 
@@ -72,49 +67,23 @@ function DDInterviewPage() {
         />
       )}
 
-      {/* The overview bar sits above this grid (rather than inside the main column) so "Round 1"
-          at the top of the stepper lines up with this round's own heading in the main column,
-          instead of with whatever height the overview bar happens to take up. */}
-      <div className="grid grid-cols-[220px_1fr] gap-6 items-start">
-        <aside className="sticky top-4 shrink-0 space-y-4">
-          <RoundStepper
-            rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
-            current={roundNumber}
-            onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
-          />
-
-          {documents.length > 0 && (
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm font-semibold text-foreground mb-3">📋 Related documents for the next round:</p>
-              <div className="space-y-2">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="flex items-start gap-2 p-2 bg-muted/40 rounded">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={!!verificationTracking[doc.name]}
-                      onChange={(e) => setVerificationTracking((prev) => ({ ...prev, [doc.name]: e.target.checked }))}
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">{doc.purpose}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </aside>
-
-        <div className="min-w-0">
-          <DDInterviewEnhanced
-            opportunityId={opportunityId}
-            round={roundNumber}
-            onStakeholderBriefChange={setStakeholderBrief}
-            onSectorChange={(s, c) => { setDetectedSector(s); setDetectedSectorConfidence(c); }}
-          />
-        </div>
+      {/* Horizontal stepper sits below the fixed overview panel and above this round's own
+          heading (rendered by DDInterviewEnhanced), rather than a left-rail sidebar. */}
+      <div className="mb-6 rounded-lg border border-border bg-card p-2">
+        <RoundStepper
+          rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+          current={roundNumber}
+          onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
+          orientation="horizontal"
+        />
       </div>
+
+      <DDInterviewEnhanced
+        opportunityId={opportunityId}
+        round={roundNumber}
+        onStakeholderBriefChange={setStakeholderBrief}
+        onSectorChange={(s, c) => { setDetectedSector(s); setDetectedSectorConfidence(c); }}
+      />
     </div>
   );
 }
