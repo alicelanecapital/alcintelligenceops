@@ -11,3 +11,12 @@ export async function fetchUpcomingGoogleCalendarEvents() {
   if (error) throw error;
   return (data ?? []) as any[];
 }
+
+/** Every team member's synced calendar events (any user_email), for matching against event dates on the Current Events screen. */
+export async function fetchAllTeamCalendarEvents() {
+  const { data, error } = await (supabase.from("google_calendar_events" as any) as any)
+    .select("user_email, title, start_time, end_time")
+    .order("start_time", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as { user_email: string; title: string; start_time: string; end_time: string }[];
+}
