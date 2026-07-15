@@ -12,6 +12,45 @@ import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
 import { generateDiscProfile } from '@/lib/dd-personality.functions';
 import { generateOpportunityOverview } from '@/lib/dd-overview.functions';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { extractTranscriptText } from '@/lib/extract-transcript-text';
+
+const SPEAKER_COLOR_CLASSES = [
+  'text-blue-700',
+  'text-emerald-700',
+  'text-purple-700',
+  'text-orange-700',
+  'text-pink-700',
+  'text-cyan-700',
+];
+
+/** Colour-codes each speaker in a transcript consistently, so "Founder:" lines read in a
+ * different colour from "Interviewer:" lines etc. Assumes a "Speaker name: ..." line format
+ * (what /api/transcribe and manual transcripts both tend to produce); lines without that
+ * pattern render as plain continuation text. */
+function renderSpeakerColoredTranscript(text: string) {
+  const speakerColors = new Map<string, string>();
+  const colorFor = (speaker: string) => {
+    if (!speakerColors.has(speaker)) {
+      speakerColors.set(speaker, SPEAKER_COLOR_CLASSES[speakerColors.size % SPEAKER_COLOR_CLASSES.length]);
+    }
+    return speakerColors.get(speaker)!;
+  };
+
+  return text.split('\n').map((line, i) => {
+    if (!line.trim()) return <div key={i} className="h-2" />;
+    const match = line.match(/^([A-Za-z][A-Za-z0-9 .'-]{0,40}):\s*(.*)$/);
+    if (match) {
+      const [, speaker, rest] = match;
+      return (
+        <p key={i} className="text-sm whitespace-pre-wrap">
+          <span className={`font-semibold ${colorFor(speaker.trim())}`}>{speaker.trim()}:</span>{' '}
+          <span className="text-gray-700">{rest}</span>
+        </p>
+      );
+    }
+    return <p key={i} className="text-sm text-gray-700 whitespace-pre-wrap">{line}</p>;
+  });
+}
 
 export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: string; round: number }) {
   const navigate = useNavigate();
@@ -30,7 +69,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   const [receivedDocs, setReceivedDocs] = useState<any[]>([]);
   const [syncingDocs, setSyncingDocs] = useState(false);
   const [stakeholderBrief, setStakeholderBrief] = useState<any>(null);
-  const [generatingBrief, setGeneratingBrief] = useState(false);
   const [uploadingTranscript, setUploadingTranscript] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -89,38 +127,81 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
           setInterviewRowId(existing.id);
           if (existing.transcript) setTranscript(existing.transcript);
           if (existing.ai_analysis) setAiAnalysis(existing.ai_analysis);
-          if (existing.stakeholder_brief) setStakeholderBrief(existing.stakeholder_brief);
           if (existing.detected_sector) {
             setSector(existing.detected_sector);
             setSectorConfidence(existing.sector_confidence ? Math.round(existing.sector_confidence) : 0);
+          }
+          if (existing.stakeholder_brief) {
+            setStakeholderBrief(existing.stakeholder_brief);
+          } else {
+            // No brief on file yet -- generate one automatically so the round always opens
+            // with a brief already in place, rather than waiting for a manual click.
+            generateBriefFn({ data: { opportunityId, interviewId: existing.id, round } })
+              .then((brief) => { if (!cancelled) setStakeholderBrief(brief); })
+              .catch(() => { /* not enough contact data yet, ignore */ });
           }
         }
         return;
       }
 
+      // Insert-then-select races when this effect fires twice in quick succession (e.g. React
+      // StrictMode's double-invoke in dev, or a fast re-render) -- both calls pass the "not
+      // found" check above before either insert lands. Rather than fail the second caller on
+      // the unique (opportunity_id, round) constraint, fall back to fetching the row the other
+      // call just created.
       const { data: created, error: createError } = await supabase
         .from('dd_interviews')
         .insert({ opportunity_id: opportunityId, round, status: 'in_progress', started_at: new Date().toISOString() })
         .select('id')
         .single();
       if (createError) {
+        if (createError.code === '23505') {
+          const { data: raceWinner, error: refetchError } = await (supabase.from('dd_interviews') as any)
+            .select('id, transcript, ai_analysis, detected_sector, sector_confidence, stakeholder_brief')
+            .eq('opportunity_id', opportunityId)
+            .eq('round', round)
+            .maybeSingle();
+          if (!refetchError && raceWinner && !cancelled) {
+            setInterviewRowId(raceWinner.id);
+            if (raceWinner.transcript) setTranscript(raceWinner.transcript);
+            if (raceWinner.ai_analysis) setAiAnalysis(raceWinner.ai_analysis);
+            if (raceWinner.stakeholder_brief) setStakeholderBrief(raceWinner.stakeholder_brief);
+            if (raceWinner.detected_sector) {
+              setSector(raceWinner.detected_sector);
+              setSectorConfidence(raceWinner.sector_confidence ? Math.round(raceWinner.sector_confidence) : 0);
+            }
+            return;
+          }
+        }
         toast.error('Failed to start this round: ' + createError.message);
         return;
       }
-      if (!cancelled) setInterviewRowId(created.id);
+      if (!cancelled) {
+        setInterviewRowId(created.id);
+        generateBriefFn({ data: { opportunityId, interviewId: created.id, round } })
+          .then((brief) => { if (!cancelled) setStakeholderBrief(brief); })
+          .catch(() => { /* not enough contact data yet, ignore */ });
+      }
     })();
 
     return () => { cancelled = true; };
   }, [opportunityId, round]);
 
-  // Silently regenerates the DISC profile and AI overview in the background whenever new
-  // round data comes in (a transcript is captured, analysis runs, or the round is completed),
-  // then invalidates the opportunity query so OpportunityOverviewBar picks up the fresh data.
-  // Deliberately fire-and-forget with no loading UI -- there's no manual "Generate" control.
+  // Silently regenerates the DISC profile, AI overview, and stakeholder brief in the
+  // background whenever new round data comes in (a transcript is captured, analysis runs,
+  // or the round is completed), then invalidates the opportunity query so OpportunityOverviewBar
+  // picks up the fresh data. Deliberately fire-and-forget with no loading UI -- there's no
+  // manual "Generate" control for any of these.
   const refreshOpportunityIntelligence = () => {
     (async () => {
       try { await generateDiscFn({ data: { opportunityId } }); } catch { /* not enough data yet, ignore */ }
       try { await generateOverviewFn({ data: { opportunityId } }); } catch { /* not enough data yet, ignore */ }
+      if (interviewRowId) {
+        try {
+          const brief = await generateBriefFn({ data: { opportunityId, interviewId: interviewRowId, round } });
+          setStakeholderBrief(brief);
+        } catch { /* not enough contact data yet, ignore */ }
+      }
       qc.invalidateQueries({ queryKey: ['opportunity-company-details', opportunityId] });
     })();
   };
@@ -222,10 +303,15 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
   };
 
   // Upload a transcript file directly, for rounds where recording wasn't started live.
+  // Accepts .txt/.md, .pdf, and .doc/.docx -- text is extracted client-side.
   const handleTranscriptFile = async (file: File) => {
     setUploadingTranscript(true);
     try {
-      const text = await file.text();
+      const text = await extractTranscriptText(file);
+      if (!text) {
+        toast.error("Couldn't find any text in that file.");
+        return;
+      }
       setTranscript(text);
       if (interviewRowId) {
         await supabase.from('dd_interviews').update({ transcript: text, transcript_source: 'manual' }).eq('id', interviewRowId);
@@ -249,20 +335,6 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
       toast.error('Failed to read transcript file: ' + (error?.message ?? 'unknown error'));
     } finally {
       setUploadingTranscript(false);
-    }
-  };
-
-  // AI-generated brief on who's likely to attend from outside Alice Lane, and what to know about them.
-  const handleGenerateBrief = async () => {
-    if (!interviewRowId) return;
-    setGeneratingBrief(true);
-    try {
-      const brief = await generateBriefFn({ data: { opportunityId, interviewId: interviewRowId, round } });
-      setStakeholderBrief(brief);
-    } catch (error: any) {
-      toast.error('Failed to generate stakeholder brief: ' + (error?.message ?? 'unknown error'));
-    } finally {
-      setGeneratingBrief(false);
     }
   };
 
@@ -412,18 +484,9 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Pre-Interview Stakeholder Brief */}
+      {/* Pre-Interview Stakeholder Brief -- auto-generated, no manual trigger */}
       <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-indigo-900">🧭 Pre-interview stakeholder brief</p>
-          <button
-            onClick={handleGenerateBrief}
-            disabled={!interviewRowId || generatingBrief}
-            className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {generatingBrief ? 'Generating…' : stakeholderBrief ? 'Regenerate' : 'Generate brief'}
-          </button>
-        </div>
+        <p className="text-sm font-semibold text-indigo-900 mb-2">🧭 Pre-interview stakeholder brief</p>
         {stakeholderBrief ? (
           <div className="space-y-3">
             {stakeholderBrief.relationship_history && (
@@ -447,7 +510,7 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
             )}
           </div>
         ) : (
-          <p className="text-xs text-indigo-700">Generate an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company.</p>
+          <p className="text-xs text-indigo-700">Generating an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company…</p>
         )}
       </div>
 
@@ -463,17 +526,19 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
         </div>
       )}
 
-      {/* One recording for the whole round -- we don't record and stop per question */}
+      {/* One recording for the whole round -- we don't record and stop per question.
+          Recording controls live at the top; the transcript/upload/analyse step comes
+          after the questions below, since that's the natural order of use. */}
       <div className="mb-6 p-4 bg-gray-100 rounded-lg">
         <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round recording ({questions.length} questions)</p>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
           {isRecording ? (
             <>
               <button
                 onClick={stopRecording}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
               >
-                ⏹ Stop Recording
+                ⏹ End Recording
               </button>
               <span className="text-lg font-mono font-semibold text-red-600">
                 {formatTime(recordingTime)}
@@ -488,38 +553,8 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
                 🎤 Start Recording
               </button>
               <span className="text-sm text-gray-500">Records the entire round in one go</span>
-              <button
-                onClick={() => transcriptFileInputRef.current?.click()}
-                disabled={uploadingTranscript}
-                className="ml-auto px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
-              </button>
-              <input
-                ref={transcriptFileInputRef}
-                type="file"
-                accept=".txt,.md,text/plain"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-              />
             </>
           )}
-        </div>
-        <p className="text-[11px] text-gray-500 -mt-2 mb-2">Didn't record live? Upload a transcript file (.txt) instead.</p>
-        {transcript && (
-          <div className="mt-4 p-3 bg-white rounded border border-gray-300 max-h-48 overflow-y-auto">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{transcript}</p>
-          </div>
-        )}
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={generateAnalysis}
-            disabled={!interviewRowId || !transcript || analyzing}
-            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {analyzing ? 'Analysing…' : 'Analyze recording'}
-          </button>
         </div>
       </div>
 
@@ -554,6 +589,44 @@ export function DDInterviewEnhanced({ opportunityId, round }: { opportunityId: s
             </AccordionItem>
           ))}
         </Accordion>
+      </div>
+
+      {/* Transcript, upload, and analysis -- comes after the questions since it's the follow-up
+          step once the round recording is done. */}
+      <div className="mb-8 p-4 bg-gray-100 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
+          <button
+            onClick={() => transcriptFileInputRef.current?.click()}
+            disabled={uploadingTranscript}
+            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+          >
+            {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
+          </button>
+          <input
+            ref={transcriptFileInputRef}
+            type="file"
+            accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+          />
+        </div>
+        <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
+        {transcript && (
+          <div className="p-3 bg-white rounded border border-gray-300 max-h-64 overflow-y-auto space-y-1">
+            <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
+            {renderSpeakerColoredTranscript(transcript)}
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={generateAnalysis}
+            disabled={!interviewRowId || !transcript || analyzing}
+            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {analyzing ? 'Analysing…' : 'Analyze recording'}
+          </button>
+        </div>
       </div>
 
       {/* Related Documents */}
