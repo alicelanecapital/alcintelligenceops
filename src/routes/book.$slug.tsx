@@ -49,7 +49,10 @@ function BookingPage() {
         <div className="max-w-md text-center space-y-3">
           <div className="font-serif text-2xl">You're booked!</div>
           <p className="text-muted-foreground">
-            {format(new Date(done.startTime), "EEEE, d MMMM 'at' HH:mm")}. A calendar invite is on its way to {email}.
+            {format(new Date(done.startTime), "EEEE, d MMMM 'at' HH:mm")}.{" "}
+            {done.inviteSent
+              ? `A calendar invite is on its way to ${email}.`
+              : `We've saved your booking — the organiser will confirm the calendar invite with you shortly at ${email}.`}
           </p>
         </div>
       </div>
