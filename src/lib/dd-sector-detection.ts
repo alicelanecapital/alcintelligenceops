@@ -202,18 +202,31 @@ Return JSON:
     }
   });
 
-/** Generates AI-powered follow-up questions based on transcript and sector. Runs server-side. */
+/**
+ * Generates AI-powered follow-up questions based on the transcript, grounded in the round's
+ * actual scripted questions so the model can tell which ones went unanswered, were answered
+ * incompletely, or were contradicted by something said elsewhere in the same transcript --
+ * rather than generic "probe deeper" questions. Runs server-side.
+ */
 export const generateFollowUpQuestions = createServerFn({ method: "POST" })
-  .inputValidator((d: { transcript: string; sector: string; round: number }) => d)
+  .inputValidator((d: { transcript: string; sector: string; round: number; scriptedQuestions?: string[] }) => d)
   .handler(async ({ data }): Promise<string[]> => {
-    const prompt = `Based on this founder interview for a ${data.sector} company in round ${data.round},
-generate 3 thoughtful follow-up questions that probe deeper into concerns or unclear areas.
-
+    const scriptSection = data.scriptedQuestions?.length
+      ? `\nQuestions the interviewer was meant to cover this round:\n${data.scriptedQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n`
+      : "";
+    const prompt = `Based on this founder interview for a ${data.sector} company in round ${data.round}, generate up to 3
+follow-up questions the interviewer should still ask. Prioritise, in order:
+1. A scripted question that wasn't actually answered, or was only answered partially/vaguely.
+2. Something the founder said that contradicts something else they said earlier in the same transcript.
+3. A genuinely unclear or concerning area the script didn't anticipate.
+Only return questions grounded in this specific transcript -- skip categories with nothing to raise rather than
+inventing generic ones.
+${scriptSection}
 Transcript: ${data.transcript.substring(0, 3000)}
 
 Return JSON: { "questions": ["question1", "question2", "question3"] }`;
     try {
-      const result = await callAI("You are a due diligence interviewer preparing sharp follow-up questions.", prompt);
+      const result = await callAI("You are a due diligence interviewer preparing sharp, situation-specific follow-up questions.", prompt);
       return Array.isArray(result.questions) ? result.questions : [];
     } catch {
       return [
@@ -257,11 +270,11 @@ Return JSON: { "flags": [{ "text": "...", "severity": "WALK_AWAY"|"PRICE_IT_IN"|
 
 /** Generates a comprehensive AI analysis report for a round. Runs server-side. */
 export const generateAnalysisReport = createServerFn({ method: "POST" })
-  .inputValidator((d: { interviewId: string; transcript: string; sector: string; round: number }) => d)
+  .inputValidator((d: { interviewId: string; transcript: string; sector: string; round: number; scriptedQuestions?: string[] }) => d)
   .handler(async ({ data }) => {
     const [voiceAnalysis, followUpQuestions, redFlags] = await Promise.all([
       analyzeVoiceCharacteristics({ data: { transcript: data.transcript } }),
-      generateFollowUpQuestions({ data: { transcript: data.transcript, sector: data.sector, round: data.round } }),
+      generateFollowUpQuestions({ data: { transcript: data.transcript, sector: data.sector, round: data.round, scriptedQuestions: data.scriptedQuestions } }),
       detectRedFlags({ data: { transcript: data.transcript, documentRedFlags: [], sector: data.sector } }),
     ]);
 

@@ -419,7 +419,8 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           interviewId: interviewRowId,
           transcript,
           sector: sector || 'Unknown',
-          round
+          round,
+          scriptedQuestions: questions.map((q) => q.question),
         }
       });
       setAiAnalysis(analysis);
@@ -893,7 +894,6 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       >
                         🎤 Start Recording
                       </button>
-                      <span className="text-sm text-gray-500">Records the entire round in one go</span>
                     </>
                   )}
                   <button
@@ -937,6 +937,23 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </AccordionItem>
                   ))}
                 </Accordion>
+              </div>
+
+              {/* AI-generated follow-up questions the interviewer didn't ask -- regenerated
+                  every time Analyze Recording runs, so it reflects this round's actual
+                  transcript rather than a fixed list. Flags answers that seemed incomplete or
+                  contradicted something else said, not just generic gaps. */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI Questions</p>
+                {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
+                  aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
+                    <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
+                  ))
+                ) : (
+                  <p className="text-sm text-blue-700">
+                    {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
+                  </p>
+                )}
               </div>
 
               {/* Transcript and upload -- comes after the questions since it's the follow-up
@@ -1071,19 +1088,6 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">No red flags raised for this round.</p>
-                  )}
-                </div>
-
-                {/* AI-generated follow-up questions the interviewer didn't ask -- its own frame,
-                    separate from the AI Assessment above. */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                  <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI Questions</p>
-                  {aiAnalysis.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
-                    aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                      <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
-                    ))
-                  ) : (
-                    <p className="text-sm text-blue-700">No suggested follow-up questions for this round.</p>
                   )}
                 </div>
 
