@@ -102,3 +102,22 @@ export async function deleteFrameworkDocument(id: string) {
 export async function reorderFrameworkDocuments(items: { id: string; sort_order: number }[]) {
   await Promise.all(items.map((it) => supabase.from("dd_framework_documents").update({ sort_order: it.sort_order }).eq("id", it.id)));
 }
+
+/**
+ * Documents required for a round are surfaced one round early, at the end of the
+ * previous round, so the interviewee knows what to bring/prepare ahead of the next
+ * meeting. Round 1 has no earlier round to carry its own documents to, so it shows
+ * its own documents plus round 2's; every later round shows only the next round's.
+ * The last round has no "next round", so it shows nothing here.
+ */
+export async function fetchRoundDocumentsForDisplay(round: number): Promise<FrameworkDocument[]> {
+  const roundsToShow = round === 1 ? [1, 2] : [round + 1];
+  const { data, error } = await supabase
+    .from("dd_framework_documents")
+    .select("*")
+    .in("round", roundsToShow)
+    .order("round")
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []) as FrameworkDocument[];
+}
