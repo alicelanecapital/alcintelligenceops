@@ -87,7 +87,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
   const [gateComment, setGateComment] = useState('');
   const [submittingGateAction, setSubmittingGateAction] = useState(false);
-  const [activeStep, setActiveStep] = useState<'documents' | 'questions' | 'software' | 'verification'>('documents');
+  const [activeStep, setActiveStep] = useState<'documents' | 'questions' | 'software' | 'verification' | 'ai_analysis'>('documents');
+  const [humanAssessment, setHumanAssessment] = useState('');
+  const [savingAssessment, setSavingAssessment] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -154,13 +156,16 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     setTranscript('');
     setAiAnalysis(null);
     setStakeholderBrief(null);
+    setHumanAssessment('');
     // Round 1's stepper leads with Interview Questions (Documents Required moves to near the
     // end there); every later round leads with Document Analysis.
     setActiveStep(round === 1 ? 'questions' : 'documents');
 
     (async () => {
-      // stakeholder_brief is new (20260713000000_accounts_calendar_sync.sql) and not yet in the
-      // generated Supabase types -- cast until types.ts is regenerated post-migration.
+      // stakeholder_brief is new and not yet in the generated Supabase types -- cast until
+      // types.ts is regenerated post-migration. human_assessment is fetched separately below
+      // (not in this primary select) so that an unmigrated database doesn't break loading this
+      // round entirely -- Supabase rejects the whole query if any selected column is unknown.
       const { data: existing, error: findError } = await (supabase.from('dd_interviews') as any)
         .select('id, status, transcript, ai_analysis, detected_sector, sector_confidence, stakeholder_brief')
         .eq('opportunity_id', opportunityId)
@@ -176,6 +181,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           setInterviewRowId(existing.id);
           if (existing.transcript) setTranscript(existing.transcript);
           if (existing.ai_analysis) setAiAnalysis(existing.ai_analysis);
+          (async () => {
+            try {
+              const { data, error } = await (supabase.from('dd_interviews') as any)
+                .select('human_assessment')
+                .eq('id', existing.id)
+                .maybeSingle();
+              if (!error && !cancelled && data?.human_assessment) setHumanAssessment(data.human_assessment);
+            } catch { /* column not migrated yet, ignore */ }
+          })();
           if (existing.detected_sector) {
             setSector(existing.detected_sector);
             setSectorConfidence(existing.sector_confidence ? Math.round(existing.sector_confidence) : 0);
@@ -582,6 +596,21 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     }
   };
 
+  // Human evaluator's own written assessment, captured during Internal Verification and
+  // shown alongside the AI's findings in AI Analysis' "Comparison to Human Assessment".
+  const saveHumanAssessment = async () => {
+    if (!interviewRowId) return;
+    setSavingAssessment(true);
+    try {
+      await supabase.from('dd_interviews').update({ human_assessment: humanAssessment } as any).eq('id', interviewRowId);
+      toast.success('Assessment saved');
+    } catch (error: any) {
+      toast.error('Failed to save assessment: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setSavingAssessment(false);
+    }
+  };
+
   const openDocument = async (doc: any) => {
     try {
       const { url } = await getSignedUrlFn({ data: { storagePath: doc.file_url } });
@@ -630,12 +659,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const questionsStep = { key: 'questions' as const, label: 'Interview Questions' };
   const softwareStep = { key: 'software' as const, label: sectorModule ? `${sectorModule.name} Questions` : 'Sector Questions' };
   const verificationStep = { key: 'verification' as const, label: 'Internal Verification' };
+  const aiAnalysisStep = { key: 'ai_analysis' as const, label: 'AI Analysis' };
   // Round 1's Documents Required merges in round 2's requirements (see requiredDocuments
   // above), so it reads more naturally as a final checklist just before moving on, rather
-  // than as the first thing reviewed.
+  // than as the first thing reviewed. Every round ends with AI Analysis, one step after
+  // Internal Verification, so the AI's findings can be compared against what the human
+  // evaluator entered there.
   const SUB_STEPS: { key: typeof activeStep; label: string }[] = isFirstRound
-    ? [questionsStep, softwareStep, documentsStep, verificationStep]
-    : [documentsStep, questionsStep, softwareStep, verificationStep];
+    ? [questionsStep, softwareStep, documentsStep, verificationStep, aiAnalysisStep]
+    : [documentsStep, questionsStep, softwareStep, verificationStep, aiAnalysisStep];
   const isLastStep = SUB_STEPS[SUB_STEPS.length - 1].key === activeStep;
 
   if (framework.isLoading || !roundData) {
@@ -697,13 +729,13 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       disabled={syncingDocs}
                       className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
                     >
-                      {syncingDocs ? 'Checking…' : 'Check for new documents'}
+                      {syncingDocs ? 'Checking…' : 'Check for New Documents'}
                     </button>
                   )}
                 </div>
                 {uploadChannel ? (
                   <div className="flex items-center gap-2 flex-wrap mb-3">
-                    <span className="text-xs text-blue-700">Sent to:</span>
+                    <span className="text-xs text-blue-700">Sent To:</span>
                     <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
                     <button
                       type="button"
@@ -740,7 +772,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
                 {receivedDocs.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-blue-900">All files received:</p>
+                    <p className="text-xs font-semibold text-blue-900">All Files Received:</p>
                     {receivedDocs.map((doc) => (
                       <button
                         key={doc.id}
@@ -768,7 +800,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     disabled={!interviewRowId || generatingAnomalyQuestions}
                     className="px-3 py-1.5 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 disabled:opacity-50"
                   >
-                    {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-check documents'}
+                    {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-Check Documents'}
                   </button>
                 </div>
                 <p className="text-xs text-amber-700 mb-3">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
@@ -835,9 +867,11 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
           {activeStep === 'questions' && (
             <>
-              {/* One recording for the whole round -- we don't record and stop per question. */}
+              {/* One recording for the whole round -- we don't record and stop per question.
+                  Analyze Recording lives here too, right next to Start/End Recording, and only
+                  activates once a recording has actually stopped and produced a transcript. */}
               <div className="p-4 bg-gray-100 rounded-lg">
-                <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round recording ({questions.length} questions)</p>
+                <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round Recording ({questions.length} Questions)</p>
                 <div className="flex items-center gap-4">
                   {isRecording ? (
                     <>
@@ -862,13 +896,20 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       <span className="text-sm text-gray-500">Records the entire round in one go</span>
                     </>
                   )}
+                  <button
+                    onClick={generateAnalysis}
+                    disabled={!interviewRowId || !transcript || analyzing || isRecording}
+                    className="ml-auto px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {analyzing ? 'Analysing…' : 'Analyze Recording'}
+                  </button>
                 </div>
               </div>
 
               {/* All questions for this round, collapsed by default -- reference material to
                   guide the single recording above, not separate per-question recordings. */}
               <div>
-                <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to cover this round</p>
+                <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
                 <Accordion type="multiple" className="rounded-lg border border-gray-200 bg-gray-50 px-3">
                   {questions.map((q, idx) => (
                     <AccordionItem key={idx} value={String(idx)}>
@@ -879,13 +920,13 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                         <div className="space-y-3 text-sm">
                           {q.why && (
                             <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-                              <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why this matters:</p>
+                              <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why This Matters:</p>
                               <p className="text-xs text-blue-800">{q.why}</p>
                             </div>
                           )}
                           {q.redFlags.length > 0 && (
                             <div>
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Red flags to watch for:</p>
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Red Flags to Watch For:</p>
                               <ul className="text-xs text-gray-600 space-y-0.5">
                                 {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
                               </ul>
@@ -898,8 +939,8 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 </Accordion>
               </div>
 
-              {/* Transcript, upload, and analysis -- comes after the questions since it's the
-                  follow-up step once the round recording is done. */}
+              {/* Transcript and upload -- comes after the questions since it's the follow-up
+                  step once the round recording is done. */}
               <div className="p-4 bg-gray-100 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
@@ -908,7 +949,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     disabled={uploadingTranscript}
                     className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
                   >
-                    {uploadingTranscript ? 'Reading…' : '📄 Upload transcript'}
+                    {uploadingTranscript ? 'Reading…' : '📄 Upload Transcript'}
                   </button>
                   <input
                     ref={transcriptFileInputRef}
@@ -921,19 +962,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
                 {transcript && (
                   <div className="p-3 bg-white rounded border border-gray-300 max-h-64 overflow-y-auto space-y-1">
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (auto-updating):</p>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (Auto-Updating):</p>
                     {renderSpeakerColoredTranscript(transcript)}
                   </div>
                 )}
-                <div className="flex justify-end mt-4">
-                  <button
-                    onClick={generateAnalysis}
-                    disabled={!interviewRowId || !transcript || analyzing}
-                    className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {analyzing ? 'Analysing…' : 'Analyze recording'}
-                  </button>
-                </div>
               </div>
             </>
           )}
@@ -961,7 +993,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           {activeStep === 'verification' && (
             <>
               <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist:</p>
+                <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist</p>
                 <div className="space-y-2">
                   {questions.slice(0, 4).map((q, idx) => (
                     <label key={idx} className="flex items-center gap-3 cursor-pointer">
@@ -972,57 +1004,30 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 </div>
               </div>
 
-              {aiAnalysis && (
-                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-bold mb-4">📊 AI Analysis Results</h3>
-
-                  {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags:</p>
-                      {aiAnalysis.redFlags.map((flag: any, idx: number) => (
-                        <div key={idx} className="mb-2 text-sm">
-                          <span className={`font-semibold ${
-                            flag.severity === 'WALK_AWAY' ? 'text-red-700' :
-                            flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
-                            'text-yellow-700'
-                          }`}>
-                            {flag.severity}:
-                          </span>
-                          <span className="text-red-800 ml-2">{flag.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {aiAnalysis.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 && (
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-                      <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI-Generated Follow-up Questions:</p>
-                      {aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                        <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {aiAnalysis.voiceAnalysis && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                      <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Analysis:</p>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
-                          <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
-                        </div>
-                        <div>
-                          <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> markers</p>
-                          <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              {/* Human evaluator's own written assessment -- compared against the AI's findings
+                  in the AI Analysis step that follows. */}
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm font-semibold text-gray-900 mb-3">🧑‍⚖️ Human Evaluator Assessment</p>
+                <textarea
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2"
+                  rows={4}
+                  placeholder="Write your own assessment of this round…"
+                  value={humanAssessment}
+                  onChange={(e) => setHumanAssessment(e.target.value)}
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={saveHumanAssessment}
+                    disabled={!interviewRowId || savingAssessment}
+                    className="px-4 py-1.5 bg-gray-700 text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    {savingAssessment ? 'Saving…' : 'Save Assessment'}
+                  </button>
                 </div>
-              )}
+              </div>
 
               <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle:</p>
+                <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle</p>
                 <div className="grid grid-cols-3 gap-4">
                   {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
                     <div key={idx} className="text-center">
@@ -1037,10 +1042,90 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   ))}
                 </div>
                 <p className="text-xs text-orange-700 mt-3 text-center">
-                  ✅ Every claim requires validation from all 3 sources
+                  ✅ Every Claim Requires Validation From All 3 Sources
                 </p>
               </div>
             </>
+          )}
+
+          {activeStep === 'ai_analysis' && (
+            aiAnalysis ? (
+              <>
+                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-bold mb-4">📊 AI Assessment</h3>
+                  {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded">
+                      <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                      {aiAnalysis.redFlags.map((flag: any, idx: number) => (
+                        <div key={idx} className="mb-2 text-sm">
+                          <span className={`font-semibold ${
+                            flag.severity === 'WALK_AWAY' ? 'text-red-700' :
+                            flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
+                            'text-yellow-700'
+                          }`}>
+                            {flag.severity}:
+                          </span>
+                          <span className="text-red-800 ml-2">{flag.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No red flags raised for this round.</p>
+                  )}
+                </div>
+
+                {/* AI-generated follow-up questions the interviewer didn't ask -- its own frame,
+                    separate from the AI Assessment above. */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI Questions</p>
+                  {aiAnalysis.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
+                    aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
+                      <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
+                    ))
+                  ) : (
+                    <p className="text-sm text-blue-700">No suggested follow-up questions for this round.</p>
+                  )}
+                </div>
+
+                {aiAnalysis.voiceAnalysis && (
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+                    <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Assessment</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
+                        <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
+                      </div>
+                      <div>
+                        <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> Markers</p>
+                        <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sets the AI's own findings next to what the human evaluator wrote in
+                    Internal Verification, so the two can be weighed against each other. */}
+                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded">
+                  <p className="text-sm font-semibold text-indigo-900 mb-3">⚖️ Comparison to Human Assessment</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="bg-white rounded border border-indigo-200 p-3">
+                      <p className="text-xs font-semibold text-indigo-900 mb-1">AI Assessment</p>
+                      <p className="text-xs text-gray-700">
+                        {aiAnalysis.redFlags?.length
+                          ? `${aiAnalysis.redFlags.length} red flag${aiAnalysis.redFlags.length === 1 ? '' : 's'} raised: ${aiAnalysis.redFlags.map((f: any) => f.severity).join(', ')}.`
+                          : 'No red flags raised.'}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded border border-indigo-200 p-3">
+                      <p className="text-xs font-semibold text-indigo-900 mb-1">Human Assessment</p>
+                      <p className="text-xs text-gray-700">{humanAssessment || 'Not yet entered — add one in Internal Verification.'}</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No AI analysis yet — analyze this round's recording from the Interview Questions step first.</p>
+            )
           )}
         </div>
       </div>
@@ -1052,12 +1137,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
         {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
           <div className="p-4 bg-red-100 border border-red-300 rounded">
-            <p className="text-red-900 font-semibold">⛔ Cannot proceed to next round</p>
+            <p className="text-red-900 font-semibold">⛔ Cannot Proceed to Next Round</p>
             <p className="text-red-800 text-sm mt-2">Walk Away flags must be resolved before continuing due diligence.</p>
           </div>
         ) : (
           <div className="p-4 bg-green-100 border border-green-300 rounded">
-            <p className="text-green-900 font-semibold">✅ Clear to proceed to next round</p>
+            <p className="text-green-900 font-semibold">✅ Clear to Proceed to Next Round</p>
             <button
               onClick={handleAdvance}
               disabled={!interviewRowId || advancing}
@@ -1073,7 +1158,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         {gateAction ? (
           <div className={`mt-4 p-4 rounded border ${gateAction === 'terminate' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'}`}>
             <p className="text-sm font-semibold text-gray-900 mb-2">
-              {gateAction === 'terminate' ? 'Terminate this deal' : 'Do not proceed to the next round'}
+              {gateAction === 'terminate' ? 'Terminate This Deal' : 'Do Not Proceed to the Next Round'}
             </p>
             <textarea
               className="w-full text-sm border border-gray-300 rounded px-2 py-1.5"
@@ -1094,7 +1179,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 disabled={!gateComment.trim() || submittingGateAction}
                 className={`px-4 py-1.5 text-sm text-white rounded disabled:opacity-50 ${gateAction === 'terminate' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-800'}`}
               >
-                {submittingGateAction ? 'Saving…' : gateAction === 'terminate' ? 'Confirm termination' : 'Confirm hold'}
+                {submittingGateAction ? 'Saving…' : gateAction === 'terminate' ? 'Confirm Termination' : 'Confirm Hold'}
               </button>
             </div>
           </div>
@@ -1105,14 +1190,14 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               disabled={!interviewRowId}
               className="text-sm text-gray-600 hover:text-gray-900 underline disabled:opacity-50"
             >
-              Do not proceed to next round
+              Do Not Proceed to Next Round
             </button>
             <button
               onClick={() => setGateAction('terminate')}
               disabled={!interviewRowId}
               className="text-sm text-red-600 hover:text-red-800 underline disabled:opacity-50"
             >
-              Terminate deal
+              Terminate Deal
             </button>
           </div>
         )}

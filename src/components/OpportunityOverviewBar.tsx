@@ -86,7 +86,7 @@ export function OpportunityOverviewBar({
         )}
       </div>
       <div className="p-3 bg-indigo-50 border border-indigo-200 rounded h-full">
-        <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Pre-interview stakeholder brief</p>
+        <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Pre-Interview Stakeholder Brief</p>
         {stakeholderBrief ? (
           <div className="space-y-2">
             {stakeholderBrief.relationship_history && (
@@ -118,7 +118,7 @@ export function OpportunityOverviewBar({
       <div className="p-3 bg-amber-50 border border-amber-200 rounded h-full">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="h-3.5 w-3.5 text-amber-700" />
-          <span className="text-sm font-semibold text-amber-900">AI overview</span>
+          <span className="text-sm font-semibold text-amber-900">AI Overview</span>
           {overview?.rounds_covered && overview.rounds_covered.length > 0 && (
             <span className="text-xs text-amber-700">Rounds {overview.rounds_covered.join(", ")}</span>
           )}
@@ -153,13 +153,13 @@ export function OpportunityOverviewBar({
       <div className="p-3 bg-cyan-50 border border-cyan-200 rounded h-full">
         <div className="flex items-center gap-2 mb-1">
           <BrainCircuit className="h-3.5 w-3.5 text-cyan-700" />
-          <span className="text-sm font-semibold text-cyan-900">DISC personality profile</span>
+          <span className="text-sm font-semibold text-cyan-900">DISC Personality Profile</span>
         </div>
         {discProfile ? (
           <div className="space-y-2">
             {discProfile.primary_style && (
               <div className="text-sm text-cyan-900">
-                Primary style: <span className="font-medium">{discProfile.primary_style}</span>
+                Primary Style: <span className="font-medium">{discProfile.primary_style}</span>
                 {discProfile.secondary_style ? ` · Secondary: ${discProfile.secondary_style}` : ""}
               </div>
             )}
