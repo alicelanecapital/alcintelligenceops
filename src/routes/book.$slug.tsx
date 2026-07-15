@@ -21,7 +21,7 @@ function BookingPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-  const [done, setDone] = useState<{ startTime: string } | null>(null);
+  const [done, setDone] = useState<{ startTime: string; inviteSent?: boolean } | null>(null);
 
   const bookMut = useMutation({
     mutationFn: () => bookFn({ data: { slug, startTime: selected!, clientName: name, clientEmail: email, notes: notes || undefined } }),
