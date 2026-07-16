@@ -25,13 +25,18 @@ function InterviewWorkspace() {
   const interview = useQuery({ queryKey: ["iv", id], queryFn: () => getInterview(id) });
   const report = useQuery({ queryKey: ["iv-report", id], queryFn: () => getReport(id) });
 
-  if (interview.isLoading) return <div className="p-10 text-muted-foreground">Loading…</div>;
-  if (!interview.data) return <div className="p-10">Not found. <Link to="/interviews" className="underline">Back</Link></div>;
-
+  // Hooks must run unconditionally on every render -- these used to sit after the loading/
+  // not-found early returns below, so the very first render (while data is still loading)
+  // called two fewer hooks than every render after, which React rejects with "Rendered more
+  // hooks than during the previous render." Computing defaultTab defensively (iv may not
+  // exist yet) lets these run before any early return.
   const iv = interview.data;
-  const defaultTab = iv.status === "completed" ? "report" : (iv.status === "live" ? "live" : "brief");
+  const defaultTab = iv ? (iv.status === "completed" ? "report" : (iv.status === "live" ? "live" : "brief")) : "brief";
   const [tab, setTab] = useState(defaultTab);
   useEffect(() => { setTab(defaultTab); }, [defaultTab]);
+
+  if (interview.isLoading) return <div className="p-10 text-muted-foreground">Loading…</div>;
+  if (!iv) return <div className="p-10">Not found. <Link to="/interviews" className="underline">Back</Link></div>;
 
   return (
     <div className="min-h-screen">

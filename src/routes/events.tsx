@@ -13,14 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus, CheckCircle2 } from "lucide-react";
+import { Sparkles, Edit2, Trash2, Plus, ExternalLink, UserPlus, CheckCircle2, Search } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddContactDialog } from "@/routes/contacts.index";
 import { useAuth } from "@/lib/auth";
-import { checkEventBookedInCalendar } from "@/lib/calendar-sync.functions";
-import { format } from "date-fns";
+import { format, addYears } from "date-fns";
 
 export const Route = createFileRoute("/events")({ component: () => <AppShell><Events /></AppShell> });
 
@@ -43,6 +42,7 @@ function Events() {
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [region, setRegion] = useState<"SA" | "Global">("SA");
+  const [search, setSearch] = useState("");
   const [captureEventId, setCaptureEventId] = useState<string | null>(null);
   const [showAddContact, setShowAddContact] = useState(false);
   const handleCapture = (event: any) => { setCaptureEventId(event.id); setShowAddContact(true); };
@@ -59,18 +59,6 @@ function Events() {
       toast.success("Booking status updated");
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to update booking status"),
-  });
-
-  const checkCalendarFn = useServerFn(checkEventBookedInCalendar);
-  const checkCalendarMut = useMutation({
-    mutationFn: (event: any) => checkCalendarFn({ data: { eventId: event.id, eventName: event.name, startDate: event.start_date, endDate: event.end_date } }),
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["events"] });
-      if (result.booked) toast.success(`Found "${result.matchedTitle}" on your calendar — marked booked`);
-      else if (result.reason === "not_connected") toast.error("Connect your Google account on the Calendar page first");
-      else toast("No matching calendar event found yet");
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed to check calendar"),
   });
 
   const discover = useServerFn(discoverEvents);
@@ -188,10 +176,32 @@ function Events() {
   }, [q.data]);
 
   const futureEvents = useMemo(() => {
-    const all = (q.data ?? []).filter((e: any) => new Date(e.end_date || e.start_date) >= new Date());
-    if (statusFilter === "all") return all;
-    return all.filter((e: any) => e.status === statusFilter);
-  }, [q.data, statusFilter]);
+    let all = (q.data ?? []).filter((e: any) => new Date(e.end_date || e.start_date) >= new Date());
+
+    // Duplicates crop up from repeated discovery runs turning up the same conference --
+    // collapse to one row per name + start date, keeping the first (oldest) occurrence.
+    const seen = new Set<string>();
+    all = all.filter((e: any) => {
+      const key = `${(e.name ?? "").trim().toLowerCase()}|${e.start_date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (statusFilter !== "all") all = all.filter((e: any) => e.status === statusFilter);
+
+    if (search.trim()) {
+      const needle = search.trim().toLowerCase();
+      all = all.filter((e: any) =>
+        (e.name ?? "").toLowerCase().includes(needle) ||
+        (e.city ?? "").toLowerCase().includes(needle) ||
+        (e.country ?? "").toLowerCase().includes(needle) ||
+        (e.description ?? "").toLowerCase().includes(needle)
+      );
+    }
+
+    return all;
+  }, [q.data, statusFilter, search]);
 
   const saEvents = futureEvents.filter((e: any) => e.region === "SA" || (!e.region && e.country?.toLowerCase().includes("south africa")));
   const globalEvents = futureEvents.filter((e: any) => e.region === "Global" || (!e.region && !e.country?.toLowerCase().includes("south africa")));
@@ -238,6 +248,18 @@ function Events() {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex-1 max-w-sm">
+            <label className="text-sm font-medium block mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search events by name, city, country…"
+                className="pl-8"
+              />
+            </div>
+          </div>
         </div>
 
         <Tabs value={region} onValueChange={(v) => setRegion(v as "SA" | "Global")}>
@@ -254,7 +276,6 @@ function Events() {
                 onDelete={(id) => deleteMut.mutate(id)}
                 onCapture={handleCapture}
                 onToggleBooked={(e) => bookMut.mutate(e)}
-                onCheckCalendar={(e) => checkCalendarMut.mutate(e)}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
               />
@@ -269,7 +290,6 @@ function Events() {
                 onDelete={(id) => deleteMut.mutate(id)}
                 onCapture={handleCapture}
                 onToggleBooked={(e) => bookMut.mutate(e)}
-                onCheckCalendar={(e) => checkCalendarMut.mutate(e)}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
               />
@@ -382,7 +402,6 @@ interface EventsByMonthProps {
   onDelete: (id: string) => void;
   onCapture: (event: any) => void;
   onToggleBooked: (event: any) => void;
-  onCheckCalendar: (event: any) => void;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
 }
@@ -406,7 +425,7 @@ function EventsByMonth({ events, ...rowProps }: EventsByMonthProps) {
         <AccordionItem key={g.key} value={g.key}>
           <AccordionTrigger className="text-sm">
             <span className="flex items-center gap-2">
-              <span className="font-serif text-base">{g.label}</span>
+              <span className="text-sm font-semibold">{g.label}</span>
               <Badge variant="outline" className="text-[10px]">{g.events.length}</Badge>
             </span>
           </AccordionTrigger>
@@ -421,11 +440,18 @@ function EventsByMonth({ events, ...rowProps }: EventsByMonthProps) {
   );
 }
 
-function EventRow({ e, onEdit, onDelete, onCapture, onToggleBooked, onCheckCalendar, formatCurrency, formatDate }: {
+function EventRow({ e, onEdit, onDelete, onCapture, onToggleBooked, formatCurrency, formatDate }: {
   e: any;
 } & Omit<EventsByMonthProps, "events">) {
+  // Events happening within the next year get a soft peach highlight so the nearer-term
+  // ones stand out from the rest of the list at a glance.
+  const withinNextYear = (() => {
+    const d = new Date(e.start_date || e.end_date);
+    return d <= addYears(new Date(), 1);
+  })();
+
   return (
-    <div className="rounded-md border border-border p-4 flex flex-wrap items-start justify-between gap-4">
+    <div className={`rounded-md border border-border p-4 flex flex-wrap items-start justify-between gap-4 ${withinNextYear ? "bg-orange-50/60" : ""}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           {e.is_new && <span className="text-lg" title="Newly discovered">⭐</span>}
@@ -458,23 +484,15 @@ function EventRow({ e, onEdit, onDelete, onCapture, onToggleBooked, onCheckCalen
 
       <div className="flex items-start gap-2 shrink-0">
         <div className="flex flex-col gap-1.5">
-          {e.website && (
+          {e.website && !e.booked && (
             <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => window.open(e.website, '_blank')}>
               <ExternalLink className="h-3 w-3 mr-1" /> Book
             </Button>
           )}
-          <Button size="sm" variant="outline" className="h-8 text-xs" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
+          <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
             <UserPlus className="h-3 w-3 mr-1" /> Add contact
           </Button>
         </div>
-
-        {!e.booked && (
-          <div className="flex flex-col gap-1.5">
-            <Button size="sm" variant="outline" className="h-8 text-xs" title="Check your connected Google Calendar for a matching event" onClick={() => onCheckCalendar(e)}>
-              Check calendar
-            </Button>
-          </div>
-        )}
 
         <div className="flex flex-col gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(e)}>

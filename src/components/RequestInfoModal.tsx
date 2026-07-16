@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DD_CHECKLIST_DEFAULT, buildDefaultRequestEmail } from "@/lib/dd-checklist";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Copy, Mail } from "lucide-react";
+import { Copy, Mail, ArrowRight } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -16,9 +16,13 @@ interface Props {
   contactId: string;
   contactName: string;
   contactEmail: string | null;
+  /** Moved here from the contact page's main action row -- creating an opportunity is a
+   * natural next step right after requesting information, not a separate top-level action. */
+  onCreateOpportunity?: () => void;
+  creatingOpportunity?: boolean;
 }
 
-export function RequestInfoModal({ open, onClose, contactId, contactName, contactEmail }: Props) {
+export function RequestInfoModal({ open, onClose, contactId, contactName, contactEmail, onCreateOpportunity, creatingOpportunity }: Props) {
   const initial = buildDefaultRequestEmail(contactName);
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
@@ -90,6 +94,11 @@ export function RequestInfoModal({ open, onClose, contactId, contactName, contac
         </div>
         <DialogFooter className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
+          {onCreateOpportunity && (
+            <Button variant="outline" onClick={onCreateOpportunity} disabled={creatingOpportunity}>
+              <ArrowRight className="h-4 w-4 mr-1" /> {creatingOpportunity ? "Creating…" : "Create Opportunity"}
+            </Button>
+          )}
           <Button variant="outline" onClick={saveDraft}>Save draft</Button>
           <Button variant="outline" onClick={copy}><Copy className="h-4 w-4 mr-1" /> Copy</Button>
           <Button onClick={openMail} disabled={!contactEmail}>

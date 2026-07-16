@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
-import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User } from "lucide-react";
+import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -130,21 +130,18 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
 
         actions={
-          <div className="flex gap-2 flex-wrap">
-            <Button size="lg" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
-              <Mic className="h-4 w-4 mr-1" /> {meetMut.isPending ? "Starting…" : "Meet"}
+          <div className="flex gap-1.5 flex-wrap">
+            <Button size="sm" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> {meetMut.isPending ? "Starting…" : "Meet"}
             </Button>
-            <Button variant="outline" onClick={() => oppMut.mutate()} disabled={oppMut.isPending}>
-              <ArrowRight className="h-4 w-4 mr-1" /> Create Opportunity
+            <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
+              <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
             </Button>
-            <Button variant="outline" onClick={() => setRequestOpen(true)}>
-              <FileText className="h-4 w-4 mr-1" /> Request Information
+            <Button size="sm" variant="outline" title="Edit every field on this record, including notes" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
             </Button>
-            <Button variant="outline" title="Edit every field on this record, including notes" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4 mr-1" /> Edit
-            </Button>
-            <Button variant="outline" className="text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
             </Button>
           </div>
         }
@@ -256,7 +253,15 @@ function ContactProfile() {
       </div>
 
       <EditContactDialog open={editOpen} onClose={() => setEditOpen(false)} contact={c} />
-      <RequestInfoModal open={requestOpen} onClose={() => setRequestOpen(false)} contactId={id} contactName={c.name} contactEmail={c.email} />
+      <RequestInfoModal
+        open={requestOpen}
+        onClose={() => setRequestOpen(false)}
+        contactId={id}
+        contactName={c.name}
+        contactEmail={c.email}
+        onCreateOpportunity={() => oppMut.mutate()}
+        creatingOpportunity={oppMut.isPending}
+      />
       <ConfirmDeleteDialog
         open={confirmDeleteOpen}
         onClose={() => setConfirmDeleteOpen(false)}

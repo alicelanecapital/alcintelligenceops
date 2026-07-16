@@ -209,6 +209,49 @@ export async function fetchOpportunitiesWithDDStatus() {
   });
 }
 
+export async function fetchPipelineTasks() {
+  const opps = await fetchOpportunitiesWithDDStatus();
+  const active = opps.filter((o: any) => !o.archived);
+
+  const tasks: { id: string; label: string; type: "prepare" | "awaiting" }[] = [];
+  for (const opp of active) {
+    const name = opp.founder?.name ?? opp.name;
+    const round = opp.dd_current_round;
+    if (!round) {
+      tasks.push({ id: `prepare-${opp.id}`, label: `Prepare Round 1 interview — ${name}`, type: "prepare" });
+    } else if (round < 5) {
+      tasks.push({ id: `prepare-${opp.id}`, label: `Prepare Round ${round + 1} interview — ${name}`, type: "prepare" });
+    }
+  }
+
+  // Pending document requests are keyed off the interview they were requested during --
+  // match back to the opportunity/founder name via the interview list already loaded above.
+  try {
+    const { data: pendingDocs, error } = await supabase
+      .from("document_requests")
+      .select("id, doc_type, interview_id")
+      .eq("status", "pending");
+    if (error) throw error;
+    if (pendingDocs?.length) {
+      const { data: interviews } = await supabase.from("dd_interviews").select("id, opportunity_id");
+      const oppIdByInterview = new Map((interviews ?? []).map((iv: any) => [iv.id, iv.opportunity_id]));
+      const oppById = new Map(active.map((o: any) => [o.id, o]));
+      for (const doc of pendingDocs) {
+        const oppId = oppIdByInterview.get(doc.interview_id);
+        const opp = oppId ? oppById.get(oppId) : null;
+        if (opp) {
+          const name = opp.founder?.name ?? opp.name;
+          tasks.push({ id: `awaiting-${doc.id}`, label: `Awaiting ${doc.doc_type} from ${name}`, type: "awaiting" });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load pending document requests for pipeline tasks:", error);
+  }
+
+  return tasks;
+}
+
 export async function updateFounderAssessment(id: string, payload: {
   truthfulness_score?: number | null;
   commercial_instinct_score?: number | null;

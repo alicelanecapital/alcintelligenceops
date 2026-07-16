@@ -31,6 +31,15 @@ const SECTOR_LABELS: Record<string, string> = {
   E: "Manufacturing",
 };
 
+// Distinct colour per round so the pipeline is scannable at a glance across cards.
+const ROUND_COLORS: Record<number, string> = {
+  1: "bg-blue-100 text-blue-700 border-blue-200",
+  2: "bg-purple-100 text-purple-700 border-purple-200",
+  3: "bg-amber-100 text-amber-700 border-amber-200",
+  4: "bg-teal-100 text-teal-700 border-teal-200",
+  5: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
 function DDEngine() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunitiesWithDDStatus });
@@ -105,9 +114,7 @@ function DDEngine() {
                     </div>
                     <div className="min-w-0">
                       <div className="font-serif text-lg leading-tight truncate">{opp.founder?.name ?? opp.name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {opp.company?.name ?? "—"} · {currentRound ? `Round ${currentRound} of 5` : "Not started"}
-                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 truncate">{opp.company?.name ?? "—"}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -146,14 +153,15 @@ function DDEngine() {
                     </AlertDialog>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  className="w-full mt-4 bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={() => handleBegin(opp.id, currentRound ?? undefined)}
-                >
-                  <Play className="h-3 w-3 mr-1" />
-                  {currentRound ? `Resume round ${currentRound}` : "Begin"}
-                </Button>
+                <div className="flex items-center justify-between mt-4">
+                  <Badge variant="outline" className={`text-[11px] font-medium ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
+                    {currentRound ? `Round ${currentRound} of 5` : "Not started"}
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
+                    <Play className="h-3 w-3 mr-1" />
+                    {currentRound ? "Resume" : "Begin"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );

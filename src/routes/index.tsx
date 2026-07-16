@@ -3,9 +3,10 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader, KpiStrip } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDeals, fetchOrgs, fetchFounders, fetchContacts, fetchEvents, DEAL_STAGES } from "@/lib/db";
+import { fetchPipelineTasks } from "@/lib/founders-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Clock, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
 export const Route = createFileRoute("/")({ component: () => <AppShell><Dashboard /></AppShell> });
@@ -19,6 +20,7 @@ function Dashboard() {
   const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders });
   const contacts = useQuery({ queryKey: ["contacts"], queryFn: fetchContacts });
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
+  const pipelineTasks = useQuery({ queryKey: ["pipeline-tasks"], queryFn: fetchPipelineTasks });
 
   const active = (deals.data ?? []).filter((d: any) => !["Funded","Portfolio","Passed"].includes(d.stage)).length;
   const highFit = (ecos.data ?? []).filter((o) => (o.fit_rating ?? "").toLowerCase().startsWith("high")).length;
@@ -36,7 +38,7 @@ function Dashboard() {
       <PageHeader
         eyebrow="Dashboard"
         title="Good morning."
-        description="A live snapshot of the Alice Lane origination engine — pipeline health, priority ecosystem plays and founders worth a call today."
+        description="A live snapshot of the Alice Lane origination engine — pipeline health, outstanding pipeline tasks and founders worth a call today."
       />
       <KpiStrip items={[
         { label: "Active deals", value: active, hint: `${deals.data?.length ?? 0} total` },
@@ -60,17 +62,20 @@ function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="font-serif text-2xl">Priority ecosystem plays</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-serif text-2xl">Pipeline tasks</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {(ecos.data ?? []).filter(o => (o.fit_rating ?? "").toLowerCase().startsWith("high")).slice(0,6).map(o => (
-              <div key={o.id} className="border-b border-border last:border-0 pb-3 last:pb-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-medium text-sm">{o.name}</div>
-                  <Badge className="bg-primary text-primary-foreground hover:bg-primary">{o.fit_rating}</Badge>
+            {(pipelineTasks.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No outstanding pipeline tasks — nice work.</p>
+            ) : (
+              pipelineTasks.data!.slice(0, 8).map((t) => (
+                <div key={t.id} className="flex items-start gap-2 border-b border-border last:border-0 pb-3 last:pb-0">
+                  {t.type === "awaiting"
+                    ? <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                    : <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+                  <div className="text-sm">{t.label}</div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">{o.category}</div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
