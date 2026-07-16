@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, CalendarDays, CheckSquare, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut, UserCog } from "lucide-react";
+import { LayoutDashboard, Calendar, CalendarDays, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -17,7 +17,6 @@ const navGroups = [
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/contacts", label: "Contacts", icon: Users },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
-      { to: "/tasks", label: "Tasks", icon: CheckSquare },
     ],
   },
   {

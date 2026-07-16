@@ -55,6 +55,33 @@ export async function updateFrameworkRound(round: number, payload: Partial<Frame
   if (error) throw error;
 }
 
+/** Appends a new round after the current last one (rounds are a plain incrementing integer,
+ * not reorderable, so a new round always lands at the end). */
+export async function createFrameworkRound(): Promise<FrameworkRound> {
+  const { data: existing, error: fetchError } = await supabase
+    .from("dd_framework_rounds")
+    .select("round")
+    .order("round", { ascending: false })
+    .limit(1);
+  if (fetchError) throw fetchError;
+  const nextRound = ((existing?.[0] as any)?.round ?? 0) + 1;
+
+  const { data, error } = await supabase
+    .from("dd_framework_rounds")
+    .insert({ round: nextRound, title: `Round ${nextRound}`, subtitle: "", purpose: "", duration: "" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as FrameworkRound;
+}
+
+/** Deletes a round -- its questions and documents cascade automatically (they reference
+ * dd_framework_rounds.round with on delete cascade). */
+export async function deleteFrameworkRound(round: number) {
+  const { error } = await supabase.from("dd_framework_rounds").delete().eq("round", round);
+  if (error) throw error;
+}
+
 export async function createFrameworkQuestion(round: number, sortOrder: number) {
   const { data, error } = await supabase
     .from("dd_framework_questions")

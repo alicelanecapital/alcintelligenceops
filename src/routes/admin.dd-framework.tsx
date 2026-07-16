@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAllFrameworkRounds, fetchFrameworkRoundDetail, updateFrameworkRound,
+  createFrameworkRound, deleteFrameworkRound,
   createFrameworkQuestion, updateFrameworkQuestion, deleteFrameworkQuestion, reorderFrameworkQuestions,
   createFrameworkDocument, updateFrameworkDocument, deleteFrameworkDocument, reorderFrameworkDocuments,
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
@@ -14,6 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Plus, Trash2, ChevronUp, ChevronDown, Save } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -41,6 +46,27 @@ function DDFrameworkAdmin() {
     qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
   };
 
+  const addRoundMut = useMutation({
+    mutationFn: () => createFrameworkRound(),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+      setRound(created.round);
+      toast.success(`Round ${created.round} added`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to add round"),
+  });
+
+  const deleteRoundMut = useMutation({
+    mutationFn: (r: number) => deleteFrameworkRound(r),
+    onSuccess: (_data, deletedRound) => {
+      qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+      const remaining = (rounds.data ?? []).map((r) => r.round).filter((r) => r !== deletedRound);
+      if (remaining.length) setRound(remaining[0]);
+      toast.success(`Round ${deletedRound} deleted`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete round"),
+  });
+
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
       <PageHeader
@@ -50,12 +76,42 @@ function DDFrameworkAdmin() {
       />
 
       <div className="grid grid-cols-[220px_1fr] gap-6 items-start">
-        <aside className="sticky top-4 shrink-0">
+        <aside className="sticky top-4 shrink-0 space-y-3">
           <RoundStepper
             rounds={(rounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
             current={round}
             onSelect={setRound}
           />
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() => addRoundMut.mutate()}
+            disabled={addRoundMut.isPending}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
+          </Button>
+          {(rounds.data?.length ?? 0) > 1 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" className="w-full text-destructive hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete This Round
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Round {round}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes Round {round}'s questions and required documents. This can't be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteRoundMut.mutate(round)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </aside>
 
         <div className="min-w-0">
@@ -74,17 +130,16 @@ function DDFrameworkAdmin() {
 
 function RoundMetaCard({ round, onSaved }: { round: { round: number; title: string; subtitle: string | null; purpose: string | null; duration: string | null }; onSaved: () => void }) {
   const [title, setTitle] = useState(round.title);
+  const [subtitle, setSubtitle] = useState(round.subtitle ?? "");
   const [purpose, setPurpose] = useState(round.purpose ?? "");
   const [duration, setDuration] = useState(round.duration ?? "");
 
   useEffect(() => {
-    setTitle(round.title); setPurpose(round.purpose ?? ""); setDuration(round.duration ?? "");
+    setTitle(round.title); setSubtitle(round.subtitle ?? ""); setPurpose(round.purpose ?? ""); setDuration(round.duration ?? "");
   }, [round]);
 
   const m = useMutation({
-    // Subtitle isn't edited here anymore, but keep it unchanged rather than dropping it --
-    // RoundStepper still displays it in the left rail.
-    mutationFn: () => updateFrameworkRound(round.round, { title, subtitle: round.subtitle ?? "", purpose, duration }),
+    mutationFn: () => updateFrameworkRound(round.round, { title, subtitle, purpose, duration }),
     onSuccess: () => { toast.success("Round details saved"); onSaved(); },
     onError: (e: any) => toast.error(e.message ?? "Failed to save"),
   });
@@ -102,6 +157,10 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
             <Label className="text-sm">Duration</Label>
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1" />
           </div>
+        </div>
+        <div>
+          <Label className="text-sm">Subtitle</Label>
+          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
         </div>
         <div>
           <Label className="text-sm">Purpose</Label>

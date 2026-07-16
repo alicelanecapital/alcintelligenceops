@@ -37,7 +37,9 @@ async function fetchCompletedRounds(opportunityId: string): Promise<number[]> {
 function DDInterviewPage() {
   const { opportunityId, round } = useParams({ from: "/dd-interview/$opportunityId/$round" });
   const navigate = useNavigate();
-  const roundNumber = Math.min(Math.max(parseInt(round, 10) || 1, 1), 5);
+  // Round count isn't fixed at 5 any more -- DD Framework Admin can add/remove rounds -- so
+  // only clamp the floor here; DDInterviewEnhanced falls back gracefully if the round doesn't exist.
+  const roundNumber = Math.max(parseInt(round, 10) || 1, 1);
 
   const opp = useQuery({
     queryKey: ["opportunity-company-details", opportunityId],

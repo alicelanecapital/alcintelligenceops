@@ -3,15 +3,15 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, CATEGORY_LABELS } from "@/lib/contacts";
+import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact, createOpportunityFromContact } from "@/lib/contacts.functions";
 import { dismissInterview } from "@/lib/interviews";
 import { EditContactDialog } from "@/components/EditContactDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Mic, ArrowRight, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -75,6 +75,20 @@ function ContactProfile() {
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
   });
 
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const uploadPhotoMut = useMutation({
+    mutationFn: (file: File) => uploadContactPhoto(id, file),
+    onSuccess: () => {
+      toast.success("Photo updated");
+      qc.invalidateQueries({ queryKey: ["contact", id] });
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to upload photo"),
+    onSettled: () => setUploadingPhoto(false),
+  });
+
   if (q.isLoading) return <div className="p-10 text-sm text-muted-foreground">Loading…</div>;
   if (!q.data) return <div className="p-10 text-sm text-muted-foreground">Contact not found. <Link to="/contacts" className="text-primary">Back</Link></div>;
 
@@ -82,6 +96,34 @@ function ContactProfile() {
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
+      <div className="flex items-start gap-4 mb-4">
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          title="Upload profile photo"
+          className="relative h-16 w-16 rounded-full overflow-hidden border border-border bg-muted shrink-0 group"
+        >
+          {c.photo_url ? (
+            <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-muted-foreground"><User className="h-7 w-7" /></div>
+          )}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+            <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </button>
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) { setUploadingPhoto(true); uploadPhotoMut.mutate(f); }
+            e.target.value = "";
+          }}
+        />
+      </div>
       <PageHeader
         eyebrow={<Link to="/contacts" className="hover:underline">← Contacts</Link>}
         title={c.company || c.name}

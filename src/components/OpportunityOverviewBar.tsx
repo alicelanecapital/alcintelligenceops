@@ -86,7 +86,7 @@ export function OpportunityOverviewBar({
         )}
       </div>
       <div className="p-3 bg-indigo-50 border border-indigo-200 rounded h-full">
-        <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Pre-Interview Stakeholder Brief</p>
+        <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Stakeholder Brief</p>
         {stakeholderBrief ? (
           <div className="space-y-2">
             {stakeholderBrief.relationship_history && (

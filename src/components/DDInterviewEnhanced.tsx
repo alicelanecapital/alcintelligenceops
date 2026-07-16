@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
-import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments } from '@/lib/dd-framework-admin';
+import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { extractTranscriptText } from '@/lib/extract-transcript-text';
 import { generateAnomalyQuestions } from '@/lib/dd-anomaly-questions.functions';
 import { listExtraQuestions, addExtraQuestion, updateExtraQuestion, deleteExtraQuestion, type ExtraQuestion } from '@/lib/dd-interview-extra-questions';
+import { listCustomQuestions, addCustomQuestion, updateCustomQuestion, deleteCustomQuestion, type CustomQuestion } from '@/lib/dd-interview-custom-questions';
 
 const SPEAKER_COLOR_CLASSES = [
   'text-blue-700',
@@ -84,6 +85,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const [newExtraQuestion, setNewExtraQuestion] = useState('');
   const [editingExtraQuestionId, setEditingExtraQuestionId] = useState<string | null>(null);
   const [editingExtraQuestionText, setEditingExtraQuestionText] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([]);
+  const [newCustomQuestion, setNewCustomQuestion] = useState('');
+  const [editingCustomQuestionId, setEditingCustomQuestionId] = useState<string | null>(null);
+  const [editingCustomQuestionText, setEditingCustomQuestionText] = useState('');
   const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
   const [gateComment, setGateComment] = useState('');
   const [submittingGateAction, setSubmittingGateAction] = useState(false);
@@ -134,6 +139,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   // hardcoded dd-framework-data.ts arrays.
   const framework = useQuery({ queryKey: ['dd-framework-round', round], queryFn: () => fetchFrameworkRoundDetail(round) });
   const roundData = framework.data?.round;
+  // Round count isn't fixed at 5 -- DD Framework Admin can add/remove rounds -- so the "last
+  // round" for Round Gates/advancing is whatever the highest configured round actually is.
+  const allRounds = useQuery({ queryKey: ['dd-framework-rounds'], queryFn: fetchAllFrameworkRounds });
+  const maxRound = Math.max(1, ...(allRounds.data ?? []).map((r) => r.round));
   const questions = (framework.data?.questions ?? []).map((q) => ({
     number: q.sort_order,
     question: q.question_text,
@@ -463,7 +472,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       refreshOpportunityIntelligence();
       qc.invalidateQueries({ queryKey: ['dd-interview-statuses', opportunityId] });
 
-      if (round < 5) {
+      if (round < maxRound) {
         // Documents required for the next round are only sent out now, at the point of
         // advancing -- not shown as a standing checklist in the app. Real sending isn't wired
         // up yet (no confirmed source for the founder's email address); this simulates it so
@@ -525,6 +534,53 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     })();
     return () => { cancelled = true; };
   }, [interviewRowId]);
+
+  // Custom questions the interviewer added for this specific opportunity+round -- separate
+  // from the shared DD Framework template, which every opportunity uses.
+  useEffect(() => {
+    if (!interviewRowId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listCustomQuestions(interviewRowId);
+        if (!cancelled) setCustomQuestions(rows);
+      } catch (error: any) {
+        console.error('Failed to load custom questions:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [interviewRowId]);
+
+  const handleAddCustomQuestion = async () => {
+    if (!interviewRowId || !newCustomQuestion.trim()) return;
+    try {
+      const created = await addCustomQuestion(interviewRowId, newCustomQuestion.trim());
+      setCustomQuestions((prev) => [...prev, created]);
+      setNewCustomQuestion('');
+    } catch (error: any) {
+      toast.error('Failed to add question: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
+  const handleSaveCustomQuestionEdit = async (id: string) => {
+    if (!editingCustomQuestionText.trim()) return;
+    try {
+      await updateCustomQuestion(id, editingCustomQuestionText.trim());
+      setCustomQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, question_text: editingCustomQuestionText.trim() } : q)));
+      setEditingCustomQuestionId(null);
+    } catch (error: any) {
+      toast.error('Failed to save question: ' + (error?.message ?? 'unknown error'));
+    }
+  };
+
+  const handleDeleteCustomQuestion = async (id: string) => {
+    try {
+      await deleteCustomQuestion(id);
+      setCustomQuestions((prev) => prev.filter((q) => q.id !== id));
+    } catch (error: any) {
+      toast.error('Failed to delete question: ' + (error?.message ?? 'unknown error'));
+    }
+  };
 
   const handleSyncDocuments = async () => {
     if (!interviewRowId) return;
@@ -668,7 +724,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
   const documentsStep = { key: 'documents' as const, label: isFirstRound ? 'Documents Required' : 'Document Analysis' };
   const questionsStep = { key: 'questions' as const, label: 'Interview Questions' };
-  const softwareStep = { key: 'software' as const, label: sectorModule ? `${sectorModule.name} Questions` : 'Sector Questions' };
+  const softwareStep = { key: 'software' as const, label: 'Sector Questions' };
   const verificationStep = { key: 'verification' as const, label: 'Internal Verification' };
   const aiAnalysisStep = { key: 'ai_analysis' as const, label: 'AI Analysis' };
   // Round 1's Documents Required merges in round 2's requirements (see requiredDocuments
@@ -707,17 +763,20 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       </div>
 
       {/* Within-round vertical stepper: Document Analysis / Interview Questions /
-          Sector Questions / Internal Verification. */}
-      <div className="grid grid-cols-[190px_1fr] gap-6 items-start mb-8">
-        <div className="space-y-1">
-          {SUB_STEPS.map((step) => {
+          Sector Questions / Internal Verification / AI Analysis. */}
+      <div className="grid grid-cols-[210px_1fr] gap-6 items-start mb-8">
+        <div className="space-y-1.5">
+          {SUB_STEPS.map((step, idx) => {
             const active = step.key === activeStep;
             return (
               <button
                 key={step.key}
                 onClick={() => setActiveStep(step.key)}
-                className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors ${active ? 'bg-primary/10 text-primary font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full text-left flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm transition-all border-l-4 ${active ? 'bg-primary/10 border-l-primary shadow-sm text-primary font-semibold' : 'border-l-transparent text-gray-600 hover:bg-gray-100'}`}
               >
+                <span className={`flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold shrink-0 ${active ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>
+                  {idx + 1}
+                </span>
                 {step.label}
               </button>
             );
@@ -949,6 +1008,66 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 </Accordion>
               </div>
 
+              {/* Custom questions the interviewer added for this specific opportunity+round --
+                  full CRUD, kept separate from the shared DD Framework template so editing one
+                  interview's questions never affects any other opportunity. */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded">
+                <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
+                <div className="space-y-2 mb-3">
+                  {customQuestions.map((q) => (
+                    <div key={q.id} className="bg-white rounded border border-gray-200 p-2">
+                      {editingCustomQuestionId === q.id ? (
+                        <div className="flex items-start gap-2">
+                          <textarea
+                            className="flex-1 text-sm border border-gray-300 rounded px-2 py-1"
+                            value={editingCustomQuestionText}
+                            onChange={(e) => setEditingCustomQuestionText(e.target.value)}
+                            rows={2}
+                          />
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => handleSaveCustomQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                            <button onClick={() => setEditingCustomQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-gray-900">{q.question_text}</p>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              onClick={() => { setEditingCustomQuestionId(q.id); setEditingCustomQuestionText(q.question_text); }}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Edit
+                            </button>
+                            <button onClick={() => handleDeleteCustomQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!customQuestions.length && (
+                    <p className="text-xs text-gray-500">No custom questions added for this interview yet.</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newCustomQuestion}
+                    onChange={(e) => setNewCustomQuestion(e.target.value)}
+                    placeholder="Add a question specific to this interview…"
+                    className="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
+                  />
+                  <button
+                    onClick={handleAddCustomQuestion}
+                    disabled={!newCustomQuestion.trim()}
+                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
               {/* AI-generated follow-up questions the interviewer didn't ask -- regenerated
                   every time Analyze Recording runs, so it reflects this round's actual
                   transcript rather than a fixed list. Flags answers that seemed incomplete or
@@ -1162,7 +1281,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               disabled={!interviewRowId || advancing}
               className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {advancing ? 'Saving…' : round < 5 ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
+              {advancing ? 'Saving…' : round < maxRound ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
             </button>
           </div>
         )}

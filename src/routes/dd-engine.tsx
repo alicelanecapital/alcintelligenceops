@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Plus, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Play, Plus, Archive, ArchiveRestore, Trash2, User } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -95,10 +95,19 @@ function DDEngine() {
             <Card key={opp.id} className="hover:border-primary/50 transition-colors">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-serif text-lg leading-tight">{opp.founder?.name ?? opp.name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {opp.company?.name ?? "—"} · {currentRound ? `Round ${currentRound} of 5` : "Not started"}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-full overflow-hidden bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
+                      {opp.dd_photo_url ? (
+                        <img src={opp.dd_photo_url} alt={opp.founder?.name ?? opp.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-serif text-lg leading-tight truncate">{opp.founder?.name ?? opp.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {opp.company?.name ?? "—"} · {currentRound ? `Round ${currentRound} of 5` : "Not started"}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">

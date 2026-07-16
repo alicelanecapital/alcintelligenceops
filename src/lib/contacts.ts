@@ -23,6 +23,7 @@ export type ContactRow = {
   date_met: string | null;
   organisation_id: string | null;
   owner_id: string | null;
+  photo_url: string | null;
   created_at: string;
   updated_at: string;
   source_event?: { id: string; name: string } | null;
@@ -83,6 +84,19 @@ export async function updateContact(id: string, input: Partial<Omit<ContactRow, 
 export async function deleteContact(id: string) {
   const { error } = await supabase.from("contacts").delete().eq("id", id);
   if (error) throw error;
+}
+
+/** Uploads a profile photo to the public contact-photos bucket and saves its URL on the
+ * contact, so it can render as a plain <img> everywhere the contact shows up (Deal Pipeline
+ * cards especially -- makes it easier to remember who's who). */
+export async function uploadContactPhoto(contactId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${contactId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("contact-photos").upload(path, file, { upsert: true });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("contact-photos").getPublicUrl(path);
+  await updateContact(contactId, { photo_url: data.publicUrl });
+  return data.publicUrl;
 }
 
 export async function fetchContactMeetings(contactId: string) {

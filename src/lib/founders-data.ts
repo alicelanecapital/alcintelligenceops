@@ -151,7 +151,7 @@ export async function fetchOpportunities() {
 
 export async function fetchOpportunitiesWithDDStatus() {
   const [{ data: opps, error: oppsError }, { data: interviews, error: interviewsError }] = await Promise.all([
-    supabase.from("opportunities").select("*, founder:founders(id, name), company:companies(id, name)").order("created_at", { ascending: false }),
+    supabase.from("opportunities").select("*, founder:founders(id, name, contact_id), company:companies(id, name)").order("created_at", { ascending: false }),
     supabase.from("dd_interviews").select("opportunity_id, round, status, detected_sector, sector_confidence"),
   ]);
   if (oppsError) throw oppsError;
@@ -172,6 +172,29 @@ export async function fetchOpportunitiesWithDDStatus() {
     }
   }
 
+  // Photos are fetched separately (own try/catch) so a database that hasn't run the
+  // contacts.photo_url migration yet still loads the rest of the pipeline normally --
+  // Postgres rejects the whole query otherwise if any selected column doesn't exist.
+  const photoByContactId = new Map<string, string>();
+  try {
+    const contactIds = new Set<string>();
+    for (const opp of opps ?? []) {
+      if ((opp as any).contact_id) contactIds.add((opp as any).contact_id);
+      if ((opp as any).founder?.contact_id) contactIds.add((opp as any).founder.contact_id);
+    }
+    if (contactIds.size) {
+      const { data: contactPhotos, error: photosError } = await (supabase.from("contacts") as any)
+        .select("id, photo_url")
+        .in("id", [...contactIds]);
+      if (photosError) throw photosError;
+      for (const c of (contactPhotos ?? []) as any[]) {
+        if (c.photo_url) photoByContactId.set(c.id, c.photo_url);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load contact photos (contacts.photo_url may not be migrated yet):", error);
+  }
+
   return (opps ?? []).map((opp: any) => {
     const status = byOpportunity.get(opp.id);
     return {
@@ -179,6 +202,9 @@ export async function fetchOpportunitiesWithDDStatus() {
       dd_current_round: status?.round ?? null,
       dd_detected_sector: status?.sector ?? null,
       dd_sector_confidence: status?.confidence ?? null,
+      // Contact-based opportunities link directly; founder-based ones link via the founder's
+      // own contact record -- either way, surface whichever photo is actually available.
+      dd_photo_url: photoByContactId.get(opp.contact_id) ?? photoByContactId.get(opp.founder?.contact_id) ?? null,
     };
   });
 }
