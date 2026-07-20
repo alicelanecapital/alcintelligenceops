@@ -29,7 +29,7 @@ import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
-import { Route as OpportunitiesIdSynopsisRouteImport } from './routes/opportunities.$id.synopsis'
+import { Route as OpportunitiesIdSynopsisRouteImport } from './routes/opportunities_.$id.synopsis'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 import { Route as AuthGoogleCallbackRouteImport } from './routes/auth.google.callback'
 import { Route as ApiCronSyncGoogleCalendarsRouteImport } from './routes/api/cron.sync-google-calendars'
@@ -135,9 +135,9 @@ const AdminAccountsRoute = AdminAccountsRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const OpportunitiesIdSynopsisRoute = OpportunitiesIdSynopsisRouteImport.update({
-  id: '/synopsis',
-  path: '/synopsis',
-  getParentRoute: () => OpportunitiesIdRoute,
+  id: '/opportunities_/$id/synopsis',
+  path: '/opportunities/$id/synopsis',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DdInterviewOpportunityIdRoundRoute =
   DdInterviewOpportunityIdRoundRouteImport.update({
@@ -173,7 +173,7 @@ export interface FileRoutesByFullPath {
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
-  '/opportunities/$id': typeof OpportunitiesIdRouteWithChildren
+  '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
@@ -199,7 +199,7 @@ export interface FileRoutesByTo {
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
-  '/opportunities/$id': typeof OpportunitiesIdRouteWithChildren
+  '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies': typeof CompaniesIndexRoute
   '/contacts': typeof ContactsIndexRoute
   '/interviews': typeof InterviewsIndexRoute
@@ -226,7 +226,7 @@ export interface FileRoutesById {
   '/companies/$id': typeof CompaniesIdRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/interviews/$id': typeof InterviewsIdRoute
-  '/opportunities/$id': typeof OpportunitiesIdRouteWithChildren
+  '/opportunities/$id': typeof OpportunitiesIdRoute
   '/companies/': typeof CompaniesIndexRoute
   '/contacts/': typeof ContactsIndexRoute
   '/interviews/': typeof InterviewsIndexRoute
@@ -234,7 +234,7 @@ export interface FileRoutesById {
   '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
-  '/opportunities/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
+  '/opportunities_/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -314,7 +314,7 @@ export interface FileRouteTypes {
     | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
-    | '/opportunities/$id/synopsis'
+    | '/opportunities_/$id/synopsis'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -333,13 +333,14 @@ export interface RootRouteChildren {
   CompaniesIdRoute: typeof CompaniesIdRoute
   ContactsIdRoute: typeof ContactsIdRoute
   InterviewsIdRoute: typeof InterviewsIdRoute
-  OpportunitiesIdRoute: typeof OpportunitiesIdRouteWithChildren
+  OpportunitiesIdRoute: typeof OpportunitiesIdRoute
   CompaniesIndexRoute: typeof CompaniesIndexRoute
   ContactsIndexRoute: typeof ContactsIndexRoute
   InterviewsIndexRoute: typeof InterviewsIndexRoute
   OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute
   ApiCronSyncGoogleCalendarsRoute: typeof ApiCronSyncGoogleCalendarsRoute
   DdInterviewOpportunityIdRoundRoute: typeof DdInterviewOpportunityIdRoundRoute
+  OpportunitiesIdSynopsisRoute: typeof OpportunitiesIdSynopsisRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -484,12 +485,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/opportunities/$id/synopsis': {
-      id: '/opportunities/$id/synopsis'
-      path: '/synopsis'
+    '/opportunities_/$id/synopsis': {
+      id: '/opportunities_/$id/synopsis'
+      path: '/opportunities/$id/synopsis'
       fullPath: '/opportunities/$id/synopsis'
       preLoaderRoute: typeof OpportunitiesIdSynopsisRouteImport
-      parentRoute: typeof OpportunitiesIdRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dd-interview/$opportunityId/$round': {
       id: '/dd-interview/$opportunityId/$round'
@@ -525,18 +526,6 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
-interface OpportunitiesIdRouteChildren {
-  OpportunitiesIdSynopsisRoute: typeof OpportunitiesIdSynopsisRoute
-}
-
-const OpportunitiesIdRouteChildren: OpportunitiesIdRouteChildren = {
-  OpportunitiesIdSynopsisRoute: OpportunitiesIdSynopsisRoute,
-}
-
-const OpportunitiesIdRouteWithChildren = OpportunitiesIdRoute._addFileChildren(
-  OpportunitiesIdRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
@@ -553,14 +542,25 @@ const rootRouteChildren: RootRouteChildren = {
   CompaniesIdRoute: CompaniesIdRoute,
   ContactsIdRoute: ContactsIdRoute,
   InterviewsIdRoute: InterviewsIdRoute,
-  OpportunitiesIdRoute: OpportunitiesIdRouteWithChildren,
+  OpportunitiesIdRoute: OpportunitiesIdRoute,
   CompaniesIndexRoute: CompaniesIndexRoute,
   ContactsIndexRoute: ContactsIndexRoute,
   InterviewsIndexRoute: InterviewsIndexRoute,
   OpportunitiesIndexRoute: OpportunitiesIndexRoute,
   ApiCronSyncGoogleCalendarsRoute: ApiCronSyncGoogleCalendarsRoute,
   DdInterviewOpportunityIdRoundRoute: DdInterviewOpportunityIdRoundRoute,
+  OpportunitiesIdSynopsisRoute: OpportunitiesIdSynopsisRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
