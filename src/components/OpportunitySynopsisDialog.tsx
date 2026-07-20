@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { SECTOR_MODULES } from "@/lib/dd-framework-data";
-import { BrainCircuit, Sparkles, Target, Flag } from "lucide-react";
+import { BrainCircuit, Sparkles, Target, Flag, Download } from "lucide-react";
+import { toast } from "sonner";
 
 type DiscDimension = { score: number; label: string; evidence: string };
 type DiscProfile = {
