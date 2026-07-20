@@ -204,18 +204,17 @@ function CalendarScreen() {
               title={holiday ?? undefined}
               className={cn(
                 "text-left p-2 min-h-[128px] hover:bg-muted/40 transition-colors",
-                holiday ? "bg-rose-50" : "bg-card",
-                !inMonth && "opacity-40",
+                holiday ? "bg-rose-50" : (inMonth ? "bg-card" : "bg-muted/10"),
                 selected && "ring-2 ring-primary ring-inset",
               )}
             >
-              <div className={cn("text-xs mb-1 font-medium", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : "text-forest")}>
+              <div className={cn("text-xs mb-1 font-medium", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : (inMonth ? "text-forest" : "text-muted-foreground/60"))}>
                 {format(day, "d")}
               </div>
               {holiday && <div className="text-[10px] text-rose-700 mb-1 truncate italic">{holiday}</div>}
-              <div className="space-y-0.5">
-                {dayItems.slice(0, 3).map((it) => (
-                  <div key={it.id} className={cn("text-[10px] px-1.5 py-0.5 rounded truncate", itemStyle(it))}>{it.label}</div>
+              <div>
+                {dayItems.slice(0, 3).map((it, i) => (
+                  <div key={it.id} className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}>{it.label}</div>
                 ))}
                 {dayItems.length > 3 && <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} more</div>}
               </div>
