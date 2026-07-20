@@ -27,11 +27,21 @@ export const sendRequestInfoEmail = createServerFn({ method: "POST" })
       return { sent: false, reason: "Email sending is not configured yet (RESEND_API_KEY / RESEND_FROM_EMAIL missing)." };
     }
 
-    const fullText = signature ? `${data.body}\n\n${signature}` : data.body;
-    const html = fullText
+    const sigIsHtml = signature ? /<[a-z][\s\S]*>/i.test(signature) : false;
+    const bodyHtml = data.body
       .split("\n")
       .map((l) => l ? `<p style="margin:0 0 0.6em 0">${escapeHtml(l)}</p>` : "<p>&nbsp;</p>")
       .join("");
+    const signatureHtml = signature
+      ? (sigIsHtml ? signature : signature.split("\n").map((l: string) => l ? `<p style="margin:0 0 0.4em 0">${escapeHtml(l)}</p>` : "<p>&nbsp;</p>").join(""))
+
+      : "";
+    const html = signatureHtml ? `${bodyHtml}<br/>${signatureHtml}` : bodyHtml;
+
+    const signatureText = signature
+      ? (sigIsHtml ? signature.replace(/<[^>]+>/g, "") : signature)
+      : "";
+    const fullText = signatureText ? `${data.body}\n\n${signatureText}` : data.body;
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -44,6 +54,7 @@ export const sendRequestInfoEmail = createServerFn({ method: "POST" })
     }
     return { sent: true };
   });
+
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

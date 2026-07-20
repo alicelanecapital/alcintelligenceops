@@ -103,3 +103,25 @@ export const listTeamGoogleConnections = createServerFn({ method: "POST" })
     if (error) throw error;
     return (data ?? []) as { user_email: string; connected_at: string; last_synced_at: string | null }[];
   });
+
+/** Lists every visible sub-calendar under a connected Google account, so Accounts can show them. */
+export const listGoogleSubCalendars = createServerFn({ method: "POST" })
+  .inputValidator((d: { targetEmail: string }) => d)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    const accessToken = await getValidGoogleAccessToken(data.targetEmail);
+    if (!accessToken) return [];
+    const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return ((json.items ?? []) as any[]).map((c) => ({
+      id: c.id as string,
+      summary: (c.summaryOverride ?? c.summary ?? c.id) as string,
+      primary: !!c.primary,
+      backgroundColor: (c.backgroundColor ?? null) as string | null,
+      accessRole: (c.accessRole ?? "reader") as string,
+    }));
+  });
+
