@@ -4,7 +4,7 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   return (
     <div className="flex items-end justify-between gap-6 border-b border-border pb-6 mb-8">
       <div>
-        {eyebrow && <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{eyebrow}</div>}
+        {eyebrow && <div className="text-[10px] uppercase tracking-[0.2em] text-forest-grey mb-2">{eyebrow}</div>}
         <h1 className="font-serif text-4xl text-foreground">{title}</h1>
         {description && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{description}</p>}
       </div>
