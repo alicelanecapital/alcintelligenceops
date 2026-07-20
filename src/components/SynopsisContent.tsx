@@ -71,8 +71,33 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
 
     if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
+    const scrollTo = (id: string) => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const tabs = [
+      { id: "syn-sector", label: "Sector" },
+      { id: "syn-brief", label: "Stakeholder Brief" },
+      { id: "syn-overview", label: "AI Overview" },
+      { id: "syn-disc", label: "DISC" },
+      { id: "syn-flags", label: "Red Flags" },
+    ];
+
     return (
       <div className="space-y-4" ref={ref}>
+        <div className="flex flex-wrap gap-1 border-b border-border pb-2 mb-2 sticky top-0 bg-background z-10">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => scrollTo(t.id)}
+              className="px-3 py-1.5 text-xs rounded-md hover:bg-muted text-foreground/80 hover:text-foreground transition-colors"
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div id="syn-sector">
         <div className="p-3 bg-teal-50 border border-teal-200 rounded">
           <div className="flex items-center gap-2 mb-1">
             <Target className="h-3.5 w-3.5 text-teal-700" />
