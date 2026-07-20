@@ -233,7 +233,7 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
 
 function CalendarEventRow({ ev, memberByEmail, compact }: { ev: any; memberByEmail: Map<string, any>; compact?: boolean }) {
   const owner = memberByEmail.get(ev.user_email);
-  const classes = owner ? COLOR_CLASSES[owner.color] : DEFAULT_COLOR_CLASSES;
+  const classes = owner ? (COLOR_CLASSES as any)[owner.color] : DEFAULT_COLOR_CLASSES;
   return (
     <div className={`flex items-center gap-3 px-4 py-2.5 text-sm border-l-4 bg-card ${classes.border} ${compact ? "" : "rounded-md"}`}>
       <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
