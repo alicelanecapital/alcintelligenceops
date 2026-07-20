@@ -367,25 +367,23 @@ function DocumentCard({ doc, index, total, onMove, onDelete, onSaved }: {
   });
 
   return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="flex-1 grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">Document name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">Purpose</Label>
-            <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} className="mt-1" />
-          </div>
+    <div className="py-3 flex items-center gap-3">
+      <div className="flex-1 grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Document name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </div>
-        <div className="flex flex-col gap-1 shrink-0">
-          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+        <div>
+          <Label className="text-xs">Purpose</Label>
+          <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} className="mt-1" />
         </div>
-        <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex flex-col gap-1 shrink-0">
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+      </div>
+      <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5" /></Button>
+      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+    </div>
   );
 }
