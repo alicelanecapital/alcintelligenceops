@@ -2060,6 +2060,7 @@ export type Database = {
           industry: string | null
           meeting_id: string | null
           name: string
+          pipeline_status: string
           priority: string | null
           probability: number | null
           source: string | null
@@ -2082,6 +2083,7 @@ export type Database = {
           industry?: string | null
           meeting_id?: string | null
           name: string
+          pipeline_status?: string
           priority?: string | null
           probability?: number | null
           source?: string | null
@@ -2104,6 +2106,7 @@ export type Database = {
           industry?: string | null
           meeting_id?: string | null
           name?: string
+          pipeline_status?: string
           priority?: string | null
           probability?: number | null
           source?: string | null

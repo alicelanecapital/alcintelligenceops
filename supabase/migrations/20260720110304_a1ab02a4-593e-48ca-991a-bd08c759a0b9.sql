@@ -1,0 +1,1 @@
+ALTER TABLE public.opportunities ADD COLUMN IF NOT EXISTS pipeline_status text NOT NULL DEFAULT 'active' CHECK (pipeline_status IN ('active','approved','rejected'));

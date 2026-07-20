@@ -16,11 +16,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Plus, Archive, ArchiveRestore, Trash2, User } from "lucide-react";
+import { Play, Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
-import { OpportunitySynopsisDialog } from "@/components/OpportunitySynopsisDialog";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
@@ -48,19 +47,36 @@ function DDEngine() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunitiesWithDDStatus });
   const navigate = useNavigate();
-  const [view, setView] = useState<"active" | "archived">("active");
+  const [view, setView] = useState<"active" | "approved" | "rejected" | "archived">("active");
   const [displayMode, setDisplayMode] = useViewMode("dd-engine");
 
-  const opportunities = useMemo(
-    () => (q.data ?? []).filter((opp: any) => (view === "archived" ? !!opp.archived : !opp.archived)),
-    [q.data, view],
-  );
-  const archivedCount = useMemo(() => (q.data ?? []).filter((opp: any) => opp.archived).length, [q.data]);
+  const all = q.data ?? [];
+  const counts = useMemo(() => {
+    const c = { active: 0, approved: 0, rejected: 0, archived: 0 };
+    for (const o of all as any[]) {
+      if (o.archived) { c.archived++; continue; }
+      const s = o.pipeline_status ?? "active";
+      if (s === "approved") c.approved++;
+      else if (s === "rejected") c.rejected++;
+      else c.active++;
+    }
+    return c;
+  }, [all]);
 
-  const [synopsisId, setSynopsisId] = useState<string | null>(null);
+  const opportunities = useMemo(() => {
+    return (all as any[]).filter((opp) => {
+      if (view === "archived") return !!opp.archived;
+      if (opp.archived) return false;
+      const s = opp.pipeline_status ?? "active";
+      return s === view;
+    });
+  }, [all, view]);
 
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
+  };
+  const handleViewSynopsis = (oppId: string) => {
+    navigate({ to: `/opportunities/${oppId}/synopsis` });
   };
 
   const archiveMut = useMutation({
@@ -70,6 +86,19 @@ function DDEngine() {
       toast.success(vars.archived ? "Opportunity archived" : "Opportunity restored");
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to update opportunity"),
+  });
+
+  const statusMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "active" | "approved" | "rejected" }) =>
+      updateOpportunity(id, { pipeline_status: status }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      toast.success(
+        vars.status === "approved" ? "Deal approved" :
+        vars.status === "rejected" ? "Deal rejected" : "Moved back to active",
+      );
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to update status"),
   });
 
   const deleteMut = useMutation({
@@ -91,10 +120,12 @@ function DDEngine() {
       />
 
       <div className="flex items-center justify-between mt-6">
-        <Tabs value={view} onValueChange={(v) => setView(v as "active" | "archived")}>
+        <Tabs value={view} onValueChange={(v) => setView(v as any)}>
           <TabsList>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="archived">Archived ({archivedCount})</TabsTrigger>
+            <TabsTrigger value="active">Active ({counts.active})</TabsTrigger>
+            <TabsTrigger value="approved">Approved ({counts.approved})</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected ({counts.rejected})</TabsTrigger>
+            <TabsTrigger value="archived">Archived ({counts.archived})</TabsTrigger>
           </TabsList>
         </Tabs>
         <ViewToggle mode={displayMode} onChange={setDisplayMode} />
@@ -103,12 +134,13 @@ function DDEngine() {
       <div className="mt-6 border-t border-border">
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
+          const status = opp.pipeline_status ?? "active";
+          const isFinal = status === "approved" || status === "rejected";
 
           return (
             <div
               key={opp.id}
-              className="flex items-center gap-3 py-2 px-1 border-b border-border hover:bg-muted/30 cursor-pointer"
-              onClick={() => setSynopsisId(opp.id)}
+              className="flex items-center gap-3 py-2 px-1 border-b border-border hover:bg-muted/30"
             >
               <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
                 {opp.dd_photo_url ? (
@@ -124,11 +156,31 @@ function DDEngine() {
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium shrink-0 ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
                 {currentRound ? `Round ${currentRound}/5` : "Not started"}
               </Badge>
-              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
-                  <Play className="h-3 w-3 mr-1" />
-                  {currentRound ? "Resume" : "Begin"}
+              <div className="flex items-center gap-1 shrink-0">
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleViewSynopsis(opp.id)}>
+                  <FileText className="h-3 w-3 mr-1" /> View Synopsis
                 </Button>
+                {!isFinal && (
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
+                    <Play className="h-3 w-3 mr-1 text-green-500 fill-green-500" />
+                    {currentRound ? "Resume" : "Begin"}
+                  </Button>
+                )}
+                {!isFinal && (
+                  <>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-green-600" title="Approve deal" onClick={() => statusMut.mutate({ id: opp.id, status: "approved" })}>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Reject deal" onClick={() => statusMut.mutate({ id: opp.id, status: "rejected" })}>
+                      <XCircle className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+                {isFinal && (
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => statusMut.mutate({ id: opp.id, status: "active" })}>
+                    Reopen
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -164,19 +216,18 @@ function DDEngine() {
 
         {q.isSuccess && !opportunities.length && (
           <div className="p-12 text-center">
-            <div className="font-serif text-xl">{view === "archived" ? "No archived opportunities" : "No opportunities yet"}</div>
+            <div className="font-serif text-xl">
+              {view === "archived" ? "No archived opportunities" :
+               view === "approved" ? "No approved deals yet" :
+               view === "rejected" ? "No rejected deals" :
+               "No opportunities yet"}
+            </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {view === "archived" ? "Archived opportunities will show up here." : "Add an opportunity to start the due diligence framework."}
+              {view === "active" ? "Add an opportunity to start the due diligence framework." : "They will show up here when marked."}
             </p>
           </div>
         )}
       </div>
-
-      <OpportunitySynopsisDialog
-        opportunityId={synopsisId}
-        open={!!synopsisId}
-        onOpenChange={(o) => { if (!o) setSynopsisId(null); }}
-      />
     </div>
   );
 }
