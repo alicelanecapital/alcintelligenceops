@@ -288,6 +288,35 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     })();
   };
 
+  // Runs sector detection with the founder's stated sector / company industry as a hint
+  // so we don't misclassify (e.g. an aesthetics/dentistry practice as "Software"). Only
+  // writes back when we're above the minimum confidence threshold; syncs the result to the
+  // opportunities row too so the pipeline list and detail page stay in sync with the round.
+  const runSectorDetectionAndSync = async (transcriptText: string) => {
+    let hint: string | null = null;
+    try {
+      const { data: opp } = await (supabase.from('opportunities') as any)
+        .select('founder:founders(sector), company:companies(industry), industry')
+        .eq('id', opportunityId).maybeSingle();
+      hint = opp?.company?.industry ?? opp?.founder?.sector ?? opp?.industry ?? null;
+    } catch { /* ignore */ }
+    const detection = await detectSector({ data: { responses: [transcriptText], hint } });
+    if (detection.sector && detection.confidence >= MIN_SECTOR_CONFIDENCE) {
+      setSector(detection.sector);
+      setSectorConfidence(detection.confidence);
+      if (interviewRowId) {
+        await supabase.from('dd_interviews').update({
+          detected_sector: detection.sector,
+          sector_confidence: detection.confidence,
+        }).eq('id', interviewRowId);
+      }
+      await (supabase.from('opportunities') as any).update({
+        dd_detected_sector: detection.sector,
+        dd_sector_confidence: detection.confidence,
+      }).eq('id', opportunityId);
+    }
+  };
+
   // Persist the single whole-round transcript against every question in this round, so the
   // existing per-question response records stay populated without needing a manual "save" step.
   const persistTranscriptAgainstAllQuestions = async (text: string) => {
