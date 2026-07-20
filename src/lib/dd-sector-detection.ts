@@ -35,7 +35,7 @@ async function callAI(system: string, user: string): Promise<any> {
 }
 
 export interface SectorDetectionResult {
-  sector: "A" | "B" | "C" | "D" | "E" | null;
+  sector: "A" | "B" | "C" | "D" | "E" | "F" | null;
   confidence: number;
   reasoning: string;
   keywords: string[];
@@ -62,9 +62,15 @@ const SECTOR_KEYWORDS: Record<string, string[]> = {
   A: ["cleaning", "staffing", "logistics", "field service", "labor", "workers", "scheduling", "dispatch"],
   B: ["retail", "e-commerce", "marketplace", "store", "inventory", "shopping", "catalog", "orders"],
   C: ["food", "restaurant", "delivery", "catering", "chef", "menu", "kitchen", "dining"],
-  D: ["software", "saas", "app", "platform", "api", "cloud", "code", "developer", "subscription"],
+  D: ["software", "saas", "b2b software", "api", "cloud", "developer", "subscription", "codebase"],
   E: ["manufacturing", "hardware", "production", "factory", "supply chain", "component", "assembly"],
+  F: ["aesthetic", "aesthetics", "dental", "dentistry", "dentist", "clinic", "medical", "cosmetic", "dermatology", "wellness", "spa", "skincare", "beauty", "practitioner", "patient"],
 };
+
+// Minimum confidence required before a detected sector is written back to the
+// opportunity/interview record. Below this we store null so the pipeline list
+// doesn't show a misleading "Software" badge from a stray keyword hit.
+export const MIN_SECTOR_CONFIDENCE = 40;
 
 function keywordFallback(responses: string[]): SectorDetectionResult {
   const combinedText = responses.join(" ").toLowerCase();
