@@ -241,6 +241,7 @@ export type Database = {
           organisation_id: string | null
           owner_id: string | null
           phone: string | null
+          photo_url: string | null
           position: string | null
           relationship_score: number | null
           role: string | null
@@ -268,6 +269,7 @@ export type Database = {
           organisation_id?: string | null
           owner_id?: string | null
           phone?: string | null
+          photo_url?: string | null
           position?: string | null
           relationship_score?: number | null
           role?: string | null
@@ -295,6 +297,7 @@ export type Database = {
           organisation_id?: string | null
           owner_id?: string | null
           phone?: string | null
+          photo_url?: string | null
           position?: string | null
           relationship_score?: number | null
           role?: string | null
@@ -498,11 +501,44 @@ export type Database = {
           },
         ]
       }
+      dd_interview_custom_questions: {
+        Row: {
+          created_at: string
+          id: string
+          interview_id: string
+          question_text: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interview_id: string
+          question_text: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interview_id?: string
+          question_text?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_interview_custom_questions_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dd_interview_documents: {
         Row: {
           auto_analysis: Json | null
           document_category: string
           document_type: string | null
+          extracted_text: string | null
           file_name: string | null
           file_size_bytes: number | null
           file_url: string | null
@@ -518,6 +554,7 @@ export type Database = {
           auto_analysis?: Json | null
           document_category: string
           document_type?: string | null
+          extracted_text?: string | null
           file_name?: string | null
           file_size_bytes?: number | null
           file_url?: string | null
@@ -533,6 +570,7 @@ export type Database = {
           auto_analysis?: Json | null
           document_category?: string
           document_type?: string | null
+          extracted_text?: string | null
           file_name?: string | null
           file_size_bytes?: number | null
           file_url?: string | null
@@ -554,12 +592,56 @@ export type Database = {
           },
         ]
       }
+      dd_interview_extra_questions: {
+        Row: {
+          created_at: string
+          id: string
+          interview_id: string
+          question_text: string
+          rationale: string | null
+          sort_order: number
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interview_id: string
+          question_text: string
+          rationale?: string | null
+          sort_order?: number
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interview_id?: string
+          question_text?: string
+          rationale?: string | null
+          sort_order?: number
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_interview_extra_questions_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dd_interviews: {
         Row: {
           ai_analysis: Json | null
           completed_at: string | null
           created_at: string
           detected_sector: string | null
+          hold_at: string | null
+          hold_notes: string | null
+          human_assessment: string | null
           id: string
           opportunity_id: string
           paused_at: string | null
@@ -570,6 +652,8 @@ export type Database = {
           stakeholder_brief: Json | null
           started_at: string | null
           status: string
+          terminated_at: string | null
+          terminated_notes: string | null
           transcript: string | null
           transcript_source: string | null
         }
@@ -578,6 +662,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           detected_sector?: string | null
+          hold_at?: string | null
+          hold_notes?: string | null
+          human_assessment?: string | null
           id?: string
           opportunity_id: string
           paused_at?: string | null
@@ -588,6 +675,8 @@ export type Database = {
           stakeholder_brief?: Json | null
           started_at?: string | null
           status?: string
+          terminated_at?: string | null
+          terminated_notes?: string | null
           transcript?: string | null
           transcript_source?: string | null
         }
@@ -596,6 +685,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           detected_sector?: string | null
+          hold_at?: string | null
+          hold_notes?: string | null
+          human_assessment?: string | null
           id?: string
           opportunity_id?: string
           paused_at?: string | null
@@ -606,6 +698,8 @@ export type Database = {
           stakeholder_brief?: Json | null
           started_at?: string | null
           status?: string
+          terminated_at?: string | null
+          terminated_notes?: string | null
           transcript?: string | null
           transcript_source?: string | null
         }
