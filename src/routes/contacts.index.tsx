@@ -328,7 +328,7 @@ function ContactListRow({ c }: { c: ContactRow }) {
         <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-serif text-base font-bold leading-tight truncate">{primary}</span>
+              <span className="font-serif text-base leading-tight truncate">{primary}</span>
               <Badge className={cn("border text-[10px] shrink-0", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
               <NextMeetingBadge email={c.email} />
             </div>
