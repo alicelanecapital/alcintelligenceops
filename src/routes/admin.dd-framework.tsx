@@ -145,9 +145,9 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
   });
 
   return (
-    <Card className="mb-6">
-      <CardHeader><CardTitle className="font-serif text-xl">Round details</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
+    <div className="mb-6 pb-6 border-b border-border">
+      <h2 className="font-serif text-xl mb-3">Round details</h2>
+      <div className="space-y-3">
         <div className="grid grid-cols-[1fr_160px] gap-3">
           <div>
             <Label className="text-sm">Title</Label>
@@ -173,8 +173,8 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
         <div className="flex justify-end">
           <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save round details</Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
