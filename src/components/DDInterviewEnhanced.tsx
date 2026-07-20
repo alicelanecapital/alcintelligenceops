@@ -456,7 +456,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         }
       });
       setAiAnalysis(analysis);
-      await supabase.from('dd_interviews').update({ ai_analysis: analysis as any }).eq('id', interviewRowId);
+      await (supabase.from('dd_interviews') as any).update({
+        ai_analysis: analysis as any,
+        red_flags: (analysis as any)?.redFlags ?? [],
+      }).eq('id', interviewRowId);
       refreshOpportunityIntelligence();
     } catch (error: any) {
       console.error('Analysis generation failed:', error);
