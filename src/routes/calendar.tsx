@@ -173,16 +173,8 @@ function CalendarScreen() {
 
       <BookingLinkCard />
 
-      {/* Legend — events / tasks / meeting-by-contact-type / holiday */}
+      {/* Legend — only public-holiday shading remains (event colour coding removed). */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs">
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Events</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Tasks due</span>
-        <span className="text-muted-foreground ml-1">Meetings:</span>
-        {(Object.entries(CONTACT_COLORS) as [ContactCategory, typeof CONTACT_COLORS[ContactCategory]][]).map(([key, v]) => (
-          <span key={key} className="inline-flex items-center gap-1">
-            <span className={cn("h-2.5 w-2.5 rounded-full", v.dot)} /> {v.label}
-          </span>
-        ))}
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
       </div>
 
