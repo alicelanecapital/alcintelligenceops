@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAllFrameworkRounds, fetchFrameworkRoundDetail, updateFrameworkRound,
-  createFrameworkRound, deleteFrameworkRound,
+  createFrameworkRound, deleteFrameworkRound, reorderFrameworkRounds,
   createFrameworkQuestion, updateFrameworkQuestion, deleteFrameworkQuestion, reorderFrameworkQuestions,
   createFrameworkDocument, updateFrameworkDocument, deleteFrameworkDocument, reorderFrameworkDocuments,
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
@@ -19,10 +19,11 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { RoundStepper } from "@/components/RoundStepper";
+import { SortableRoundsList } from "@/components/SortableRoundsList";
 import { Plus, Trash2, ChevronUp, ChevronDown, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/admin/dd-framework")({ component: () => <AppShell><DDFrameworkAdmin /></AppShell> });
 
@@ -75,12 +76,33 @@ function DDFrameworkAdmin() {
         description="Adjust the questions, guidance, and required documents for each due diligence round."
       />
 
-      <div className="grid grid-cols-[220px_1fr] gap-6 items-start">
+      <div className="grid grid-cols-[260px_1fr] gap-6 items-start">
         <aside className="sticky top-4 shrink-0 space-y-3">
-          <RoundStepper
-            rounds={(rounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-1">
+            Drag to reorder rounds
+          </div>
+          <SortableRoundsList
+            rounds={(rounds.data ?? []).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
             current={round}
             onSelect={setRound}
+            onReorder={(newOrder) => {
+              const payload = newOrder.map((r, idx) => ({ round: r.round, sort_order: idx + 1 }));
+              // Optimistically update the cache so the list repaints instantly.
+              qc.setQueryData(["dd-framework-rounds"], (prev: any) => {
+                if (!Array.isArray(prev)) return prev;
+                const byRound = new Map(prev.map((r: any) => [r.round, r]));
+                return payload.map((p) => ({ ...(byRound.get(p.round) as any), sort_order: p.sort_order }));
+              });
+              reorderFrameworkRounds(payload)
+                .then(() => {
+                  toast.success("Round order saved");
+                  qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+                })
+                .catch((e: any) => {
+                  toast.error(e?.message ?? "Failed to save order");
+                  qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+                });
+            }}
           />
           <Button
             size="sm"
@@ -113,6 +135,7 @@ function DDFrameworkAdmin() {
             </AlertDialog>
           )}
         </aside>
+
 
         <div className="min-w-0">
           {q.data && (

@@ -29,10 +29,27 @@ export type FrameworkDocument = {
 };
 
 export async function fetchAllFrameworkRounds(): Promise<FrameworkRound[]> {
-  const { data, error } = await supabase.from("dd_framework_rounds").select("*").order("round");
+  // Order by sort_order so admin-controlled reordering (drag-and-drop in
+  // /admin/dd-framework) is honoured everywhere rounds are listed; falls back
+  // to round number for rows that don't yet have a sort_order set.
+  const { data, error } = await supabase
+    .from("dd_framework_rounds")
+    .select("*")
+    .order("sort_order" as any, { ascending: true })
+    .order("round", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
+
+/** Persist a new order for the rounds. `round` (the identifier) is left untouched;
+ * only `sort_order` changes, so historical dd_interviews / dd_framework_questions /
+ * dd_framework_documents references (which key off `round`) stay valid. */
+export async function reorderFrameworkRounds(items: { round: number; sort_order: number }[]) {
+  await Promise.all(items.map((it) =>
+    (supabase.from("dd_framework_rounds") as any).update({ sort_order: it.sort_order }).eq("round", it.round)
+  ));
+}
+
 
 export async function fetchFrameworkRoundDetail(round: number) {
   const [roundRow, questions, documents] = await Promise.all([

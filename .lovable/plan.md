@@ -20,6 +20,15 @@
 - Replace item frames with `border-b` dividers only.
 - Keep section headings and spacing; remove nested container frames entirely so the screen reads as flat lists under headings.
 
+### Drag-and-drop round reordering (Admin → DD Intelligence Engine)
+- Make the round list in the left rail/stepper drag-and-droppable so the sequence of rounds can be changed and saved. New position persists across sessions and is reflected everywhere rounds are listed (admin stepper + `RoundStepper` in the Deal Pipeline interview view).
+- **Schema**: add `sort_order integer` column to `dd_framework_rounds` (migration). Backfill from existing `round` values so the initial order is unchanged. Leave the existing `round` integer alone — it stays the stable identifier used by `dd_framework_questions.round`, `dd_framework_documents.round`, `dd_interviews.round`, so historical interview data is not disturbed.
+- **Query order**: change `fetchAllFrameworkRounds` and any other rounds fetcher to `.order("sort_order")` instead of `.order("round")`.
+- **Reorder API**: add `reorderFrameworkRounds(items: { round: number; sort_order: number }[])` in `src/lib/dd-framework-admin.ts` that batches `update` calls (mirrors existing `reorderFrameworkQuestions` pattern).
+- **UI**: use `@dnd-kit/core` + `@dnd-kit/sortable` (install via `bun add`) — same libs already used elsewhere or added if not — with a small grab handle on each round row in the admin left rail. On drop, recompute `sort_order` for the affected items and call the reorder API; invalidate the `dd-framework-rounds` query so both the admin screen and the interview stepper repaint in the new order.
+- **Save UX**: auto-persist immediately on drop (no separate "Save order" button), with toast confirmation on success/failure and optimistic reorder in the local list.
+
 ### Out of scope
-- No schema/business-logic changes.
+- No schema/business-logic changes beyond the new `sort_order` column on `dd_framework_rounds`.
+- Round numbers themselves stay stable — reordering only changes display order, not the underlying `round` identifier or any child rows.
 - Forest-green underline for screen headings and calendar grid styling remain.

@@ -441,6 +441,7 @@ export type Database = {
           duration: string | null
           purpose: string | null
           round: number
+          sort_order: number
           subtitle: string | null
           title: string
         }
@@ -448,6 +449,7 @@ export type Database = {
           duration?: string | null
           purpose?: string | null
           round: number
+          sort_order?: number
           subtitle?: string | null
           title: string
         }
@@ -455,6 +457,7 @@ export type Database = {
           duration?: string | null
           purpose?: string | null
           round?: number
+          sort_order?: number
           subtitle?: string | null
           title?: string
         }
