@@ -85,32 +85,33 @@ export function OpportunityOverviewBar({
           <p className="text-xs text-teal-700">Not detected yet — this fills in automatically once a round has been recorded and analysed.</p>
         )}
       </div>
-      <div className="p-3 bg-indigo-50 border border-indigo-200 rounded h-full">
-        <p className="text-sm font-semibold text-indigo-900 mb-1">🧭 Stakeholder Brief</p>
+      <div className="p-3 bg-sky-50 border border-sky-200 rounded h-full">
+        <p className="text-sm font-semibold text-sky-900 mb-1">🧭 Stakeholder Brief</p>
         {stakeholderBrief ? (
           <div className="space-y-2">
             {stakeholderBrief.relationship_history && (
-              <p className="text-xs text-indigo-800">{stakeholderBrief.relationship_history}</p>
+              <p className="text-xs text-sky-800">{stakeholderBrief.relationship_history}</p>
             )}
             {Array.isArray(stakeholderBrief.attendees) && stakeholderBrief.attendees.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-2">
+              <ul className="text-xs text-sky-800 space-y-1">
                 {stakeholderBrief.attendees.map((a: any, idx: number) => (
-                  <div key={idx} className="bg-white rounded border border-indigo-200 p-2">
-                    <p className="text-sm font-medium text-indigo-900">{a.name} <span className="text-xs font-normal text-indigo-600">— {a.role}</span></p>
-                    <p className="text-xs text-indigo-700">{a.org}</p>
-                    {a.notes && <p className="text-xs text-indigo-800 mt-1">{a.notes}</p>}
-                  </div>
+                  <li key={idx}>
+                    <span className="font-medium text-sky-900">{a.name}</span>
+                    {a.role && <> · {a.role}</>}
+                    {a.org && <> — {a.org}</>}
+                    {a.notes && <div className="text-sky-700">{a.notes}</div>}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
             {Array.isArray(stakeholderBrief.talking_points) && stakeholderBrief.talking_points.length > 0 && (
-              <ul className="text-xs text-indigo-800 space-y-1">
+              <ul className="text-xs text-sky-800 space-y-1 mt-1">
                 {stakeholderBrief.talking_points.map((t: string, idx: number) => <li key={idx}>• {t}</li>)}
               </ul>
             )}
           </div>
         ) : (
-          <p className="text-xs text-indigo-700">Generating an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company…</p>
+          <p className="text-xs text-sky-700">Generating an AI summary of the external (non-Alice-Lane) attendees expected at this round, based on contacts linked to this company…</p>
         )}
       </div>
 
