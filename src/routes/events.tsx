@@ -175,13 +175,21 @@ function Events() {
         start.setUTCDate(start.getUTCDate() - 1);
         const end = new Date((e.end_date || e.start_date) + "T23:59:59Z");
         end.setUTCDate(end.getUTCDate() + 1);
-        const nameWords: string[] = e.name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        // Require the event's full normalized name (year & punctuation stripped) to appear
+        // as a substring of the calendar entry title. A single shared word like "mining"
+        // or "summit" is not enough — that produced false "Booked" flags from unrelated
+        // internal meetings. Also require the calendar entry to be reasonably long
+        // (avoids matching a 1:1 titled just "Mining Indaba prep").
+        const normalize = (s: string) =>
+          s.toLowerCase().replace(/\b(19|20)\d{2}\b/g, " ").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+        const needle = normalize(e.name);
+        if (needle.length < 6) continue;
 
         const match = teamCalendar.data.find((ev) => {
           const evStart = new Date(ev.start_time);
           if (evStart < start || evStart > end) return false;
-          const title = (ev.title ?? "").toLowerCase();
-          return nameWords.some((w) => title.includes(w));
+          const title = normalize(ev.title ?? "");
+          return title.includes(needle);
         });
 
         if (match) {
