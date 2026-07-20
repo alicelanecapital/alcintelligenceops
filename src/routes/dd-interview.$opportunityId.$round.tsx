@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DDInterviewEnhanced } from "@/components/DDInterviewEnhanced";
-import { OpportunityOverviewBar } from "@/components/OpportunityOverviewBar";
+// OpportunityOverviewBar intentionally not imported: the synopsis (Sector / Stakeholder
+// Brief / AI Overview / DISC / Red Flags) is shown from the Deal Pipeline click-through
+// dialog, not above every round.
 import { RoundStepper } from "@/components/RoundStepper";
 import { fetchAllFrameworkRounds } from "@/lib/dd-framework-admin";
 import { Button } from "@/components/ui/button";
