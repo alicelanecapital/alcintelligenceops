@@ -312,61 +312,64 @@ function AccountsScreen() {
         <div className="font-serif text-lg">Accounts</div>
       </div>
 
-      <div className="rounded-lg border border-border divide-y divide-border bg-card">
+      <div className="bg-card space-y-2">
         {(members.data ?? []).map((m) => {
           const conn = connectionByEmail.get(m.email);
           const classes = COLOR_CLASSES[m.color];
           const isMe = m.email.toLowerCase() === myEmail;
           return (
-            <div key={m.id} className="flex items-center justify-between px-5 py-3 text-sm gap-3 flex-wrap">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
-                <div className="min-w-0">
-                  <div className="font-medium truncate flex items-center gap-2">
-                    {m.display_name || m.email}
-                    {isMe && <Badge variant="outline" className="text-[10px]">You</Badge>}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {m.display_name ? `${m.email} · ` : ""}
-                    {conn
-                      ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}${conn.last_synced_at ? ` · Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}` : " · Never synced"}`
-                      : "Not connected yet"}
+            <div key={m.id} className="px-5 py-3 text-sm">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
+                  <div className="min-w-0">
+                    <div className="font-medium truncate flex items-center gap-2">
+                      {m.display_name || m.email}
+                      {isMe && <Badge variant="outline" className="text-[10px]">You</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {m.display_name ? `${m.email} · ` : ""}
+                      {conn
+                        ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}${conn.last_synced_at ? ` · Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}` : " · Never synced"}`
+                        : "Not connected yet"}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <select
-                  value={m.color}
-                  onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
-                  className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
-                >
-                  {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={m.color}
+                    onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
+                    className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
+                  >
+                    {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
 
-                {conn ? (
-                  <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
-                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                    {syncMut.isPending ? "Syncing…" : "Sync now"}
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => connect(m.email)}>
-                    <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
-                  </Button>
-                )}
+                  {conn ? (
+                    <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                      {syncMut.isPending ? "Syncing…" : "Sync now"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => connect(m.email)}>
+                      <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
+                    </Button>
+                  )}
 
-                <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-destructive"
-                  title={conn ? "Remove and disconnect account" : "Remove account"}
-                  onClick={() => deleteMemberMut.mutate(m)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive"
+                    title={conn ? "Remove and disconnect account" : "Remove account"}
+                    onClick={() => deleteMemberMut.mutate(m)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
+              {conn && <SubCalendarsList email={m.email} />}
             </div>
           );
         })}
@@ -374,6 +377,7 @@ function AccountsScreen() {
           <div className="p-8 text-center text-sm text-muted-foreground">No accounts registered yet. Add one to get started.</div>
         )}
       </div>
+
 
       <AccountDialog
         open={dialogState.open}
