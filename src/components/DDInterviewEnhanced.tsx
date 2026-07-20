@@ -396,15 +396,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       await persistTranscriptAgainstAllQuestions(text);
 
       if (round === 1 && text) {
-        const detection = await detectSector({ data: { responses: [text] } });
-        setSector(detection.sector);
-        setSectorConfidence(detection.confidence);
-        if (interviewRowId && detection.sector) {
-          await supabase.from('dd_interviews').update({
-            detected_sector: detection.sector,
-            sector_confidence: detection.confidence,
-          }).eq('id', interviewRowId);
-        }
+        await runSectorDetectionAndSync(text);
       }
       refreshOpportunityIntelligence();
     } catch (error) {
