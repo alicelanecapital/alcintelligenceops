@@ -23,11 +23,11 @@ type Overview = {
   rounds_covered?: number[];
 };
 
-const DIMENSIONS: { key: keyof DiscProfile; label: string; color: string }[] = [
-  { key: "dominance", label: "D", color: "bg-red-500" },
-  { key: "influence", label: "I", color: "bg-amber-500" },
-  { key: "steadiness", label: "S", color: "bg-green-500" },
-  { key: "conscientiousness", label: "C", color: "bg-blue-500" },
+const DIMENSIONS: { key: keyof DiscProfile; letter: string; label: string; color: string }[] = [
+  { key: "dominance", letter: "D", label: "Dominance", color: "bg-red-500" },
+  { key: "influence", letter: "I", label: "Influence", color: "bg-amber-500" },
+  { key: "steadiness", letter: "S", label: "Steadiness", color: "bg-green-500" },
+  { key: "conscientiousness", letter: "C", label: "Conscientiousness", color: "bg-blue-500" },
 ];
 
 /**
