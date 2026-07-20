@@ -196,7 +196,7 @@ function CalendarScreen() {
               title={holiday ?? undefined}
               className={cn(
                 "text-left p-2 min-h-[128px] hover:bg-muted/40 transition-colors",
-                holiday ? "bg-rose-50" : (inMonth ? "bg-card" : "bg-muted/10"),
+                holiday ? "bg-rose-50" : (inMonth ? "bg-card" : "bg-neutral-50"),
                 selected && "ring-2 ring-primary ring-inset",
               )}
             >

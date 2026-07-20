@@ -25,21 +25,33 @@ export const Route = createFileRoute("/interviews/")({ component: () => <AppShel
 /** The same real-world event often appears more than once because several team
  * members' synced calendars (and shared/subscribed calendars) all pick it up
  * independently -- collapse to one row per title + start time. */
+const HOLIDAY_TITLE_PATTERNS = [
+  "holiday", "heritage day", "freedom day", "youth day", "workers' day", "workers day",
+  "christmas", "boxing day", "new year", "good friday", "family day", "human rights day",
+  "women's day", "womens day", "day of reconciliation", "day of goodwill",
+];
+
+function isHoliday(ev: any): boolean {
+  const title = (ev.title ?? "").toLowerCase();
+  const organizer = (ev.organizer_email ?? ev.organizer ?? "").toLowerCase();
+  const calendarId = (ev.calendar_id ?? "").toLowerCase();
+  const calendarName = (ev.calendar_name ?? "").toLowerCase();
+  if (calendarId.endsWith("holiday.calendar.google.com")) return true;
+  if (calendarId.includes("#holiday@")) return true;
+  if (calendarId.includes("holiday")) return true;
+  if (calendarName.includes("holiday")) return true;
+  if (organizer.includes("holiday@group.v.calendar.google.com")) return true;
+  return HOLIDAY_TITLE_PATTERNS.some((p) => title.includes(p));
+}
+
 function dedupeEvents(events: any[]): any[] {
   const seen = new Set<string>();
   const out: any[] = [];
   for (const ev of events) {
-    // Filter public holidays out of the Meetings screen — they belong on the Calendar
-    // (where they render as pastel-shaded background cells), not in this list.
-    const title = (ev.title ?? "").toLowerCase();
-    const organizer = (ev.organizer_email ?? ev.organizer ?? "").toLowerCase();
-    const calendarId = (ev.calendar_id ?? "").toLowerCase();
-    const looksLikeHoliday =
-      calendarId.includes("holiday") ||
-      organizer.includes("holiday@group.v.calendar.google.com") ||
-      /\b(public holiday|holiday)\b/.test(title);
-    if (looksLikeHoliday) continue;
-    const key = `${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
+    if (isHoliday(ev)) continue;
+    // Include the google event id so distinct entries (across sub-calendars / teammates)
+    // aren't collapsed just because the title + start_time coincide.
+    const key = `${(ev.google_event_id ?? ev.id ?? "")}|${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(ev);
