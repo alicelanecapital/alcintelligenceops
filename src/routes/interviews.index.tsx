@@ -182,7 +182,7 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
       {view === "card" ? (
         <div className="grid gap-3">
           {items.map((i) => (
-            <Card key={i.id} className="hover:border-primary/50 transition-colors relative group">
+            <Card key={i.id} className="hover:border-primary/50 transition-colors relative group border-0 shadow-none bg-card">
               <button
                 onClick={(e) => { e.preventDefault(); onDismiss(i); }}
                 title="Dismiss from view"
@@ -190,28 +190,31 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-              <Link to="/interviews/$id" params={{ id: i.id }}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between pr-6">
-                    <div>
-                      <div className="font-serif text-lg leading-tight">{i.founder_name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{i.business_name}</div>
-                    </div>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between pr-6 gap-3">
+                  <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
+                    <div className="font-serif text-lg leading-tight">{i.founder_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{i.business_name}</div>
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
                     <StatusBadge status={i.status} />
+                    <Link to="/interviews/$id" params={{ id: i.id }}>
+                      <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+                    </Link>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</span>
-                    <button
-                      onClick={(e) => { e.preventDefault(); onTogglePrivate(i); }}
-                      title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {isPrivateColumn ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                      {isPrivateColumn ? "Mark client" : "Mark private"}
-                    </button>
-                  </div>
-                </CardContent>
-              </Link>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</span>
+                  <button
+                    onClick={(e) => { e.preventDefault(); onTogglePrivate(i); }}
+                    title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
+                    className="inline-flex items-center gap-1 hover:text-foreground"
+                  >
+                    {isPrivateColumn ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                    {isPrivateColumn ? "Mark client" : "Mark private"}
+                  </button>
+                </div>
+              </CardContent>
             </Card>
           ))}
           {!items.length && (
@@ -221,7 +224,7 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border divide-y divide-border bg-card">
+        <div className="divide-y divide-border bg-card rounded-lg">
           {items.map((i) => (
             <div key={i.id} className="flex items-center gap-2 px-5 py-3 hover:bg-muted/40 transition-colors">
               <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
@@ -229,6 +232,9 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
                 <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
               </Link>
               <StatusBadge status={i.status} />
+              <Link to="/interviews/$id" params={{ id: i.id }}>
+                <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+              </Link>
               <button
                 onClick={() => onTogglePrivate(i)}
                 title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}

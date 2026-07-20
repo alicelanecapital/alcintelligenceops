@@ -90,7 +90,7 @@ function ContactsIndex() {
         actions={
           <div className="flex gap-2 flex-nowrap items-center">
             <Button variant="outline" onClick={() => setMergeOpen(true)}>
-              <GitMerge className="h-4 w-4 mr-1" /> Merge duplicates
+              <GitMerge className="h-4 w-4 mr-1" /> Deduplicate
             </Button>
             <Button variant="outline" onClick={() => setScanOpen(true)}>
               <Camera className="h-4 w-4 mr-1" /> Scan card / QR
@@ -134,7 +134,7 @@ function ContactsIndex() {
       </div>
 
       {groupByEvent ? (
-        <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
+        <Accordion type="multiple" className="rounded-lg bg-card px-3">
           {groupedByEvent.map((g) => (
             <AccordionItem key={g.id} value={g.id}>
               <AccordionTrigger className="text-sm">
@@ -145,7 +145,7 @@ function ContactsIndex() {
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="rounded-md border border-border divide-y divide-border">
+                <div className="rounded-md divide-y divide-border">
                   {g.contacts.map((c) => <ContactListRow key={c.id} c={c} />)}
                 </div>
               </AccordionContent>
@@ -167,7 +167,7 @@ function ContactsIndex() {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border divide-y divide-border bg-card">
+        <div className="rounded-lg divide-y divide-border bg-card">
           {displayed.map((c) => <ContactListRow key={c.id} c={c} />)}
           {q.isSuccess && !displayed.length && (
             <div className="p-12 text-center text-muted-foreground">
@@ -271,8 +271,8 @@ function ContactCard({ c }: { c: ContactRow }) {
         <CardContent className="p-5 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0">
-              <div className="font-serif text-lg leading-tight">{primary}</div>
-              {secondary && <div className="text-xs text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+              <div className="font-serif text-base leading-tight">{primary}</div>
+              {secondary && <div className="text-[11px] text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
             </Link>
             <div className="flex items-center gap-1 flex-wrap justify-end">
               <Badge className={cn("border text-[10px]", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
@@ -328,11 +328,11 @@ function ContactListRow({ c }: { c: ContactRow }) {
         <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-serif text-base leading-tight truncate">{primary}</span>
+              <span className="font-serif text-sm leading-tight truncate">{primary}</span>
               <Badge className={cn("border text-[10px] shrink-0", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
               <NextMeetingBadge email={c.email} />
             </div>
-            {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+            {secondary && <div className="text-[11px] text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
           </div>
           <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
             {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
