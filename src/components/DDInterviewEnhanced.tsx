@@ -780,7 +780,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
       {/* Within-round vertical stepper: Document Analysis / Interview Questions /
           Sector Questions / Internal Verification / AI Analysis. */}
-      <div className="grid grid-cols-[210px_1fr] gap-6 items-start mb-8">
+      <div className="grid grid-cols-[210px_1fr] gap-16 items-start mb-8">
         <div className="space-y-1.5">
           {SUB_STEPS.map((step, idx) => {
             const active = step.key === activeStep;

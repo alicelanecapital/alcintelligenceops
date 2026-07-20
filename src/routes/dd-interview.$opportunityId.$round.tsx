@@ -66,20 +66,15 @@ function DDInterviewPage() {
   const description = opp.data?.description;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate({ to: "/dd-engine" })}>
         <ChevronLeft className="h-4 w-4 mr-1" /> Back to Opportunities
       </Button>
 
-      {/* The synopsis (Sector / Stakeholder Brief / AI Overview / DISC / Red Flags) lives
-          in the pipeline-list click-through dialog now, not above every round. Keep the
-          stakeholder-brief/sector state wired here so DDInterviewEnhanced can still surface
-          fresh data back up, but don't render OpportunityOverviewBar. */}
       {opp.data && null}
 
-      {/* Horizontal stepper sits below the fixed overview panel and above this round's own
-          heading (rendered by DDInterviewEnhanced), rather than a left-rail sidebar. */}
-      <div className="mb-6 rounded-lg border border-border bg-card p-2">
+      {/* Horizontal stepper — no outer frame, individual round cards carry a hairline border. */}
+      <div className="mb-6">
         <RoundStepper
           rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
           current={roundNumber}
