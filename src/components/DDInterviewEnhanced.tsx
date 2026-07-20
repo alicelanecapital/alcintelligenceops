@@ -995,7 +995,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   guide the single recording above, not separate per-question recordings. */}
               <div>
                 <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
-                <Accordion type="multiple" className="rounded-lg border border-emerald-300 bg-gray-50 px-3">
+                <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
                   {questions.map((q, idx) => (
                     <AccordionItem key={idx} value={String(idx)}>
                       <AccordionTrigger className="text-sm">
