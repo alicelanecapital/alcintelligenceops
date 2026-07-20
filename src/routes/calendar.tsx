@@ -149,15 +149,8 @@ function CalendarScreen() {
   const gridEnd = endOfWeek(endOfMonth(month));
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
-  const itemStyle = (it: CalItem): string => {
-    if (it.type === "event") return "bg-emerald-100 text-emerald-800";
-    if (it.type === "task") return "bg-amber-100 text-amber-900";
-    if (it.type === "meeting") {
-      const c = contactColor(it.category);
-      return c.pastel;
-    }
-    return "bg-slate-100 text-slate-800";
-  };
+  // Events, tasks, and meetings all render as plain text rows now — no colour coding on entries.
+  const itemStyle = (_it: CalItem): string => "text-foreground";
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
