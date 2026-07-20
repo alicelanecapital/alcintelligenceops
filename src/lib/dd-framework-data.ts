@@ -513,6 +513,20 @@ export const SECTOR_MODULES = {
       'Verify supplier agreements and lead times',
       'Review quality control processes and testing'
     ]
+  },
+  F: {
+    name: 'Health & Wellness',
+    description: 'Aesthetics, dentistry, clinics, medical, cosmetic, wellness',
+    additionalQuestions: [
+      'What clinical / regulatory approvals or licences do you hold, and how are they renewed?',
+      'How do you handle patient / client records, consent and data protection?',
+      'What is your practitioner retention plan and how are qualifications verified?'
+    ],
+    verificationSteps: [
+      'Verify practising licences and professional body registration',
+      'Review clinical incident and complaints log',
+      'Confirm insurance cover for practitioners and premises'
+    ]
   }
 };
 

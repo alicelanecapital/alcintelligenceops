@@ -20,15 +20,19 @@ import { Play, Plus, Archive, ArchiveRestore, Trash2, User } from "lucide-react"
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
+import { OpportunitySynopsisDialog } from "@/components/OpportunitySynopsisDialog";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
+// Sector labels retained for internal use elsewhere; the badge itself no longer renders on
+// the pipeline list (sector is surfaced via the synopsis dialog instead).
 const SECTOR_LABELS: Record<string, string> = {
   A: "Physical service",
   B: "Retail",
   C: "Food",
   D: "Software",
   E: "Manufacturing",
+  F: "Health & Wellness",
 };
 
 // Distinct colour per round so the pipeline is scannable at a glance across cards.
@@ -52,6 +56,8 @@ function DDEngine() {
     [q.data, view],
   );
   const archivedCount = useMemo(() => (q.data ?? []).filter((opp: any) => opp.archived).length, [q.data]);
+
+  const [synopsisId, setSynopsisId] = useState<string | null>(null);
 
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
@@ -97,11 +103,13 @@ function DDEngine() {
       <div className={displayMode === "card" ? "grid md:grid-cols-2 gap-4 mt-6" : "flex flex-col gap-3 mt-6"}>
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
-          const sector = opp.dd_detected_sector ? SECTOR_LABELS[opp.dd_detected_sector] : null;
-          const sectorConfidence = opp.dd_sector_confidence;
 
           return (
-            <Card key={opp.id} className="hover:border-primary/50 transition-colors">
+            <Card
+              key={opp.id}
+              className="hover:border-primary/50 transition-colors cursor-pointer"
+              onClick={() => setSynopsisId(opp.id)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">
@@ -117,12 +125,7 @@ function DDEngine() {
                       <div className="text-xs text-muted-foreground mt-1 truncate">{opp.company?.name ?? "—"}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {sector && (
-                      <Badge variant="outline" className="text-[10px] whitespace-nowrap">
-                        {sector}{sectorConfidence ? ` — ${Math.round(sectorConfidence)}%` : ""}
-                      </Badge>
-                    )}
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -157,7 +160,7 @@ function DDEngine() {
                   <Badge variant="outline" className={`text-[11px] font-medium ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
                     {currentRound ? `Round ${currentRound} of 5` : "Not started"}
                   </Badge>
-                  <Button size="sm" variant="outline" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
+                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleBegin(opp.id, currentRound ?? undefined); }}>
                     <Play className="h-3 w-3 mr-1" />
                     {currentRound ? "Resume" : "Begin"}
                   </Button>
@@ -176,6 +179,12 @@ function DDEngine() {
           </div>
         )}
       </div>
+
+      <OpportunitySynopsisDialog
+        opportunityId={synopsisId}
+        open={!!synopsisId}
+        onOpenChange={(o) => { if (!o) setSynopsisId(null); }}
+      />
     </div>
   );
 }

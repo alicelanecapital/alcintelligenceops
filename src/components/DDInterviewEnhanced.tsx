@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
 import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds } from '@/lib/dd-framework-admin';
-import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
+import { detectSector, generateAnalysisReport, MIN_SECTOR_CONFIDENCE } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
 import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
@@ -288,6 +288,35 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     })();
   };
 
+  // Runs sector detection with the founder's stated sector / company industry as a hint
+  // so we don't misclassify (e.g. an aesthetics/dentistry practice as "Software"). Only
+  // writes back when we're above the minimum confidence threshold; syncs the result to the
+  // opportunities row too so the pipeline list and detail page stay in sync with the round.
+  const runSectorDetectionAndSync = async (transcriptText: string) => {
+    let hint: string | null = null;
+    try {
+      const { data: opp } = await (supabase.from('opportunities') as any)
+        .select('founder:founders(sector), company:companies(industry), industry')
+        .eq('id', opportunityId).maybeSingle();
+      hint = opp?.company?.industry ?? opp?.founder?.sector ?? opp?.industry ?? null;
+    } catch { /* ignore */ }
+    const detection = await detectSector({ data: { responses: [transcriptText], hint } });
+    if (detection.sector && detection.confidence >= MIN_SECTOR_CONFIDENCE) {
+      setSector(detection.sector);
+      setSectorConfidence(detection.confidence);
+      if (interviewRowId) {
+        await supabase.from('dd_interviews').update({
+          detected_sector: detection.sector,
+          sector_confidence: detection.confidence,
+        }).eq('id', interviewRowId);
+      }
+      await (supabase.from('opportunities') as any).update({
+        dd_detected_sector: detection.sector,
+        dd_sector_confidence: detection.confidence,
+      }).eq('id', opportunityId);
+    }
+  };
+
   // Persist the single whole-round transcript against every question in this round, so the
   // existing per-question response records stay populated without needing a manual "save" step.
   const persistTranscriptAgainstAllQuestions = async (text: string) => {
@@ -367,15 +396,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       await persistTranscriptAgainstAllQuestions(text);
 
       if (round === 1 && text) {
-        const detection = await detectSector({ data: { responses: [text] } });
-        setSector(detection.sector);
-        setSectorConfidence(detection.confidence);
-        if (interviewRowId && detection.sector) {
-          await supabase.from('dd_interviews').update({
-            detected_sector: detection.sector,
-            sector_confidence: detection.confidence,
-          }).eq('id', interviewRowId);
-        }
+        await runSectorDetectionAndSync(text);
       }
       refreshOpportunityIntelligence();
     } catch (error) {
@@ -402,15 +423,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       toast.success('Transcript uploaded');
 
       if (round === 1 && text) {
-        const detection = await detectSector({ data: { responses: [text] } });
-        setSector(detection.sector);
-        setSectorConfidence(detection.confidence);
-        if (interviewRowId && detection.sector) {
-          await supabase.from('dd_interviews').update({
-            detected_sector: detection.sector,
-            sector_confidence: detection.confidence,
-          }).eq('id', interviewRowId);
-        }
+        await runSectorDetectionAndSync(text);
       }
       refreshOpportunityIntelligence();
     } catch (error: any) {
@@ -443,7 +456,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         }
       });
       setAiAnalysis(analysis);
-      await supabase.from('dd_interviews').update({ ai_analysis: analysis as any }).eq('id', interviewRowId);
+      await (supabase.from('dd_interviews') as any).update({
+        ai_analysis: analysis as any,
+        red_flags: (analysis as any)?.redFlags ?? [],
+      }).eq('id', interviewRowId);
       refreshOpportunityIntelligence();
     } catch (error: any) {
       console.error('Analysis generation failed:', error);
@@ -979,7 +995,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   guide the single recording above, not separate per-question recordings. */}
               <div>
                 <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
-                <Accordion type="multiple" className="rounded-lg border border-emerald-300 bg-gray-50 px-3">
+                <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
                   {questions.map((q, idx) => (
                     <AccordionItem key={idx} value={String(idx)}>
                       <AccordionTrigger className="text-sm">
@@ -1011,15 +1027,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               {/* Custom questions the interviewer added for this specific opportunity+round --
                   full CRUD, kept separate from the shared DD Framework template so editing one
                   interview's questions never affects any other opportunity. */}
-              <div className="p-4 bg-emerald-50/40 border border-emerald-300 rounded">
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded">
                 <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
                 <div className="space-y-2 mb-3">
                   {customQuestions.map((q) => (
-                    <div key={q.id} className="bg-white rounded border border-emerald-300 p-2">
+                    <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
                       {editingCustomQuestionId === q.id ? (
                         <div className="flex items-start gap-2">
                           <textarea
-                            className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1"
+                            className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
                             value={editingCustomQuestionText}
                             onChange={(e) => setEditingCustomQuestionText(e.target.value)}
                             rows={2}
@@ -1055,35 +1071,50 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     value={newCustomQuestion}
                     onChange={(e) => setNewCustomQuestion(e.target.value)}
                     placeholder="Add a question specific to this interview…"
-                    className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1.5"
+                    className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
                   />
                   <button
                     onClick={handleAddCustomQuestion}
                     disabled={!newCustomQuestion.trim()}
-                    className="px-3 py-1.5 bg-white border border-emerald-300 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                    className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
                   >
                     Add
                   </button>
                 </div>
               </div>
 
-              {/* AI-generated follow-up questions the interviewer didn't ask -- regenerated
-                  every time Analyze Recording runs, so it reflects this round's actual
-                  transcript rather than a fixed list. Flags answers that seemed incomplete or
-                  contradicted something else said, not just generic gaps. */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI Questions</p>
+              {/* AI Questions -- pastel teal per style guide. */}
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded">
+                <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
                 {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
                   aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                    <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
+                    <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
                   ))
                 ) : (
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-teal-700">
                     {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
                   </p>
                 )}
               </div>
+
+              {/* Red Flags -- surfaced per round; may show "none detected" or specific warnings
+                  from the AI analysis, including missing/anomalous data across documents. */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded">
+                <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                  <ul className="space-y-1">
+                    {aiAnalysis.redFlags.map((flag: string, idx: number) => (
+                      <li key={idx} className="text-sm text-red-800">• {flag}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-red-700">
+                    {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
+                  </p>
+                )}
+              </div>
+
 
               {/* Transcript and upload -- comes after the questions since it's the follow-up
                   step once the round recording is done. */}

@@ -650,6 +650,7 @@ export type Database = {
           paused_at: string | null
           recording_duration_seconds: number | null
           recording_url: string | null
+          red_flags: Json | null
           round: number
           sector_confidence: number | null
           stakeholder_brief: Json | null
@@ -673,6 +674,7 @@ export type Database = {
           paused_at?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          red_flags?: Json | null
           round: number
           sector_confidence?: number | null
           stakeholder_brief?: Json | null
@@ -696,6 +698,7 @@ export type Database = {
           paused_at?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          red_flags?: Json | null
           round?: number
           sector_confidence?: number | null
           stakeholder_brief?: Json | null

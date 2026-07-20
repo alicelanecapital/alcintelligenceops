@@ -20,10 +20,10 @@ type DiscProfile = {
 };
 
 const DIMENSIONS: { key: keyof DiscProfile; label: string; color: string }[] = [
-  { key: "dominance", label: "Dominance", color: "bg-red-500" },
-  { key: "influence", label: "Influence", color: "bg-amber-500" },
-  { key: "steadiness", label: "Steadiness", color: "bg-green-500" },
-  { key: "conscientiousness", label: "Conscientiousness", color: "bg-blue-500" },
+  { key: "dominance", label: "D — Dominance", color: "bg-red-500" },
+  { key: "influence", label: "I — Influence", color: "bg-amber-500" },
+  { key: "steadiness", label: "S — Steadiness", color: "bg-green-500" },
+  { key: "conscientiousness", label: "C — Conscientiousness", color: "bg-blue-500" },
 ];
 
 export function DiscProfileCard({ opportunityId, initialProfile }: { opportunityId: string; initialProfile: DiscProfile | null }) {

@@ -1,0 +1,1 @@
+ALTER TABLE public.dd_interviews ADD COLUMN IF NOT EXISTS red_flags jsonb;
