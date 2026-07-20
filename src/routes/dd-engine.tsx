@@ -103,11 +103,13 @@ function DDEngine() {
       <div className={displayMode === "card" ? "grid md:grid-cols-2 gap-4 mt-6" : "flex flex-col gap-3 mt-6"}>
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
-          const sector = opp.dd_detected_sector ? SECTOR_LABELS[opp.dd_detected_sector] : null;
-          const sectorConfidence = opp.dd_sector_confidence;
 
           return (
-            <Card key={opp.id} className="hover:border-primary/50 transition-colors">
+            <Card
+              key={opp.id}
+              className="hover:border-primary/50 transition-colors cursor-pointer"
+              onClick={() => setSynopsisId(opp.id)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">
@@ -123,12 +125,7 @@ function DDEngine() {
                       <div className="text-xs text-muted-foreground mt-1 truncate">{opp.company?.name ?? "—"}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {sector && (
-                      <Badge variant="outline" className="text-[10px] whitespace-nowrap">
-                        {sector}{sectorConfidence ? ` — ${Math.round(sectorConfidence)}%` : ""}
-                      </Badge>
-                    )}
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -163,7 +160,7 @@ function DDEngine() {
                   <Badge variant="outline" className={`text-[11px] font-medium ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
                     {currentRound ? `Round ${currentRound} of 5` : "Not started"}
                   </Badge>
-                  <Button size="sm" variant="outline" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
+                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleBegin(opp.id, currentRound ?? undefined); }}>
                     <Play className="h-3 w-3 mr-1" />
                     {currentRound ? "Resume" : "Begin"}
                   </Button>
