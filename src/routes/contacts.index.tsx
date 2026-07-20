@@ -291,7 +291,7 @@ function ContactCard({ c }: { c: ContactRow }) {
                 {c.source_event?.name ? `Met at ${c.source_event.name}` : "Met"} {c.date_met ? `· ${new Date(c.date_met).toLocaleDateString()}` : ""}
               </div>
             )}
-            <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
               {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
               {c.website && <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" /> website</span>}
