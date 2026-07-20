@@ -11,6 +11,8 @@ import {
 } from "@/lib/dd-framework-admin";
 // Card frames removed from admin — sections use dividers only.
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,7 +145,7 @@ function SortableRoundAccordion({
       }}
     >
       <SortableContext items={rounds.map((r) => String(r.round))} strategy={verticalListSortingStrategy}>
-        <Accordion type="multiple" value={expanded} onValueChange={onExpandedChange} className="space-y-2">
+        <Accordion type="multiple" value={expanded} onValueChange={onExpandedChange} className="border-t border-border">
           {rounds.map((r, idx) => (
             <SortableRoundItem
               key={r.round}
@@ -176,50 +178,55 @@ function SortableRoundItem({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <AccordionItem value={`round-${round.round}`} className="border border-border rounded-md overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-1 bg-muted/30">
-          <button
-            type="button"
-            aria-label="Drag to reorder"
-            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-          <span className="flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold bg-muted text-muted-foreground border border-border shrink-0">
-            {index + 1}
-          </span>
-          <AccordionTrigger className="flex-1 hover:no-underline py-2 text-left">
+      <AccordionItem value={`round-${round.round}`} className="border-0 border-b border-border">
+        <AccordionPrimitive.Header className="flex">
+          <AccordionPrimitive.Trigger className="group flex flex-1 items-center gap-2 py-2 px-1 text-left hover:no-underline">
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
+            <button
+              type="button"
+              aria-label="Drag to reorder"
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <span className="flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold bg-muted text-muted-foreground border border-border shrink-0">
+              {index + 1}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium truncate">{round.title}</span>
               {round.subtitle && <span className="block text-xs text-muted-foreground truncate">{round.subtitle}</span>}
             </span>
-          </AccordionTrigger>
-          {canDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" title="Delete round">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Round {round.round}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This permanently deletes Round {round.round}'s questions and required documents. This can't be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
         <AccordionContent>
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-4 relative">
+            {canDelete && (
+              <div className="absolute right-4 top-2 z-10">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Delete round">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Round {round.round}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This permanently deletes Round {round.round}'s questions and required documents. This can't be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
             {isExpanded && <RoundBody round={round.round} onInvalidate={onInvalidate} />}
           </div>
         </AccordionContent>
