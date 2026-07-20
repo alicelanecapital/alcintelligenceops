@@ -27,12 +27,12 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               key={r.round}
               onClick={() => onSelect(r.round)}
               className={cn(
-                "flex-1 min-w-[160px] text-left flex flex-col gap-1.5 px-4 py-3 rounded-lg transition-all border-2",
+                "flex-1 min-w-[160px] text-left flex flex-col gap-1.5 px-4 py-3 rounded-lg transition-all border",
                 completed
-                  ? "bg-emerald-600 border-emerald-600 shadow-sm"
+                  ? "bg-emerald-600 border-emerald-600"
                   : active
-                  ? "bg-primary/10 border-primary shadow-sm"
-                  : "bg-card border-border hover:border-primary/40 hover:bg-muted/60",
+                  ? "bg-primary/10 border-primary"
+                  : "bg-card border-border/40 hover:border-primary/40 hover:bg-muted/60",
               )}
             >
               <span className="flex items-center gap-2.5">

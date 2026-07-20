@@ -102,7 +102,7 @@ function DDFrameworkAdmin() {
       />
 
       <div className="flex justify-end mb-3">
-        <Button size="sm" variant="outline" onClick={() => addRoundMut.mutate()} disabled={addRoundMut.isPending}>
+        <Button size="sm" onClick={() => addRoundMut.mutate()} disabled={addRoundMut.isPending}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
         </Button>
       </div>

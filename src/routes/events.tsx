@@ -275,7 +275,7 @@ function Events() {
           </>
         }
         actions={
-          <Button variant="outline" onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
+          <Button onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Add event
           </Button>
         }
@@ -543,7 +543,7 @@ function EventRow({ e, onEdit, onReject, onCapture, onBook, onUnbook, onIntel, f
   };
 
   return (
-    <div className={`rounded-md bg-record-surface text-record-foreground p-4 flex flex-wrap items-start justify-between gap-4 ${withinNextYear ? "ring-1 ring-orange-400/50" : ""}`}>
+    <div className={`rounded-md bg-white text-foreground border border-border p-4 flex flex-wrap items-start justify-between gap-4 ${withinNextYear ? "ring-1 ring-orange-400/50" : ""}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           {e.is_new && <span className="text-lg" title="Newly discovered">⭐</span>}

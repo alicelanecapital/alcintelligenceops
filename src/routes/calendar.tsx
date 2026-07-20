@@ -166,7 +166,7 @@ function CalendarScreen() {
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => subMonths(m, 1))}><ChevronLeft className="h-4 w-4" /></Button>
             <div className="font-serif text-lg w-40 text-center">{format(month, "MMMM yyyy")}</div>
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => addMonths(m, 1))}><ChevronRight className="h-4 w-4" /></Button>
-            <Button variant="outline" onClick={() => { setMonth(new Date()); setSelectedDay(new Date()); }}>Today</Button>
+            <Button onClick={() => { setMonth(new Date()); setSelectedDay(new Date()); }}>Today</Button>
           </div>
         }
       />
