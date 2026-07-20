@@ -1,34 +1,45 @@
-## Reduce frames & polish visual density
+## 1. DD Framework admin → accordion rounds
 
-### Calendar (`src/routes/calendar.tsx`)
-- Lighten the "outside-month" day cell shading from current grey to a much lighter tint (e.g. `bg-muted/20` → near-white).
-- Remove color-coded backgrounds/borders on event pills — render events as plain text rows (single neutral text color) with only a thin bottom divider between entries in a day cell. Keep the pastel public-holiday day shading and forest-green day header row as-is.
+Replace the two-column layout in `src/routes/admin.dd-framework.tsx` with a single vertical list. One `Accordion` (`type="multiple"`, all collapsed by default) — one `AccordionItem` per round.
 
-### Deal Pipeline (`src/routes/dd-engine.tsx`)
-- Strip the `Card`/border wrapper on each deal record.
-- Collapse each deal to a single row (name + company + status/actions on one line, no stacked metadata block).
-- Replace the frame with a simple `border-b` divider between records.
-- Keep click-to-open synopsis behavior intact.
+**Header row (collapsed state):**
+- Left: drag handle (grip) — reuses `@dnd-kit` from `SortableRoundsList`, activator scoped to the handle so the rest of the header still toggles expand/collapse. Reorder auto-saves via `reorderFrameworkRounds`.
+- Middle: round number + title + muted subtitle (truncated).
+- Right: inline Delete button (with existing confirm dialog) + accordion chevron.
 
-### Synopsis modal (`src/components/OpportunitySynopsisDialog.tsx`)
-- Widen the dialog by ~30% (`max-w-2xl` → `max-w-4xl`, or equivalent width bump) so content fits without scrolling.
-- Add a **Download PDF** button in the modal header that exports the synopsis (Stakeholder Brief, Sector, AI Overview, DISC, Red Flags) as a PDF.
-- Implementation: use `jspdf` + `html2canvas` to snapshot the synopsis content node client-side and save as `<Company>-synopsis.pdf`. Install both via `bun add`.
+**Expanded panel:** renders the existing `RoundMetaCard`, `QuestionsSection`, `DocumentsSection` unchanged in behavior. Detail data is lazy-fetched per round (`useQuery` gated on `expanded`). Newly added rounds auto-expand.
 
-### DD Intelligence Engine admin (`src/routes/admin.dd-framework.tsx`)
-- Remove all `Card`/framed wrappers around: Required Documents list, Questions list, and per-Round detail sections (applies to every round).
-- Replace item frames with `border-b` dividers only.
-- Keep section headings and spacing; remove nested container frames entirely so the screen reads as flat lists under headings.
+Top toolbar keeps only **Add Round**. Remove the standalone "Delete This Round" button and the "Drag to reorder" caption. Remove `RoundStepper` import if unused after refactor. No frames added inside expanded content — divider-only styling stays.
 
-### Drag-and-drop round reordering (Admin → DD Intelligence Engine)
-- Make the round list in the left rail/stepper drag-and-droppable so the sequence of rounds can be changed and saved. New position persists across sessions and is reflected everywhere rounds are listed (admin stepper + `RoundStepper` in the Deal Pipeline interview view).
-- **Schema**: add `sort_order integer` column to `dd_framework_rounds` (migration). Backfill from existing `round` values so the initial order is unchanged. Leave the existing `round` integer alone — it stays the stable identifier used by `dd_framework_questions.round`, `dd_framework_documents.round`, `dd_interviews.round`, so historical interview data is not disturbed.
-- **Query order**: change `fetchAllFrameworkRounds` and any other rounds fetcher to `.order("sort_order")` instead of `.order("round")`.
-- **Reorder API**: add `reorderFrameworkRounds(items: { round: number; sort_order: number }[])` in `src/lib/dd-framework-admin.ts` that batches `update` calls (mirrors existing `reorderFrameworkQuestions` pattern).
-- **UI**: use `@dnd-kit/core` + `@dnd-kit/sortable` (install via `bun add`) — same libs already used elsewhere or added if not — with a small grab handle on each round row in the admin left rail. On drop, recompute `sort_order` for the affected items and call the reorder API; invalidate the `dd-framework-rounds` query so both the admin screen and the interview stepper repaint in the new order.
-- **Save UX**: auto-persist immediately on drop (no separate "Save order" button), with toast confirmation on success/failure and optimistic reorder in the local list.
+## 2. Synopsis → full-screen route
 
-### Out of scope
-- No schema/business-logic changes beyond the new `sort_order` column on `dd_framework_rounds`.
-- Round numbers themselves stay stable — reordering only changes display order, not the underlying `round` identifier or any child rows.
-- Forest-green underline for screen headings and calendar grid styling remain.
+- New route `src/routes/opportunities.$id.synopsis.tsx` that renders the current `OpportunitySynopsisDialog` body inside `AppShell` as a full-page view, with a top bar containing **Back to pipeline** (navigates to `/dd-engine`) and **Download PDF**. Close = Back.
+- Delete the modal-mode usage from `src/routes/dd-engine.tsx` (remove `OpportunitySynopsisDialog` and the row-click handler). Keep the reusable synopsis body — extract shared render into a `SynopsisContent` component that both the new route and the existing dialog can use, so nothing else that opens the dialog breaks. (Row click no longer opens synopsis.)
+- Fix the overlap in the current dialog (uploaded screenshot: Download PDF hits the X close). In the new full-screen layout the buttons live in a top bar with clear spacing, so the collision disappears.
+
+## 3. Deal Pipeline row actions
+
+In `src/routes/dd-engine.tsx` each row's action cluster becomes:
+
+`[View Synopsis] [Resume/Begin ▶] [Archive] [Delete]`
+
+- **View Synopsis** — outline button, navigates to the new synopsis route.
+- **Resume/Begin** — `Play` icon coloured bright green (`text-green-500`) with the label unchanged.
+
+## 4. Approved / Rejected status + filters
+
+Data model:
+- Migration: add `pipeline_status` to `public.opportunities` (`text`, default `'active'`, check constraint `in ('active','approved','rejected')`). Backfill existing rows to `'active'`. No RLS/grant changes needed.
+
+UI in `src/routes/dd-engine.tsx`:
+- Replace the current `active | archived` `Tabs` with `active | approved | rejected | archived` and filter `opportunities` off `pipeline_status` (archived still uses the existing `archived` flag so nothing breaks).
+- Row menu (or inline buttons on the row) gains **Approve** and **Reject** actions that call a new `setOpportunityStatus(id, status)` mutation, which invalidates `['opportunities']` and toasts.
+- Approved/Rejected rows hide the Resume button (final state) but keep View Synopsis, Archive, and Delete.
+
+Server:
+- Extend `updateOpportunity` in `src/lib/founders-data.ts` (or add `setOpportunityStatus`) to accept `pipeline_status`. Cast to `any` where generated types haven't caught up yet, matching existing precedent.
+
+## Out of scope
+- No changes to interview-side `RoundStepper` used inside `/dd-interview/...`.
+- No schema changes beyond the single `pipeline_status` column.
+- No redesign of synopsis contents — only its container/route.
