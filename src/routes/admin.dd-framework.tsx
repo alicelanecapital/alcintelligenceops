@@ -19,9 +19,11 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { SortableRoundsList } from "@/components/SortableRoundsList";
-import { Plus, Trash2, ChevronUp, ChevronDown, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Plus, Trash2, ChevronUp, ChevronDown, Save, GripVertical } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 
