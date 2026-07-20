@@ -12,16 +12,11 @@ const navGroups = [
     ],
   },
   {
-    label: "CRM",
+    label: "Operations",
     items: [
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/contacts", label: "Contacts", icon: Users },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
-    ],
-  },
-  {
-    label: "Due Diligence Engine",
-    items: [
       { to: "/interviews", label: "Meetings", icon: MessagesSquare },
       { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
     ],
@@ -29,10 +24,11 @@ const navGroups = [
   {
     label: "Admin",
     items: [
-      { to: "/admin/dd-framework", label: "DD Framework", icon: ShieldCheck },
+      { to: "/admin/dd-framework", label: "DD Intelligence Engine", icon: ShieldCheck },
       { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },
+
 ];
 
 export function AppShell({ children }: { children?: ReactNode }) {
