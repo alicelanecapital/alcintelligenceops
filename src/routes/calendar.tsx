@@ -7,7 +7,7 @@ import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
 import { getOrCreateBookingLink } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { CONTACT_COLORS, type ContactCategory } from "@/lib/contact-colors";
+import type { ContactCategory } from "@/lib/contact-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Copy, CalendarPlus } from "lucide-react";
