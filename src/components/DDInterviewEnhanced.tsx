@@ -1027,15 +1027,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               {/* Custom questions the interviewer added for this specific opportunity+round --
                   full CRUD, kept separate from the shared DD Framework template so editing one
                   interview's questions never affects any other opportunity. */}
-              <div className="p-4 bg-emerald-50/40 border border-emerald-300 rounded">
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded">
                 <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
                 <div className="space-y-2 mb-3">
                   {customQuestions.map((q) => (
-                    <div key={q.id} className="bg-white rounded border border-emerald-300 p-2">
+                    <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
                       {editingCustomQuestionId === q.id ? (
                         <div className="flex items-start gap-2">
                           <textarea
-                            className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1"
+                            className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
                             value={editingCustomQuestionText}
                             onChange={(e) => setEditingCustomQuestionText(e.target.value)}
                             rows={2}
@@ -1071,35 +1071,50 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     value={newCustomQuestion}
                     onChange={(e) => setNewCustomQuestion(e.target.value)}
                     placeholder="Add a question specific to this interview…"
-                    className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1.5"
+                    className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
                   />
                   <button
                     onClick={handleAddCustomQuestion}
                     disabled={!newCustomQuestion.trim()}
-                    className="px-3 py-1.5 bg-white border border-emerald-300 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                    className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
                   >
                     Add
                   </button>
                 </div>
               </div>
 
-              {/* AI-generated follow-up questions the interviewer didn't ask -- regenerated
-                  every time Analyze Recording runs, so it reflects this round's actual
-                  transcript rather than a fixed list. Flags answers that seemed incomplete or
-                  contradicted something else said, not just generic gaps. */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm font-semibold text-blue-900 mb-3">🎯 AI Questions</p>
+              {/* AI Questions -- pastel teal per style guide. */}
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded">
+                <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
                 {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
                   aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                    <p key={idx} className="text-sm text-blue-800 mb-2">• {q}</p>
+                    <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
                   ))
                 ) : (
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-teal-700">
                     {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
                   </p>
                 )}
               </div>
+
+              {/* Red Flags -- surfaced per round; may show "none detected" or specific warnings
+                  from the AI analysis, including missing/anomalous data across documents. */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded">
+                <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                  <ul className="space-y-1">
+                    {aiAnalysis.redFlags.map((flag: string, idx: number) => (
+                      <li key={idx} className="text-sm text-red-800">• {flag}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-red-700">
+                    {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
+                  </p>
+                )}
+              </div>
+
 
               {/* Transcript and upload -- comes after the questions since it's the follow-up
                   step once the round recording is done. */}
