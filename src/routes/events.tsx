@@ -283,12 +283,12 @@ function Events() {
 
       <Card className="mb-6 border-primary/20 bg-primary/5">
         <CardContent className="p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div>
+          <div className="text-xs text-muted-foreground max-w-xs">
+            Running total of booked events for the year — updates automatically as you book events below.
+          </div>
+          <div className="text-right">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">{currentYear} bookings total</div>
             <div className="font-serif text-3xl mt-1">{formatZAR(yearTotal)}</div>
-          </div>
-          <div className="text-xs text-muted-foreground max-w-xs text-right">
-            Running total of booked events for the year — updates automatically as you book events below.
           </div>
         </CardContent>
       </Card>
