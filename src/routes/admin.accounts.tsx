@@ -8,18 +8,68 @@ import { syncGoogleCalendarEvents, listTeamGoogleConnections } from "@/lib/googl
 import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES } from "@/lib/team-member-colors";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { LinkIcon, RefreshCw, Users, Plus, Trash2, Pencil } from "lucide-react";
+import { LinkIcon, RefreshCw, Users, Plus, Trash2, Pencil, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/accounts")({ component: () => <AppShell><AccountsScreen /></AppShell> });
+
+function EmailSignatureCard() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.from("profiles").select("id, email_signature, full_name").eq("id", user.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const [signature, setSignature] = useState("");
+  useEffect(() => { setSignature(((q.data as any)?.email_signature ?? "") as string); }, [q.data]);
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Not signed in");
+      // Upsert in case the profile row hasn't been created yet.
+      const { error } = await supabase.from("profiles").upsert({ id: user.id, email_signature: signature } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Signature saved"); qc.invalidateQueries({ queryKey: ["my-profile"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Failed to save"),
+  });
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="text-base inline-flex items-center gap-2"><Mail className="h-4 w-4" /> Your email signature</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Textarea
+          value={signature}
+          onChange={(e) => setSignature(e.target.value)}
+          rows={6}
+          placeholder={"Kind regards,\nYour Name\nAlice Lane Capital\n+27 …"}
+        />
+        <p className="text-[11px] text-muted-foreground">Automatically appended to every email you send from the Request Information modal.</p>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save signature"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function AccountsScreen() {
   const qc = useQueryClient();
@@ -146,6 +196,8 @@ function AccountsScreen() {
           </div>
         }
       />
+
+      <EmailSignatureCard />
 
       <p className="text-xs text-muted-foreground mb-4">
         Registering an account here gives it a name and a colour, used to tell calendar events apart on the Meetings screen.

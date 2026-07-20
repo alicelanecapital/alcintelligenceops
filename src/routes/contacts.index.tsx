@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { AlphabetChips, firstLetterOf } from "@/components/AlphabetChips";
+import { contactColor } from "@/lib/contact-colors";
 
 
 export const Route = createFileRoute("/contacts/")({
@@ -87,7 +88,7 @@ function ContactsIndex() {
         title="Contacts"
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-nowrap items-center">
             <Button variant="outline" onClick={() => setMergeOpen(true)}>
               <GitMerge className="h-4 w-4 mr-1" /> Merge duplicates
             </Button>
@@ -208,12 +209,57 @@ function useContactRowActions() {
   return { editing, setEditing, del };
 }
 
+/** Loads upcoming Google Calendar events once and derives per-contact next meeting dates by attendee email. */
+function useNextMeetingMap(): Map<string, string> {
+  const q = useQuery({
+    queryKey: ["contact-next-meetings"],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("google_calendar_events")
+        .select("start_time, attendees")
+        .gte("start_time", nowIso)
+        .order("start_time", { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of (q.data ?? []) as any[]) {
+      const attendees: any[] = Array.isArray(row.attendees) ? row.attendees : [];
+      for (const a of attendees) {
+        const email = (a?.email ?? "").toLowerCase();
+        if (email && !map.has(email)) map.set(email, row.start_time);
+      }
+    }
+    return map;
+  }, [q.data]);
+}
+
+function NextMeetingBadge({ email }: { email: string | null | undefined }) {
+  const map = useNextMeetingMap();
+  if (!email) return null;
+  const iso = map.get(email.toLowerCase());
+  if (!iso) return null;
+  const d = new Date(iso);
+  return (
+    <Badge className="bg-amber-100 text-amber-900 border-amber-200 border text-[10px] shrink-0" title="Next scheduled meeting">
+      <CalendarDays className="h-3 w-3 mr-1" />
+      {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+    </Badge>
+  );
+}
+
 function ContactCard({ c }: { c: ContactRow }) {
   const primary = c.company || c.name;
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
+  const cat = contactColor(c.category);
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
     onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
@@ -228,8 +274,9 @@ function ContactCard({ c }: { c: ContactRow }) {
               <div className="font-serif text-lg leading-tight">{primary}</div>
               {secondary && <div className="text-xs text-muted-foreground">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
             </Link>
-            <div className="flex items-center gap-1">
-              <Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              <Badge className={cn("border text-[10px]", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+              <NextMeetingBadge email={c.email} />
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
@@ -269,6 +316,7 @@ function ContactListRow({ c }: { c: ContactRow }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const qc = useQueryClient();
+  const cat = contactColor(c.category);
   const del = useMutation({
     mutationFn: () => deleteContact(c.id),
     onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["contacts"] }); setConfirming(false); },
@@ -279,9 +327,10 @@ function ContactListRow({ c }: { c: ContactRow }) {
       <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
         <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-serif text-base leading-tight truncate">{primary}</span>
-              <Badge variant="outline" className="text-[10px] shrink-0">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+              <Badge className={cn("border text-[10px] shrink-0", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+              <NextMeetingBadge email={c.email} />
             </div>
             {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
           </div>

@@ -29,6 +29,16 @@ function dedupeEvents(events: any[]): any[] {
   const seen = new Set<string>();
   const out: any[] = [];
   for (const ev of events) {
+    // Filter public holidays out of the Meetings screen — they belong on the Calendar
+    // (where they render as pastel-shaded background cells), not in this list.
+    const title = (ev.title ?? "").toLowerCase();
+    const organizer = (ev.organizer_email ?? ev.organizer ?? "").toLowerCase();
+    const calendarId = (ev.calendar_id ?? "").toLowerCase();
+    const looksLikeHoliday =
+      calendarId.includes("holiday") ||
+      organizer.includes("holiday@group.v.calendar.google.com") ||
+      /\b(public holiday|holiday)\b/.test(title);
+    if (looksLikeHoliday) continue;
     const key = `${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
     if (seen.has(key)) continue;
     seen.add(key);
