@@ -208,7 +208,7 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
         <h2 className="font-serif text-2xl">Questions</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
       </div>
-      <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
+      <Accordion type="multiple" className="divide-y divide-border">
         {questions.map((question, idx) => (
           <QuestionCard
             key={question.id}
