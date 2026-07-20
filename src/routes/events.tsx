@@ -495,7 +495,7 @@ function EventsByMonth({ events, ...rowProps }: EventsByMonthProps) {
   }, [events]);
 
   return (
-    <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
+    <Accordion type="multiple" className="rounded-lg bg-card px-3">
       {groups.map((g) => {
         const monthTotal = g.events.filter((e: any) => e.booked).reduce((s: number, e: any) => s + bookingTotal(e), 0);
         return (
@@ -543,7 +543,7 @@ function EventRow({ e, onEdit, onReject, onCapture, onBook, onUnbook, onIntel, f
   };
 
   return (
-    <div className={`rounded-md border border-border p-4 flex flex-wrap items-start justify-between gap-4 ${withinNextYear ? "bg-orange-50/60" : ""}`}>
+    <div className={`rounded-md bg-record-surface text-record-foreground p-4 flex flex-wrap items-start justify-between gap-4 ${withinNextYear ? "ring-1 ring-orange-400/50" : ""}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           {e.is_new && <span className="text-lg" title="Newly discovered">⭐</span>}

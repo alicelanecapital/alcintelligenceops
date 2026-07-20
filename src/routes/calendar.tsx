@@ -35,30 +35,40 @@ function BookingLinkCard() {
   const getLinkFn = useServerFn(getOrCreateBookingLink);
   const q = useQuery({ queryKey: ["booking-link"], queryFn: () => getLinkFn() });
   const url = q.data ? `${window.location.origin}/book/${(q.data as any).slug}` : null;
+  const prettyUrl = url ? url.replace(/^https?:\/\//, "") : null;
 
   return (
-    <Card className="mt-6">
-      <CardContent className="p-5 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <CalendarPlus className="h-4 w-4 text-primary shrink-0" />
-          <div>
-            <div className="font-medium text-sm">Your booking link</div>
-            <div className="text-xs text-muted-foreground">Share this so clients can see your open slots and book a session directly.</div>
+    <Card className="mt-6 border-primary/20">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <CalendarPlus className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-serif text-lg leading-tight">Your personal booking link</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Share this with clients — they'll see your open times and book directly into your calendar.</div>
           </div>
         </div>
         {url ? (
-          <div className="flex items-center gap-2">
-            <code className="text-xs bg-muted px-2 py-1.5 rounded border border-border max-w-[260px] truncate">{url}</code>
+          <div className="flex items-center gap-2 flex-wrap pl-12">
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-primary hover:underline break-all"
+            >
+              {prettyUrl}
+            </a>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => { navigator.clipboard.writeText(url); toast.success("Copied"); }}
+              onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied — paste it into an email or message"); }}
             >
-              <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy link
             </Button>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">{q.isLoading ? "Creating your link…" : ""}</span>
+          <div className="text-xs text-muted-foreground pl-12">{q.isLoading ? "Creating your link…" : ""}</div>
         )}
       </CardContent>
     </Card>
@@ -184,9 +194,9 @@ function CalendarScreen() {
       </div>
 
       {/* Calendar grid — grid lines stay neutral (scoped local override of the global forest-green border colour). */}
-      <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border" style={{ backgroundColor: "hsl(220 13% 91%)", borderColor: "hsl(220 13% 91%)" }}>
+      <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border" style={{ backgroundColor: "var(--calendar-grid)", borderColor: "var(--calendar-grid)" }}>
         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
-          <div key={d} className="bg-muted/50 text-center text-[11px] uppercase tracking-wider text-muted-foreground py-2">{d}</div>
+          <div key={d} className="bg-forest text-white text-center text-[11px] uppercase tracking-wider py-2 font-medium">{d}</div>
         ))}
         {days.map((day) => {
           const dayItems = itemsForDay(day);
@@ -200,13 +210,13 @@ function CalendarScreen() {
               onClick={() => setSelectedDay(day)}
               title={holiday ?? undefined}
               className={cn(
-                "text-left p-2 min-h-[92px] hover:bg-muted/40 transition-colors",
+                "text-left p-2 min-h-[128px] hover:bg-muted/40 transition-colors",
                 holiday ? "bg-rose-50" : "bg-card",
                 !inMonth && "opacity-40",
                 selected && "ring-2 ring-primary ring-inset",
               )}
             >
-              <div className={cn("text-xs mb-1", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : "text-muted-foreground")}>
+              <div className={cn("text-xs mb-1 font-medium", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : "text-forest")}>
                 {format(day, "d")}
               </div>
               {holiday && <div className="text-[10px] text-rose-700 mb-1 truncate italic">{holiday}</div>}

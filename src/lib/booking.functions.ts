@@ -7,10 +7,8 @@ const BUSINESS_START_HOUR = 9;
 const BUSINESS_END_HOUR = 17;
 const AVAILABILITY_WINDOW_DAYS = 14;
 
-function slugify(email: string) {
-  const base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const rand = Math.random().toString(36).slice(2, 6);
-  return `${base}-${rand}`;
+function baseSlug(email: string) {
+  return email.split("@")[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "meet";
 }
 
 /**
@@ -30,12 +28,19 @@ export const getOrCreateBookingLink = createServerFn({ method: "POST" })
     if (findError) throw findError;
     if (existing) return existing;
 
-    const { data, error } = await (context.supabase.from("booking_links" as any) as any)
-      .insert({ user_email: email, slug: slugify(email) })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return data;
+    // Prefer a clean, human-readable slug (email prefix); on collision, append -2, -3, ...
+    const base = baseSlug(email);
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+      const { data, error } = await (context.supabase.from("booking_links" as any) as any)
+        .insert({ user_email: email, slug })
+        .select("*")
+        .single();
+      if (!error) return data;
+      // 23505 = unique_violation
+      if ((error as any).code !== "23505") throw error;
+    }
+    throw new Error("Couldn't allocate a unique booking slug — please try again.");
   });
 
 /** Public (no auth): computes free 30-min-default slots for the next 2 weeks, business hours only, minus synced calendar busy times and existing bookings. */

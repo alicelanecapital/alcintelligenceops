@@ -68,30 +68,31 @@ function Deals() {
                   <div className="text-xs uppercase tracking-widest text-muted-foreground">{stage}</div>
                   <Badge variant="outline" className="text-[10px]">{items.length}</Badge>
                 </div>
-                <div className="space-y-2 min-h-[200px] bg-muted/40 rounded-lg p-2">
+                <div className="space-y-1.5 min-h-[80px] bg-muted/40 rounded-lg p-1.5">
                   {items.map((d: any) => (
                     <div
                       key={d.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, d)}
-                      className={`bg-card rounded-md p-3 border border-border shadow-sm cursor-move hover:shadow-md transition-shadow ${draggedItem?.id === d.id ? "opacity-50" : ""}`}
+                      className={`bg-card rounded-md px-2 py-1.5 border border-border shadow-sm cursor-move hover:shadow-md transition-shadow ${draggedItem?.id === d.id ? "opacity-50" : ""}`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="font-medium text-sm flex-1">{d.title}</div>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-6 w-6">
+                      <div className="flex justify-between items-center gap-1">
+                        <div className="font-medium text-xs flex-1 truncate">{d.title}</div>
+                        <div className="flex gap-0.5 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-5 w-5">
                             <Edit2 className="h-3 w-3" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteMut.mutate(d.id)}>
+                          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => deleteMut.mutate(d.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">{d.organisation?.industry || d.organisation?.category || "—"}</div>
-                      {d.source && <div className="text-[10px] text-muted-foreground mt-1">via {d.source}</div>}
-                      <select value={d.stage} onChange={(e) => move(d.id, e.target.value)} className="mt-2 w-full text-[11px] bg-background border border-border rounded px-1 py-0.5">
-                        {DEAL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground truncate flex-1">{d.organisation?.industry || d.organisation?.category || "—"}{d.source ? ` · ${d.source}` : ""}</div>
+                        <select value={d.stage} onChange={(e) => move(d.id, e.target.value)} className="text-[10px] bg-background border border-border rounded px-1 py-0 h-5 shrink-0 max-w-[90px]">
+                          {DEAL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
                     </div>
                   ))}
                 </div>
