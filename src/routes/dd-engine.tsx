@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { fetchOpportunitiesWithDDStatus, createOpportunity, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
 import { fetchFounders } from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
+// Card frames removed — Deal Pipeline now uses a single-row divider list.
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -100,79 +100,70 @@ function DDEngine() {
         <ViewToggle mode={displayMode} onChange={setDisplayMode} />
       </div>
 
-      <div className={displayMode === "card" ? "grid md:grid-cols-2 gap-4 mt-6" : "flex flex-col gap-3 mt-6"}>
+      <div className="mt-6 border-t border-border">
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
 
           return (
-            <Card
+            <div
               key={opp.id}
-              className="hover:border-primary/50 transition-colors cursor-pointer"
+              className="flex items-center gap-3 py-2 px-1 border-b border-border hover:bg-muted/30 cursor-pointer"
               onClick={() => setSynopsisId(opp.id)}
             >
-              <CardContent className="p-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
-                      {opp.dd_photo_url ? (
-                        <img src={opp.dd_photo_url} alt={opp.founder?.name ?? opp.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-3.5 w-3.5" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-serif text-sm leading-tight truncate">{opp.founder?.name ?? opp.name}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{opp.company?.name ?? "—"}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      title={opp.archived ? "Restore opportunity" : "Archive opportunity"}
-                      onClick={() => archiveMut.mutate({ id: opp.id, archived: !opp.archived })}
-                    >
-                      {opp.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+              <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
+                {opp.dd_photo_url ? (
+                  <img src={opp.dd_photo_url} alt={opp.founder?.name ?? opp.name} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-3.5 w-3.5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 flex items-center gap-3">
+                <div className="font-serif text-sm truncate min-w-0 flex-1">{opp.founder?.name ?? opp.name}</div>
+                <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">{opp.company?.name ?? "—"}</div>
+              </div>
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium shrink-0 ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
+                {currentRound ? `Round ${currentRound}/5` : "Not started"}
+              </Badge>
+              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
+                  <Play className="h-3 w-3 mr-1" />
+                  {currentRound ? "Resume" : "Begin"}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  title={opp.archived ? "Restore opportunity" : "Archive opportunity"}
+                  onClick={() => archiveMut.mutate({ id: opp.id, archived: !opp.archived })}
+                >
+                  {opp.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete opportunity">
+                      <Trash2 className="h-3 w-3" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete opportunity">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this opportunity?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This permanently deletes "{opp.founder?.name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMut.mutate(opp.id)}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
-                    {currentRound ? `Round ${currentRound}/5` : "Not started"}
-                  </Badge>
-                  <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); handleBegin(opp.id, currentRound ?? undefined); }}>
-                    <Play className="h-3 w-3 mr-1" />
-                    {currentRound ? "Resume" : "Begin"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this opportunity?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This permanently deletes "{opp.founder?.name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMut.mutate(opp.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           );
         })}
 
         {q.isSuccess && !opportunities.length && (
-          <div className="col-span-full rounded-lg border border-dashed border-border p-12 text-center bg-card">
+          <div className="p-12 text-center">
             <div className="font-serif text-xl">{view === "archived" ? "No archived opportunities" : "No opportunities yet"}</div>
             <p className="text-sm text-muted-foreground mt-2">
               {view === "archived" ? "Archived opportunities will show up here." : "Add an opportunity to start the due diligence framework."}

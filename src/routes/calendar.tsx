@@ -7,7 +7,7 @@ import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
 import { getOrCreateBookingLink } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { contactColor, CONTACT_COLORS, type ContactCategory } from "@/lib/contact-colors";
+import type { ContactCategory } from "@/lib/contact-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Copy, CalendarPlus } from "lucide-react";
@@ -149,15 +149,8 @@ function CalendarScreen() {
   const gridEnd = endOfWeek(endOfMonth(month));
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
-  const itemStyle = (it: CalItem): string => {
-    if (it.type === "event") return "bg-emerald-100 text-emerald-800";
-    if (it.type === "task") return "bg-amber-100 text-amber-900";
-    if (it.type === "meeting") {
-      const c = contactColor(it.category);
-      return c.pastel;
-    }
-    return "bg-slate-100 text-slate-800";
-  };
+  // Events, tasks, and meetings all render as plain text rows now — no colour coding on entries.
+  const itemStyle = (_it: CalItem): string => "text-foreground";
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
@@ -180,16 +173,8 @@ function CalendarScreen() {
 
       <BookingLinkCard />
 
-      {/* Legend — events / tasks / meeting-by-contact-type / holiday */}
+      {/* Legend — only public-holiday shading remains (event colour coding removed). */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs">
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Events</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Tasks due</span>
-        <span className="text-muted-foreground ml-1">Meetings:</span>
-        {(Object.entries(CONTACT_COLORS) as [ContactCategory, typeof CONTACT_COLORS[ContactCategory]][]).map(([key, v]) => (
-          <span key={key} className="inline-flex items-center gap-1">
-            <span className={cn("h-2.5 w-2.5 rounded-full", v.dot)} /> {v.label}
-          </span>
-        ))}
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
       </div>
 
@@ -211,18 +196,17 @@ function CalendarScreen() {
               title={holiday ?? undefined}
               className={cn(
                 "text-left p-2 min-h-[128px] hover:bg-muted/40 transition-colors",
-                holiday ? "bg-rose-50" : "bg-card",
-                !inMonth && "opacity-40",
+                holiday ? "bg-rose-50" : (inMonth ? "bg-card" : "bg-muted/10"),
                 selected && "ring-2 ring-primary ring-inset",
               )}
             >
-              <div className={cn("text-xs mb-1 font-medium", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : "text-forest")}>
+              <div className={cn("text-xs mb-1 font-medium", today ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : (inMonth ? "text-forest" : "text-muted-foreground/60"))}>
                 {format(day, "d")}
               </div>
               {holiday && <div className="text-[10px] text-rose-700 mb-1 truncate italic">{holiday}</div>}
-              <div className="space-y-0.5">
-                {dayItems.slice(0, 3).map((it) => (
-                  <div key={it.id} className={cn("text-[10px] px-1.5 py-0.5 rounded truncate", itemStyle(it))}>{it.label}</div>
+              <div>
+                {dayItems.slice(0, 3).map((it, i) => (
+                  <div key={it.id} className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}>{it.label}</div>
                 ))}
                 {dayItems.length > 3 && <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} more</div>}
               </div>

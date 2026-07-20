@@ -9,7 +9,7 @@ import {
   createFrameworkDocument, updateFrameworkDocument, deleteFrameworkDocument, reorderFrameworkDocuments,
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
 } from "@/lib/dd-framework-admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Card frames removed from admin — sections use dividers only.
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,9 +145,9 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
   });
 
   return (
-    <Card className="mb-6">
-      <CardHeader><CardTitle className="font-serif text-xl">Round details</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
+    <div className="mb-6 pb-6 border-b border-border">
+      <h2 className="font-serif text-xl mb-3">Round details</h2>
+      <div className="space-y-3">
         <div className="grid grid-cols-[1fr_160px] gap-3">
           <div>
             <Label className="text-sm">Title</Label>
@@ -173,8 +173,8 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
         <div className="flex justify-end">
           <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save round details</Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -208,7 +208,7 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
         <h2 className="font-serif text-2xl">Questions</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
       </div>
-      <Accordion type="multiple" className="rounded-lg border border-border bg-card px-3">
+      <Accordion type="multiple" className="divide-y divide-border">
         {questions.map((question, idx) => (
           <QuestionCard
             key={question.id}
@@ -337,7 +337,7 @@ function DocumentsSection({ round, documents, onChanged }: { round: number; docu
         <h2 className="font-serif text-2xl">Required documents ({documents.length})</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add document</Button>
       </div>
-      <div className="space-y-3">
+      <div className="divide-y divide-border border-t border-border">
         {documents.map((doc, idx) => (
           <DocumentCard
             key={doc.id}
@@ -367,25 +367,23 @@ function DocumentCard({ doc, index, total, onMove, onDelete, onSaved }: {
   });
 
   return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="flex-1 grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">Document name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">Purpose</Label>
-            <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} className="mt-1" />
-          </div>
+    <div className="py-3 flex items-center gap-3">
+      <div className="flex-1 grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Document name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </div>
-        <div className="flex flex-col gap-1 shrink-0">
-          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+        <div>
+          <Label className="text-xs">Purpose</Label>
+          <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} className="mt-1" />
         </div>
-        <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex flex-col gap-1 shrink-0">
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+      </div>
+      <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5" /></Button>
+      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+    </div>
   );
 }
