@@ -1144,6 +1144,7 @@ export type Database = {
           ai_factors: Json | null
           ai_score: number | null
           ai_summary: string | null
+          attendees_count: number | null
           booked: boolean
           booked_at: string | null
           booked_by: string | null
@@ -1164,9 +1165,11 @@ export type Database = {
           owner: string | null
           region: string | null
           registration_link: string | null
+          rejected: boolean
           source_url: string | null
           start_date: string | null
           status: string | null
+          total_cost: number | null
           updated_at: string
           venue: string | null
           website: string | null
@@ -1176,6 +1179,7 @@ export type Database = {
           ai_factors?: Json | null
           ai_score?: number | null
           ai_summary?: string | null
+          attendees_count?: number | null
           booked?: boolean
           booked_at?: string | null
           booked_by?: string | null
@@ -1196,9 +1200,11 @@ export type Database = {
           owner?: string | null
           region?: string | null
           registration_link?: string | null
+          rejected?: boolean
           source_url?: string | null
           start_date?: string | null
           status?: string | null
+          total_cost?: number | null
           updated_at?: string
           venue?: string | null
           website?: string | null
@@ -1208,6 +1214,7 @@ export type Database = {
           ai_factors?: Json | null
           ai_score?: number | null
           ai_summary?: string | null
+          attendees_count?: number | null
           booked?: boolean
           booked_at?: string | null
           booked_by?: string | null
@@ -1228,9 +1235,11 @@ export type Database = {
           owner?: string | null
           region?: string | null
           registration_link?: string | null
+          rejected?: boolean
           source_url?: string | null
           start_date?: string | null
           status?: string | null
+          total_cost?: number | null
           updated_at?: string
           venue?: string | null
           website?: string | null
