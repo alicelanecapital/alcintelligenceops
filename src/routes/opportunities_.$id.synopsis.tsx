@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { SynopsisContent, type SynopsisData } from "@/components/SynopsisContent";
 
-export const Route = createFileRoute("/opportunities/$id/synopsis")({
+export const Route = createFileRoute("/opportunities_/$id/synopsis")({
   component: () => <AppShell><SynopsisPage /></AppShell>,
 });
 

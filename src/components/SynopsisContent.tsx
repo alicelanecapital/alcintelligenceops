@@ -54,8 +54,9 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
       ?? opp?.dd_detected_sector;
     const detectedSectorConfidence = interviews.map((i: any) => i.sector_confidence).filter(Boolean).slice(-1)[0]
       ?? opp?.dd_sector_confidence;
-    const detectedSectorName = detectedSectorCode
-      ? (SECTOR_MODULES as any)[detectedSectorCode]?.name ?? detectedSectorCode
+    const resolvedSector = detectedSectorCode ? (SECTOR_MODULES as any)[detectedSectorCode] : null;
+    const detectedSectorName = resolvedSector && (detectedSectorConfidence ?? 0) >= 50
+      ? resolvedSector.name
       : null;
     const discProfile: DiscProfile | null = opp?.disc_profile ?? null;
     const overview: Overview | null = opp?.ai_overview ?? null;
