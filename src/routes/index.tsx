@@ -48,27 +48,27 @@ function Dashboard() {
         { label: "Contacts", value: contacts.data?.length ?? 0 },
       ]} />
 
-      <div className="grid lg:grid-cols-3 gap-6 mt-10">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="font-serif text-2xl flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI narrative</CardTitle>
+      <div className="grid lg:grid-cols-3 gap-8 mt-10">
+        <section className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-serif text-2xl flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI narrative</div>
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">Generated</Badge>
-          </CardHeader>
-          <CardContent className="text-[15px] text-foreground/80 leading-relaxed space-y-3">
+          </div>
+          <div className="text-[15px] text-foreground/80 leading-relaxed space-y-3">
             <p>The pipeline is anchored by <strong>{active} live opportunities</strong> — the majority sourced from the recent MSME selection list. Beauty, Automotive and Architecture are the deepest verticals; each has 3+ founders ready to progress from screening.</p>
             <p>On the ecosystem side, <strong>{highFit} partners scored “High fit”</strong> including SAB Foundation, TechnoServe, The Hope Factory and Endeavor South Africa — prioritise a warm intro to two of these this week to unlock structured referral pipelines.</p>
             <p>Once the AI event-discovery job is enabled, this briefing will also surface the top three events worth attending in the next 30 days.</p>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader><CardTitle className="font-serif text-2xl">Pipeline tasks</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+        <section>
+          <div className="font-serif text-2xl mb-3">Pipeline tasks</div>
+          <div className="space-y-3">
             {(pipelineTasks.data ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No outstanding pipeline tasks — nice work.</p>
             ) : (
               pipelineTasks.data!.slice(0, 8).map((t) => (
-                <div key={t.id} className="flex items-start gap-2 border-b border-border last:border-0 pb-3 last:pb-0">
+                <div key={t.id} className="flex items-start gap-2 pb-3">
                   {t.type === "awaiting"
                     ? <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                     : <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />}
@@ -76,83 +76,82 @@ function Dashboard() {
                 </div>
               ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <Card>
-          <CardHeader><CardTitle className="font-serif text-2xl">Pipeline by stage</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {DEAL_STAGES.map(s => {
-                const n = (deals.data ?? []).filter((d: any) => d.stage === s).length;
-                const max = Math.max(1, ...DEAL_STAGES.map(x => (deals.data ?? []).filter((d: any) => d.stage === x).length));
-                return (
-                  <div key={s} className="flex items-center gap-3 text-sm">
-                    <div className="w-40 text-muted-foreground">{s}</div>
-                    <div className="flex-1 h-2 bg-muted rounded"><div className="h-2 bg-primary rounded" style={{ width: `${(n/max)*100}%` }} /></div>
-                    <div className="w-8 tabular-nums text-right">{n}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid lg:grid-cols-2 gap-8 mt-10">
+        <section>
+          <div className="font-serif text-2xl mb-3">Pipeline by stage</div>
+          <div className="space-y-2">
+            {DEAL_STAGES.map(s => {
+              const n = (deals.data ?? []).filter((d: any) => d.stage === s).length;
+              const max = Math.max(1, ...DEAL_STAGES.map(x => (deals.data ?? []).filter((d: any) => d.stage === x).length));
+              return (
+                <div key={s} className="flex items-center gap-3 text-sm">
+                  <div className="w-40 text-muted-foreground">{s}</div>
+                  <div className="flex-1 h-2 bg-muted rounded"><div className="h-2 bg-primary rounded" style={{ width: `${(n/max)*100}%` }} /></div>
+                  <div className="w-8 tabular-nums text-right">{n}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader><CardTitle className="font-serif text-2xl">Upcoming events</CardTitle></CardHeader>
-          <CardContent className="text-sm">
+        <section>
+          <div className="font-serif text-2xl mb-3">Upcoming events</div>
+          <div className="text-sm">
             {(events.data ?? []).length === 0
               ? <p className="text-muted-foreground">No events yet. Enable the AI discovery job to auto-populate this feed with SA-relevant startup, VC and MSME events.</p>
               : (events.data ?? []).slice(0,5).map((e: any) => (
-                <div key={e.id} className="border-b border-border last:border-0 py-3">
+                <div key={e.id} className="py-3">
                   <div className="font-medium">{e.name}</div>
                   <div className="text-xs text-muted-foreground">{e.city} · {e.start_date}</div>
                 </div>
               ))}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
 
       <div className="mt-10">
         <h2 className="font-serif text-2xl mb-4">Pipeline analytics</h2>
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader><CardTitle className="font-serif text-xl">Deals by stage</CardTitle></CardHeader>
-            <CardContent className="h-72">
+        <div className="grid lg:grid-cols-2 gap-8">
+          <section>
+            <div className="font-serif text-xl mb-2">Deals by stage</div>
+            <div className="h-72">
               <ResponsiveContainer><BarChart data={byStage}>
                 <XAxis dataKey="stage" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={80} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                 <Tooltip /><Bar dataKey="count" fill="#0F766E" />
               </BarChart></ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="font-serif text-xl">SME mix by sector</CardTitle></CardHeader>
-            <CardContent className="h-72">
+            </div>
+          </section>
+          <section>
+            <div className="font-serif text-xl mb-2">SME mix by sector</div>
+            <div className="h-72">
               <ResponsiveContainer><PieChart>
                 <Pie data={bySector} dataKey="value" nameKey="name" outerRadius={90} label={{ fontSize: 11 }}>
                   {bySector.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie><Tooltip />
               </PieChart></ResponsiveContainer>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
-        <div className="grid lg:grid-cols-3 gap-6 mt-6">
+        <div className="grid lg:grid-cols-3 gap-8 mt-8">
           {[
             { label: "Conversion rate", value: conversionRate, hint: "Funded / total" },
             { label: "Avg deals per founder", value: avgDealsPerFounder },
             { label: "SMEs in pipeline", value: smes.data?.length ?? 0 },
           ].map(k => (
-            <Card key={k.label}><CardContent className="p-6">
+            <div key={k.label}>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{k.label}</div>
               <div className="font-serif text-4xl mt-2">{k.value}</div>
               {k.hint && <div className="text-xs text-muted-foreground mt-1">{k.hint}</div>}
-            </CardContent></Card>
+            </div>
           ))}
         </div>
       </div>
+
     </div>
   );
 }
