@@ -120,7 +120,7 @@ export function OpportunitySynopsisDialog({ opportunityId, open, onOpenChange }:
         {q.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4" ref={contentRef}>
             {/* Sector */}
             <div className="p-3 bg-teal-50 border border-teal-200 rounded">
               <div className="flex items-center gap-2 mb-1">
