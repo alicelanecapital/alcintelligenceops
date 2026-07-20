@@ -4,10 +4,10 @@ import { PageHeader, KpiStrip } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDeals, fetchOrgs, fetchFounders, fetchContacts, fetchEvents, DEAL_STAGES } from "@/lib/db";
 import { fetchPipelineTasks } from "@/lib/founders-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Clock, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+
 
 export const Route = createFileRoute("/")({ component: () => <AppShell><Dashboard /></AppShell> });
 
