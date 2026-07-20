@@ -37,21 +37,23 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 function DDFrameworkAdmin() {
-  const [round, setRound] = useState(1);
   const qc = useQueryClient();
   const rounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
-  const q = useQuery({ queryKey: ["dd-framework-round", round], queryFn: () => fetchFrameworkRoundDetail(round) });
+  const [expanded, setExpanded] = useState<string[]>([]);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["dd-framework-round", round] });
     qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+    for (const v of expanded) {
+      const num = Number(v.replace("round-", ""));
+      if (!Number.isNaN(num)) qc.invalidateQueries({ queryKey: ["dd-framework-round", num] });
+    }
   };
 
   const addRoundMut = useMutation({
     mutationFn: () => createFrameworkRound(),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
-      setRound(created.round);
+      setExpanded((prev) => Array.from(new Set([...prev, `round-${created.round}`])));
       toast.success(`Round ${created.round} added`);
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to add round"),
@@ -61,93 +63,183 @@ function DDFrameworkAdmin() {
     mutationFn: (r: number) => deleteFrameworkRound(r),
     onSuccess: (_data, deletedRound) => {
       qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
-      const remaining = (rounds.data ?? []).map((r) => r.round).filter((r) => r !== deletedRound);
-      if (remaining.length) setRound(remaining[0]);
+      setExpanded((prev) => prev.filter((v) => v !== `round-${deletedRound}`));
       toast.success(`Round ${deletedRound} deleted`);
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to delete round"),
   });
 
+  const list = (rounds.data ?? []) as any[];
+
+  const handleReorder = (newOrder: { round: number; title: string; subtitle?: string | null }[]) => {
+    const payload = newOrder.map((r, idx) => ({ round: r.round, sort_order: idx + 1 }));
+    qc.setQueryData(["dd-framework-rounds"], (prev: any) => {
+      if (!Array.isArray(prev)) return prev;
+      const byRound = new Map(prev.map((r: any) => [r.round, r]));
+      return payload.map((p) => ({ ...(byRound.get(p.round) as any), sort_order: p.sort_order }));
+    });
+    reorderFrameworkRounds(payload)
+      .then(() => {
+        toast.success("Round order saved");
+        qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+      })
+      .catch((e: any) => {
+        toast.error(e?.message ?? "Failed to save order");
+        qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
+      });
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-8 py-10">
+    <div className="max-w-4xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Admin"
-        title="DD Framework"
+        title="DD Intelligence Engine"
         description="Adjust the questions, guidance, and required documents for each due diligence round."
       />
 
-      <div className="grid grid-cols-[260px_1fr] gap-6 items-start">
-        <aside className="sticky top-4 shrink-0 space-y-3">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-1">
-            Drag to reorder rounds
-          </div>
-          <SortableRoundsList
-            rounds={(rounds.data ?? []).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
-            current={round}
-            onSelect={setRound}
-            onReorder={(newOrder) => {
-              const payload = newOrder.map((r, idx) => ({ round: r.round, sort_order: idx + 1 }));
-              // Optimistically update the cache so the list repaints instantly.
-              qc.setQueryData(["dd-framework-rounds"], (prev: any) => {
-                if (!Array.isArray(prev)) return prev;
-                const byRound = new Map(prev.map((r: any) => [r.round, r]));
-                return payload.map((p) => ({ ...(byRound.get(p.round) as any), sort_order: p.sort_order }));
-              });
-              reorderFrameworkRounds(payload)
-                .then(() => {
-                  toast.success("Round order saved");
-                  qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
-                })
-                .catch((e: any) => {
-                  toast.error(e?.message ?? "Failed to save order");
-                  qc.invalidateQueries({ queryKey: ["dd-framework-rounds"] });
-                });
-            }}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() => addRoundMut.mutate()}
-            disabled={addRoundMut.isPending}
+      <div className="flex justify-end mb-3">
+        <Button size="sm" variant="outline" onClick={() => addRoundMut.mutate()} disabled={addRoundMut.isPending}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
+        </Button>
+      </div>
+
+      <SortableRoundAccordion
+        rounds={list.map((r) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+        expanded={expanded}
+        onExpandedChange={setExpanded}
+        onReorder={handleReorder}
+        onDelete={(r) => deleteRoundMut.mutate(r)}
+        canDelete={list.length > 1}
+        onInvalidate={invalidate}
+      />
+    </div>
+  );
+}
+
+function SortableRoundAccordion({
+  rounds, expanded, onExpandedChange, onReorder, onDelete, canDelete, onInvalidate,
+}: {
+  rounds: { round: number; title: string; subtitle?: string | null }[];
+  expanded: string[];
+  onExpandedChange: (v: string[]) => void;
+  onReorder: (r: { round: number; title: string; subtitle?: string | null }[]) => void;
+  onDelete: (round: number) => void;
+  canDelete: boolean;
+  onInvalidate: () => void;
+}) {
+  return (
+    <DndContext
+      sensors={useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))}
+      collisionDetection={closestCenter}
+      onDragEnd={(e) => {
+        const { active, over } = e;
+        if (!over || active.id === over.id) return;
+        const oldIndex = rounds.findIndex((r) => String(r.round) === String(active.id));
+        const newIndex = rounds.findIndex((r) => String(r.round) === String(over.id));
+        if (oldIndex < 0 || newIndex < 0) return;
+        onReorder(arrayMove(rounds, oldIndex, newIndex));
+      }}
+    >
+      <SortableContext items={rounds.map((r) => String(r.round))} strategy={verticalListSortingStrategy}>
+        <Accordion type="multiple" value={expanded} onValueChange={onExpandedChange} className="space-y-2">
+          {rounds.map((r, idx) => (
+            <SortableRoundItem
+              key={r.round}
+              round={r}
+              index={idx}
+              canDelete={canDelete}
+              onDelete={() => onDelete(r.round)}
+              onInvalidate={onInvalidate}
+              isExpanded={expanded.includes(`round-${r.round}`)}
+            />
+          ))}
+        </Accordion>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableRoundItem({
+  round, index, canDelete, onDelete, onInvalidate, isExpanded,
+}: {
+  round: { round: number; title: string; subtitle?: string | null };
+  index: number;
+  canDelete: boolean;
+  onDelete: () => void;
+  onInvalidate: () => void;
+  isExpanded: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(round.round) });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <AccordionItem value={`round-${round.round}`} className="border border-border rounded-md overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-1 bg-muted/30">
+          <button
+            type="button"
+            aria-label="Drag to reorder"
+            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+            {...attributes}
+            {...listeners}
           >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
-          </Button>
-          {(rounds.data?.length ?? 0) > 1 && (
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold bg-muted text-muted-foreground border border-border shrink-0">
+            {index + 1}
+          </span>
+          <AccordionTrigger className="flex-1 hover:no-underline py-2 text-left">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium truncate">{round.title}</span>
+              {round.subtitle && <span className="block text-xs text-muted-foreground truncate">{round.subtitle}</span>}
+            </span>
+          </AccordionTrigger>
+          {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="outline" className="w-full text-destructive hover:text-destructive">
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete This Round
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" title="Delete round">
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Round {round}?</AlertDialogTitle>
+                  <AlertDialogTitle>Delete Round {round.round}?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This permanently deletes Round {round}'s questions and required documents. This can't be undone.
+                    This permanently deletes Round {round.round}'s questions and required documents. This can't be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteRoundMut.mutate(round)}>Delete</AlertDialogAction>
+                  <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
-        </aside>
-
-
-        <div className="min-w-0">
-          {q.data && (
-            <>
-              <RoundMetaCard round={q.data.round} onSaved={invalidate} />
-              <QuestionsSection round={round} questions={q.data.questions} onChanged={invalidate} />
-              <DocumentsSection round={round} documents={q.data.documents} onChanged={invalidate} />
-            </>
-          )}
         </div>
-      </div>
+        <AccordionContent>
+          <div className="px-4 pt-4">
+            {isExpanded && <RoundBody round={round.round} onInvalidate={onInvalidate} />}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
     </div>
+  );
+}
+
+function RoundBody({ round, onInvalidate }: { round: number; onInvalidate: () => void }) {
+  const q = useQuery({
+    queryKey: ["dd-framework-round", round],
+    queryFn: () => fetchFrameworkRoundDetail(round),
+  });
+
+  if (q.isLoading || !q.data) return <p className="text-sm text-muted-foreground py-3">Loading…</p>;
+
+  return (
+    <>
+      <RoundMetaCard round={q.data.round} onSaved={onInvalidate} />
+      <QuestionsSection round={round} questions={q.data.questions} onChanged={onInvalidate} />
+      <DocumentsSection round={round} documents={q.data.documents} onChanged={onInvalidate} />
+    </>
   );
 }
 
