@@ -108,9 +108,10 @@ Scores are 0-100. Ground everything in the transcript, facts and analyses provid
 // ---- Server functions ----
 
 export const startInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { founderId?: string; founderName?: string; businessName?: string; industry?: string; interviewer?: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     let founder: any = null;
     let org: any = null;
     if (data.founderId) {
@@ -153,9 +154,10 @@ Fit rating: ${org?.fit_rating ?? "n/a"}
   });
 
 export const analyzeInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { interviewId: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     const [{ data: interview }, { data: utterances }, { data: prior }] = await Promise.all([
       sb.from("interviews").select("*").eq("id", data.interviewId).maybeSingle(),
       sb.from("interview_utterances").select("*").eq("interview_id", data.interviewId).order("ts_ms"),
@@ -206,9 +208,10 @@ ${transcript.slice(-12000)}
   });
 
 export const finalizeInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { interviewId: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     const [{ data: interview }, { data: utterances }, { data: analyses }, { data: notes }] = await Promise.all([
       sb.from("interviews").select("*").eq("id", data.interviewId).maybeSingle(),
       sb.from("interview_utterances").select("*").eq("interview_id", data.interviewId).order("ts_ms"),
