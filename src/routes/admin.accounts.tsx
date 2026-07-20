@@ -37,38 +37,129 @@ function EmailSignatureCard() {
     },
     enabled: !!user?.id,
   });
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const [signature, setSignature] = useState("");
-  useEffect(() => { setSignature(((q.data as any)?.email_signature ?? "") as string); }, [q.data]);
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    const val = ((q.data as any)?.email_signature ?? "") as string;
+    setSignature(val);
+    if (editorRef.current && !initializedRef.current) {
+      editorRef.current.innerHTML = val || "";
+      initializedRef.current = true;
+    }
+  }, [q.data]);
   const save = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not signed in");
-      // Upsert in case the profile row hasn't been created yet.
-      const { error } = await supabase.from("profiles").upsert({ id: user.id, email_signature: signature } as any);
+      const html = editorRef.current?.innerHTML ?? signature;
+      const { error } = await supabase.from("profiles").upsert({ id: user.id, email_signature: html } as any);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Signature saved"); qc.invalidateQueries({ queryKey: ["my-profile"] }); },
     onError: (e: any) => toast.error(e.message ?? "Failed to save"),
   });
+
+  async function onPaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    // Prefer pasted HTML (preserves logos as <img> tags); fall back to files then plain text.
+    const html = e.clipboardData.getData("text/html");
+    if (html) {
+      e.preventDefault();
+      document.execCommand("insertHTML", false, sanitizeSignatureHtml(html));
+      setSignature(editorRef.current?.innerHTML ?? "");
+      return;
+    }
+    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
+    if (file) {
+      e.preventDefault();
+      const dataUrl = await readAsDataUrl(file);
+      document.execCommand("insertHTML", false, `<img src="${dataUrl}" style="max-height:80px" />`);
+      setSignature(editorRef.current?.innerHTML ?? "");
+    }
+  }
+
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="text-base inline-flex items-center gap-2"><Mail className="h-4 w-4" /> Your email signature</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <Textarea
-          value={signature}
-          onChange={(e) => setSignature(e.target.value)}
-          rows={6}
-          placeholder={"Kind regards,\nYour Name\nAlice Lane Capital\n+27 …"}
-        />
-        <p className="text-[11px] text-muted-foreground">Automatically appended to every email you send from the Request Information modal.</p>
-        <div className="flex justify-end">
-          <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save signature"}</Button>
-        </div>
-      </CardContent>
-    </Card>
+    <section className="mb-6">
+      <div className="text-sm font-medium inline-flex items-center gap-2 mb-2"><Mail className="h-4 w-4" /> Your email signature</div>
+      <div
+        ref={editorRef}
+        contentEditable
+        onPaste={onPaste}
+        onInput={(e) => setSignature((e.target as HTMLDivElement).innerHTML)}
+        className="min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        suppressContentEditableWarning
+      />
+      <p className="text-[11px] text-muted-foreground mt-1">Paste your signature (logos and formatting are preserved). Automatically appended to every email sent from the Request Information modal.</p>
+      <div className="flex justify-end mt-2">
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save signature"}</Button>
+      </div>
+    </section>
   );
 }
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+const ALLOWED_TAGS = new Set(["P","BR","SPAN","STRONG","EM","B","I","U","A","IMG","DIV","UL","OL","LI","TABLE","TR","TD","TH","TBODY","THEAD"]);
+const ALLOWED_ATTRS: Record<string, string[]> = {
+  A: ["href", "target", "rel"],
+  IMG: ["src", "alt", "width", "height", "style"],
+  SPAN: ["style"], DIV: ["style"], P: ["style"], TD: ["style"], TH: ["style"], TABLE: ["style", "cellpadding", "cellspacing", "border"],
+};
+function sanitizeSignatureHtml(html: string): string {
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild as HTMLElement;
+  const walk = (node: Element) => {
+    Array.from(node.children).forEach((child) => {
+      if (!ALLOWED_TAGS.has(child.tagName)) {
+        // Unwrap disallowed tag but keep children
+        const parent = child.parentNode!;
+        while (child.firstChild) parent.insertBefore(child.firstChild, child);
+        parent.removeChild(child);
+      } else {
+        const allowed = ALLOWED_ATTRS[child.tagName] ?? [];
+        Array.from(child.attributes).forEach((attr) => {
+          if (!allowed.includes(attr.name.toLowerCase())) child.removeAttribute(attr.name);
+          if (attr.name.toLowerCase() === "href" && attr.value.trim().toLowerCase().startsWith("javascript:")) child.removeAttribute("href");
+        });
+        walk(child);
+      }
+    });
+  };
+  walk(root);
+  return root.innerHTML;
+}
+
+function SubCalendarsList({ email }: { email: string }) {
+  const listFn = useServerFn(listGoogleSubCalendars);
+  const q = useQuery({
+    queryKey: ["sub-calendars", email],
+    queryFn: () => listFn({ data: { targetEmail: email } }),
+    staleTime: 5 * 60 * 1000,
+  });
+  if (q.isLoading) return <div className="text-[11px] text-muted-foreground mt-2 ml-6">Loading calendars…</div>;
+  const cals = (q.data as any[]) ?? [];
+  if (!cals.length) return null;
+  return (
+    <div className="mt-2 ml-6 space-y-1">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sub-calendars</div>
+      {cals.map((c) => (
+        <div key={c.id} className="flex items-center gap-2 text-[11px]">
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
+          <span className="truncate">{c.summary}</span>
+          {c.primary && <Badge variant="outline" className="text-[9px] px-1 py-0">Primary</Badge>}
+          <span className="text-muted-foreground">· {c.accessRole}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 
 
 function AccountsScreen() {
