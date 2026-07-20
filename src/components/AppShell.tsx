@@ -44,7 +44,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
-        <div className="px-6 py-6 border-b border-sidebar-border">
+        <div className="px-6 py-6">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-md bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-serif text-lg">
               A
@@ -55,10 +55,10 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 py-6 space-y-5 overflow-y-auto">
+        <nav className="flex-1 px-3 pt-24 pb-6 space-y-5 overflow-y-auto">
           {navGroups.map((group) => (
             <div key={group.label}>
-              <div className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.15em] text-sidebar-foreground/50">
+              <div className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.15em] text-forest-grey">
                 {group.label}
               </div>
               <div className="space-y-1">
