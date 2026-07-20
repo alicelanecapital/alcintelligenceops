@@ -64,14 +64,57 @@ export function OpportunitySynopsisDialog({ opportunityId, open, onOpenChange }:
   const companyName = opp?.company?.name ?? opp?.founder?.startup_name ?? opp?.name;
   const founderName = opp?.founder?.name ?? opp?.name;
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!contentRef.current) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, jsPdfMod] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const jsPDF = (jsPdfMod as any).default ?? (jsPdfMod as any).jsPDF;
+      const canvas = await html2canvas(contentRef.current, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - 40;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 20;
+      pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight - 40;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 20;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight - 40;
+      }
+      const filename = `${(companyName ?? founderName ?? "synopsis").toString().replace(/[^a-z0-9]+/gi, "-")}-synopsis.pdf`;
+      pdf.save(filename);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to export PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif">
-            Synopsis — {founderName ?? "Opportunity"}
-            {companyName && <span className="text-sm text-muted-foreground font-normal ml-2">· {companyName}</span>}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="font-serif">
+              Synopsis — {founderName ?? "Opportunity"}
+              {companyName && <span className="text-sm text-muted-foreground font-normal ml-2">· {companyName}</span>}
+            </DialogTitle>
+            <Button size="sm" variant="outline" onClick={handleDownloadPdf} disabled={downloading || !q.data}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> {downloading ? "Preparing…" : "Download PDF"}
+            </Button>
+          </div>
         </DialogHeader>
 
         {q.isLoading ? (
