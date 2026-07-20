@@ -9,7 +9,7 @@ import {
   createFrameworkDocument, updateFrameworkDocument, deleteFrameworkDocument, reorderFrameworkDocuments,
   type FrameworkQuestion, type FrameworkDocument, type FrameworkRedFlag,
 } from "@/lib/dd-framework-admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Card frames removed from admin — sections use dividers only.
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
