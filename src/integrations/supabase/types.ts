@@ -246,6 +246,7 @@ export type Database = {
           relationship_score: number | null
           role: string | null
           source_event_id: string | null
+          stakeholder_brief: Json | null
           status: string | null
           tags: string[] | null
           updated_at: string
@@ -274,6 +275,7 @@ export type Database = {
           relationship_score?: number | null
           role?: string | null
           source_event_id?: string | null
+          stakeholder_brief?: Json | null
           status?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -302,6 +304,7 @@ export type Database = {
           relationship_score?: number | null
           role?: string | null
           source_event_id?: string | null
+          stakeholder_brief?: Json | null
           status?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -2250,6 +2253,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          email_signature: string | null
           id: string
           updated_at: string
         }
@@ -2258,6 +2262,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          email_signature?: string | null
           id: string
           updated_at?: string
         }
@@ -2266,6 +2271,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          email_signature?: string | null
           id?: string
           updated_at?: string
         }

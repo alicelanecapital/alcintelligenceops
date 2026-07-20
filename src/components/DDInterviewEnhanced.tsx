@@ -979,7 +979,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   guide the single recording above, not separate per-question recordings. */}
               <div>
                 <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
-                <Accordion type="multiple" className="rounded-lg border border-gray-200 bg-gray-50 px-3">
+                <Accordion type="multiple" className="rounded-lg border border-emerald-300 bg-gray-50 px-3">
                   {questions.map((q, idx) => (
                     <AccordionItem key={idx} value={String(idx)}>
                       <AccordionTrigger className="text-sm">
@@ -1011,15 +1011,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               {/* Custom questions the interviewer added for this specific opportunity+round --
                   full CRUD, kept separate from the shared DD Framework template so editing one
                   interview's questions never affects any other opportunity. */}
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded">
+              <div className="p-4 bg-emerald-50/40 border border-emerald-300 rounded">
                 <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
                 <div className="space-y-2 mb-3">
                   {customQuestions.map((q) => (
-                    <div key={q.id} className="bg-white rounded border border-gray-200 p-2">
+                    <div key={q.id} className="bg-white rounded border border-emerald-300 p-2">
                       {editingCustomQuestionId === q.id ? (
                         <div className="flex items-start gap-2">
                           <textarea
-                            className="flex-1 text-sm border border-gray-300 rounded px-2 py-1"
+                            className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1"
                             value={editingCustomQuestionText}
                             onChange={(e) => setEditingCustomQuestionText(e.target.value)}
                             rows={2}
@@ -1055,13 +1055,13 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     value={newCustomQuestion}
                     onChange={(e) => setNewCustomQuestion(e.target.value)}
                     placeholder="Add a question specific to this interview…"
-                    className="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5"
+                    className="flex-1 text-sm border border-emerald-300 rounded px-2 py-1.5"
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
                   />
                   <button
                     onClick={handleAddCustomQuestion}
                     disabled={!newCustomQuestion.trim()}
-                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                    className="px-3 py-1.5 bg-white border border-emerald-300 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -1093,7 +1093,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   <button
                     onClick={() => transcriptFileInputRef.current?.click()}
                     disabled={uploadingTranscript}
-                    className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                    className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
                   >
                     {uploadingTranscript ? 'Reading…' : '📄 Upload Transcript'}
                   </button>
@@ -1107,7 +1107,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 </div>
                 <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
                 {transcript && (
-                  <div className="p-3 bg-white rounded border border-gray-300 max-h-64 overflow-y-auto space-y-1">
+                  <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
                     <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (Auto-Updating):</p>
                     {renderSpeakerColoredTranscript(transcript)}
                   </div>
@@ -1138,7 +1138,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
           {activeStep === 'verification' && (
             <>
-              <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="p-6 bg-gray-50 rounded-lg border border-emerald-300">
                 <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist</p>
                 <div className="space-y-2">
                   {questions.slice(0, 4).map((q, idx) => (
@@ -1152,10 +1152,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
               {/* Human evaluator's own written assessment -- compared against the AI's findings
                   in the AI Analysis step that follows. */}
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="p-4 bg-gray-50 rounded-lg border border-emerald-300">
                 <p className="text-sm font-semibold text-gray-900 mb-3">🧑‍⚖️ Human Evaluator Assessment</p>
                 <textarea
-                  className="w-full text-sm border border-gray-300 rounded px-3 py-2"
+                  className="w-full text-sm border border-emerald-300 rounded px-3 py-2"
                   rows={4}
                   placeholder="Write your own assessment of this round…"
                   value={humanAssessment}
@@ -1197,7 +1197,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           {activeStep === 'ai_analysis' && (
             aiAnalysis ? (
               <>
-                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="p-6 bg-gray-50 rounded-lg border border-emerald-300">
                   <h3 className="text-lg font-bold mb-4">📊 AI Assessment</h3>
                   {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 ? (
                     <div className="p-4 bg-red-50 border border-red-200 rounded">
@@ -1289,12 +1289,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         {/* Alternatives to advancing: hold this deal here, or terminate it outright.
             Both require a comment explaining the decision. */}
         {gateAction ? (
-          <div className={`mt-4 p-4 rounded border ${gateAction === 'terminate' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'}`}>
+          <div className={`mt-4 p-4 rounded border ${gateAction === 'terminate' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-emerald-300'}`}>
             <p className="text-sm font-semibold text-gray-900 mb-2">
               {gateAction === 'terminate' ? 'Terminate This Deal' : 'Do Not Proceed to the Next Round'}
             </p>
             <textarea
-              className="w-full text-sm border border-gray-300 rounded px-2 py-1.5"
+              className="w-full text-sm border border-emerald-300 rounded px-2 py-1.5"
               rows={3}
               placeholder="Add a comment explaining this decision…"
               value={gateComment}

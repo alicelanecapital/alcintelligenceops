@@ -4,19 +4,21 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, CATEGORY_LABELS } from "@/lib/contacts";
-import { startMeetingForContact, createOpportunityFromContact } from "@/lib/contacts.functions";
+import { startMeetingForContact } from "@/lib/contacts.functions";
+import { generateContactStakeholderBrief } from "@/lib/contact-brief.functions";
 import { dismissInterview } from "@/lib/interviews";
 import { EditContactDialog } from "@/components/EditContactDialog";
+import { SmartLink } from "@/components/SmartLink";
+import { contactColor } from "@/lib/contact-colors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
-import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User } from "lucide-react";
+import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User, Sparkles, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-
-
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
@@ -34,24 +36,14 @@ function ContactProfile() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
 
-
   const startMeeting = useServerFn(startMeetingForContact);
-  const createOpp = useServerFn(createOpportunityFromContact);
+  const briefFn = useServerFn(generateContactStakeholderBrief);
 
   const meetMut = useMutation({
     mutationFn: () => startMeeting({ data: { contactId: id } }),
     onSuccess: (row: any) => {
       toast.success("Meeting started");
       navigate({ to: "/interviews/$id", params: { id: row.id } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
-
-  const oppMut = useMutation({
-    mutationFn: () => createOpp({ data: { contactId: id } }),
-    onSuccess: (opp: any) => {
-      toast.success("Opportunity created");
-      navigate({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
@@ -68,11 +60,14 @@ function ContactProfile() {
 
   const dismissMeetingMut = useMutation({
     mutationFn: (meetingId: string) => dismissInterview(meetingId),
-    onSuccess: () => {
-      toast.success("Removed from view");
-      qc.invalidateQueries({ queryKey: ["contact-meetings", id] });
-    },
+    onSuccess: () => { toast.success("Removed from view"); qc.invalidateQueries({ queryKey: ["contact-meetings", id] }); },
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
+  });
+
+  const briefMut = useMutation({
+    mutationFn: (force: boolean) => briefFn({ data: { contactId: id, force } }),
+    onSuccess: () => { toast.success("Brief updated"); qc.invalidateQueries({ queryKey: ["contact", id] }); },
+    onError: (e: any) => toast.error(e.message ?? "Brief failed"),
   });
 
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -83,7 +78,6 @@ function ContactProfile() {
       toast.success("Photo updated");
       qc.invalidateQueries({ queryKey: ["contact", id] });
       qc.invalidateQueries({ queryKey: ["contacts"] });
-      qc.invalidateQueries({ queryKey: ["opportunities"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to upload photo"),
     onSettled: () => setUploadingPhoto(false),
@@ -93,6 +87,13 @@ function ContactProfile() {
   if (!q.data) return <div className="p-10 text-sm text-muted-foreground">Contact not found. <Link to="/contacts" className="text-primary">Back</Link></div>;
 
   const c: any = q.data;
+  const cat = contactColor(c.category);
+  const statusTone = (c.status ?? "").toLowerCase() === "active"
+    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+    : "bg-slate-100 text-slate-700 border-slate-200";
+
+  const openOpps = (opps.data ?? []).filter((o: any) => (o.current_stage ?? "").toLowerCase() !== "approved");
+  const approvedOpps = (opps.data ?? []).filter((o: any) => (o.current_stage ?? "").toLowerCase() === "approved");
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
@@ -113,22 +114,14 @@ function ContactProfile() {
           </div>
         </button>
         <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) { setUploadingPhoto(true); uploadPhotoMut.mutate(f); }
-            e.target.value = "";
-          }}
+          ref={photoInputRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) { setUploadingPhoto(true); uploadPhotoMut.mutate(f); } e.target.value = ""; }}
         />
       </div>
       <PageHeader
         eyebrow={<Link to="/contacts" className="hover:underline">← Contacts</Link>}
         title={c.company || c.name}
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
-
         actions={
           <div className="flex gap-1.5 flex-wrap">
             <Button size="sm" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
@@ -137,7 +130,7 @@ function ContactProfile() {
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
             </Button>
-            <Button size="sm" variant="outline" title="Edit every field on this record, including notes" onClick={() => setEditOpen(true)}>
+            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
             </Button>
             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
@@ -152,15 +145,21 @@ function ContactProfile() {
           <Card>
             <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
-              <InfoRow icon={<Badge variant="outline">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>} label="Category" />
+              <InfoRow icon={<Badge className={cn("border", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>} label="Category" />
               {c.company && <InfoRow icon={<Building2 className="h-4 w-4" />} label={c.company} />}
               {c.position && <InfoRow icon={<Building2 className="h-4 w-4" />} label={c.position} />}
               {c.email && <InfoRow icon={<Mail className="h-4 w-4" />} label={c.email} />}
               {c.phone && <InfoRow icon={<Phone className="h-4 w-4" />} label={c.phone} />}
               {c.linkedin && <InfoRow icon={<LinkedinIcon className="h-4 w-4" />} label={<a href={c.linkedin} target="_blank" className="hover:underline">LinkedIn</a>} />}
-              {c.website && <InfoRow icon={<Globe className="h-4 w-4" />} label={<a href={c.website} target="_blank" className="hover:underline">{c.website}</a>} />}
-              {c.date_met && <InfoRow icon={<Calendar className="h-4 w-4" />} label={`Met ${new Date(c.date_met).toLocaleDateString()}`} />}
-              {c.status && <InfoRow icon={<Badge variant="secondary">{c.status}</Badge>} label="Status" />}
+              {c.website && (
+                <InfoRow icon={<Globe className="h-4 w-4" />} label={<SmartLink href={c.website} />} />
+              )}
+              {c.status && (
+                <div className="flex items-center gap-2 col-span-2 sm:col-span-1">
+                  <Badge className={cn("border capitalize", statusTone)}>{c.status}</Badge>
+                  <span className="text-muted-foreground">Status</span>
+                </div>
+              )}
               {c.tags && c.tags.length > 0 && (
                 <div className="col-span-2 flex flex-wrap gap-1">
                   {c.tags.map((t: string) => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}
@@ -175,6 +174,25 @@ function ContactProfile() {
               <CardContent className="text-sm whitespace-pre-wrap text-muted-foreground">{c.company_description}</CardContent>
             </Card>
           )}
+
+          {/* Opportunities in workflow (not yet approved) */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Opportunities</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {openOpps.length === 0 && <div className="text-sm text-muted-foreground">No opportunities in workflow.</div>}
+              {openOpps.map((o: any) => (
+                <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
+                  <div className="border rounded-md p-3 hover:border-primary/50 transition-colors">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium">{o.name}</div>
+                      <Badge variant="outline">{o.current_stage}</Badge>
+                    </div>
+                    {o.summary && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.summary}</div>}
+                  </div>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
 
           {c.notes && (
             <Card>
@@ -213,18 +231,20 @@ function ContactProfile() {
             </CardContent>
           </Card>
 
+          {/* Approved deals (only opportunities that have completed the workflow) */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Opportunities</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Approved Deals</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {(opps.data ?? []).length === 0 && <div className="text-sm text-muted-foreground">No opportunities created yet.</div>}
-              {(opps.data ?? []).map((o: any) => (
-                <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
-                  <div className="border rounded-md p-3 hover:border-primary/50 transition-colors">
+              {approvedOpps.length === 0 && (
+                <div className="text-sm text-muted-foreground">No approved deals yet. Records appear here once a deal completes its workflow and is approved.</div>
+              )}
+              {approvedOpps.map((o: any) => (
+                <Link key={o.id} to="/opportunities/$id" params={{ id: o.id }} className="block">
+                  <div className="border border-emerald-200 bg-emerald-50/40 rounded-md p-3 hover:border-emerald-400 transition-colors">
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-medium">{o.name}</div>
-                      <Badge variant="outline">{o.current_stage}</Badge>
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 border">Approved</Badge>
                     </div>
-                    {o.summary && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.summary}</div>}
                   </div>
                 </Link>
               ))}
@@ -240,9 +260,55 @@ function ContactProfile() {
                 <div className="font-medium">{c.source_event.name}</div>
                 {c.source_event.city && <div className="text-xs text-muted-foreground">{c.source_event.city}{c.source_event.country ? `, ${c.source_event.country}` : ""}</div>}
                 {c.source_event.start_date && <div className="text-xs text-muted-foreground">{new Date(c.source_event.start_date).toLocaleDateString()}</div>}
+                {c.date_met && (
+                  <div className="text-xs text-muted-foreground mt-2 pt-2 border-t inline-flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Met {new Date(c.date_met).toLocaleDateString()}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
+
+          {/* AI stakeholder brief */}
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="text-base inline-flex items-center gap-1"><Sparkles className="h-4 w-4 text-primary" /> Stakeholder brief</CardTitle>
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => briefMut.mutate(true)} disabled={briefMut.isPending}>
+                <RefreshCw className={cn("h-3.5 w-3.5", briefMut.isPending && "animate-spin")} />
+              </Button>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              {c.stakeholder_brief ? (
+                <>
+                  {c.stakeholder_brief.summary && <p className="text-muted-foreground">{c.stakeholder_brief.summary}</p>}
+                  {c.stakeholder_brief.talking_points?.length > 0 && (
+                    <div>
+                      <div className="text-xs font-medium mb-1">Talking points</div>
+                      <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                        {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {c.stakeholder_brief.watch_outs?.length > 0 && (
+                    <div>
+                      <div className="text-xs font-medium mb-1">Watch-outs</div>
+                      <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                        {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">No brief yet.</p>
+                  <Button size="sm" variant="outline" onClick={() => briefMut.mutate(false)} disabled={briefMut.isPending}>
+                    <Sparkles className="h-3.5 w-3.5 mr-1" /> {briefMut.isPending ? "Generating…" : "Generate brief"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {c.ai_summary && (
             <Card>
               <CardHeader><CardTitle className="text-base">AI summary</CardTitle></CardHeader>
@@ -259,8 +325,10 @@ function ContactProfile() {
         contactId={id}
         contactName={c.name}
         contactEmail={c.email}
-        onCreateOpportunity={() => oppMut.mutate()}
-        creatingOpportunity={oppMut.isPending}
+        onOpportunityCreated={(opp: any) => {
+          qc.invalidateQueries({ queryKey: ["contact-opps", id] });
+          navigate({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
+        }}
       />
       <ConfirmDeleteDialog
         open={confirmDeleteOpen}
@@ -269,7 +337,6 @@ function ContactProfile() {
         name={c.company || c.name}
         pending={delMut.isPending}
       />
-
     </div>
   );
 }
@@ -278,10 +345,7 @@ function InfoRow({ icon, label }: { icon: React.ReactNode; label: React.ReactNod
   return (
     <div className="flex items-center gap-2">
       <div className="text-muted-foreground">{icon}</div>
-      <div>{label}</div>
+      <div className="min-w-0 flex-1 break-words">{label}</div>
     </div>
   );
 }
-
-
-
