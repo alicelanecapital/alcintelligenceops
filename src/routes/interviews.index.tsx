@@ -128,9 +128,11 @@ function InterviewsIndex() {
 }
 
 
-function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDismiss }: {
+function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, emptyText, onTogglePrivate, onDismiss }: {
   title: string;
   items: any[];
+  calendarEvents: any[];
+  memberByEmail: Map<string, any>;
   view: "card" | "list";
   emptyText: string;
   onTogglePrivate: (i: any) => void;
@@ -139,7 +141,7 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
   const isPrivateColumn = title === "Private meetings";
   return (
     <div>
-      <div className="text-sm font-medium text-muted-foreground mb-2">{title} ({items.length})</div>
+      <div className="text-sm font-medium text-muted-foreground mb-2">{title} ({items.length + calendarEvents.length})</div>
       {view === "card" ? (
         <div className="grid gap-3">
           {items.map((i) => (
@@ -178,14 +180,17 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
               </CardContent>
             </Card>
           ))}
-          {!items.length && (
+          {calendarEvents.map((ev) => (
+            <CalendarEventRow key={ev.id} ev={ev} memberByEmail={memberByEmail} />
+          ))}
+          {!items.length && !calendarEvents.length && (
             <div className="rounded-lg border border-dashed border-border p-8 text-center bg-card">
               <p className="text-sm text-muted-foreground">{emptyText}</p>
             </div>
           )}
         </div>
       ) : (
-        <div className="divide-y divide-border bg-card rounded-lg">
+        <div className="bg-card rounded-lg">
           {items.map((i) => (
             <div key={i.id} className="flex items-center gap-2 px-5 py-3 hover:bg-muted/40 transition-colors">
               <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
@@ -212,7 +217,10 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
               </button>
             </div>
           ))}
-          {!items.length && (
+          {calendarEvents.map((ev) => (
+            <CalendarEventRow key={ev.id} ev={ev} memberByEmail={memberByEmail} compact />
+          ))}
+          {!items.length && !calendarEvents.length && (
             <div className="p-8 text-center bg-card">
               <p className="text-sm text-muted-foreground">{emptyText}</p>
             </div>
@@ -222,6 +230,32 @@ function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDis
     </div>
   );
 }
+
+function CalendarEventRow({ ev, memberByEmail, compact }: { ev: any; memberByEmail: Map<string, any>; compact?: boolean }) {
+  const owner = memberByEmail.get(ev.user_email);
+  const classes = owner ? COLOR_CLASSES[owner.color] : DEFAULT_COLOR_CLASSES;
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2.5 text-sm border-l-4 bg-card ${classes.border} ${compact ? "" : "rounded-md"}`}>
+      <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">{ev.title}</div>
+        <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+          <span>{format(new Date(ev.start_time), "EEE d MMM · HH:mm")}</span>
+          {ev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
+          {ev.meeting_link && (
+            <a href={ev.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline text-primary">
+              <Video className="h-3 w-3" />Join
+            </a>
+          )}
+        </div>
+      </div>
+      <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${classes.badge}`}>
+        {owner?.display_name || ev.user_email}
+      </span>
+    </div>
+  );
+}
+
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "live") return <Badge className="bg-red-600 text-white gap-1"><Radio className="h-3 w-3" /> Live</Badge>;
