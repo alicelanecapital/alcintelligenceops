@@ -47,6 +47,15 @@ function dedupeEvents(events: any[]): any[] {
   return out;
 }
 
+const INTERNAL_DOMAIN = "alicelanecapital.com";
+function classifyCalendarEvent(ev: any): "private" | "client" {
+  const attendees: any[] = ev.attendees ?? [];
+  const externals = attendees
+    .map((a) => (a?.email ?? "").toLowerCase())
+    .filter((e) => e && !e.endsWith(`@${INTERNAL_DOMAIN}`) && !e.includes("resource.calendar.google.com"));
+  return externals.length === 0 ? "private" : "client";
+}
+
 function InterviewsIndex() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
@@ -72,8 +81,10 @@ function InterviewsIndex() {
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
   });
 
-  const clientMeetings = (q.data ?? []).filter((i: any) => !i.is_private);
-  const privateMeetings = (q.data ?? []).filter((i: any) => i.is_private);
+  const clientInterviews = (q.data ?? []).filter((i: any) => !i.is_private);
+  const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private);
+  const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client");
+  const calendarPrivate = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "private");
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
@@ -92,7 +103,9 @@ function InterviewsIndex() {
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <InterviewColumn
           title="Client meetings"
-          items={clientMeetings}
+          items={clientInterviews}
+          calendarEvents={calendarClient}
+          memberByEmail={memberByEmail}
           view={view}
           emptyText="No client meetings yet. Start your first founder meeting to build the memo."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
@@ -100,7 +113,9 @@ function InterviewsIndex() {
         />
         <InterviewColumn
           title="Private meetings"
-          items={privateMeetings}
+          items={privateInterviews}
+          calendarEvents={calendarPrivate}
+          memberByEmail={memberByEmail}
           view={view}
           emptyText="No private meetings."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
@@ -108,64 +123,10 @@ function InterviewsIndex() {
         />
       </div>
 
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-serif text-lg">Events</div>
-        </div>
-        {dedupedUpcoming.length > 0 ? (
-          <div className="rounded-lg border border-border divide-y divide-border bg-card">
-            {dedupedUpcoming.slice(0, 8).map((ev: any) => {
-              // A shared calendar (e.g. Tendai's, synced into whoever's account subscribes to it) is
-              // identified by calendar name/id rather than by whose Google account did the syncing --
-              // shown in a solid red/white treatment regardless of the syncing account's own colour.
-              const isTendaiCalendar = [ev.calendar_name, ev.calendar_id].some((v) => (v ?? "").toLowerCase().includes("tendai"));
-              const owner = memberByEmail.get(ev.user_email);
-              const classes = owner ? COLOR_CLASSES[owner.color] : DEFAULT_COLOR_CLASSES;
-              return (
-                <div
-                  key={ev.id}
-                  className={
-                    isTendaiCalendar
-                      ? "flex items-center gap-3 px-4 py-3 text-sm border-l-4 border-l-red-800 bg-red-600 text-white"
-                      : `flex items-center gap-3 px-4 py-3 text-sm border-l-4 ${classes.border}`
-                  }
-                >
-                  <CalendarClock className={`h-4 w-4 shrink-0 ${isTendaiCalendar ? "text-white" : "text-primary"}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{ev.title}</div>
-                    <div className={`text-xs flex items-center gap-3 flex-wrap ${isTendaiCalendar ? "text-white/90" : "text-muted-foreground"}`}>
-                      <span>{format(new Date(ev.start_time), "EEE d MMM · HH:mm")}</span>
-                      {ev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
-                      {ev.meeting_link && (
-                        <a href={ev.meeting_link} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 underline ${isTendaiCalendar ? "text-white" : "text-primary"}`}>
-                          <Video className="h-3 w-3" />Join
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={
-                      isTendaiCalendar
-                        ? "text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap bg-red-800 text-white"
-                        : `text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${classes.badge}`
-                    }
-                  >
-                    {isTendaiCalendar ? "Tendai" : (owner?.display_name || ev.user_email)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground bg-card">
-            No synced calendar events yet. Connect a Google account in Accounts to sync your calendar.
-          </div>
-        )}
-      </div>
-
     </div>
   );
 }
+
 
 function InterviewColumn({ title, items, view, emptyText, onTogglePrivate, onDismiss }: {
   title: string;
