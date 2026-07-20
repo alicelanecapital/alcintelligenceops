@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listInterviews, setInterviewPrivate, dismissInterview } from "@/lib/interviews";
-import { fetchFounders } from "@/lib/db";
+import { fetchFounders, fetchEvents } from "@/lib/db";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
@@ -73,6 +73,7 @@ function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
+  const eventsQ = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const [view, setView] = useViewMode("meetings");
 
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
@@ -97,6 +98,12 @@ function InterviewsIndex() {
   const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private);
   const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client");
   const calendarPrivate = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "private");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const bookedEvents = (eventsQ.data ?? []).filter((e: any) => {
+    if (!e.booked || e.rejected) return false;
+    const end = e.end_date ?? e.start_date;
+    return !end || end >= todayIso;
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
@@ -133,6 +140,32 @@ function InterviewsIndex() {
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
           onDismiss={(i) => dismissMut.mutate(i.id)}
         />
+      </div>
+
+      <div className="mb-2">
+        <div className="text-sm font-medium text-muted-foreground mb-2">Events ({bookedEvents.length})</div>
+        {bookedEvents.length === 0 ? (
+          <div className="p-6 text-center bg-card rounded-lg">
+            <p className="text-sm text-muted-foreground">No upcoming booked events. Book an event from the Events screen to see it here.</p>
+          </div>
+        ) : (
+          <div className="bg-card rounded-lg">
+            {bookedEvents.map((ev: any) => (
+              <Link key={ev.id} to="/events" className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors border-b border-border/40 last:border-b-0">
+                <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{ev.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {ev.start_date ? format(new Date(ev.start_date), "d MMM yyyy") : "—"}
+                    {ev.end_date && ev.end_date !== ev.start_date && ` – ${format(new Date(ev.end_date), "d MMM yyyy")}`}
+                    {ev.location && ` · ${ev.location}`}
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-green-600 text-green-700">Booked</Badge>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
