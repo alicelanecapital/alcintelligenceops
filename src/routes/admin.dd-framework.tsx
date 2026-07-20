@@ -145,7 +145,7 @@ function SortableRoundAccordion({
       }}
     >
       <SortableContext items={rounds.map((r) => String(r.round))} strategy={verticalListSortingStrategy}>
-        <Accordion type="multiple" value={expanded} onValueChange={onExpandedChange} className="space-y-2">
+        <Accordion type="multiple" value={expanded} onValueChange={onExpandedChange} className="border-t border-border">
           {rounds.map((r, idx) => (
             <SortableRoundItem
               key={r.round}
