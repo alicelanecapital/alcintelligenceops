@@ -95,17 +95,21 @@ function keywordFallback(responses: string[]): SectorDetectionResult {
   };
 }
 
-/** Detects business sector from founder responses. Runs server-side. */
+/** Detects business sector from founder responses. Runs server-side.
+ *  Accepts an optional `hint` -- typically the founder's stated sector / company industry --
+ *  so we don't misclassify e.g. an aesthetics/dentistry practice as "Software" from a stray
+ *  keyword hit. */
 export const detectSector = createServerFn({ method: "POST" })
-  .inputValidator((d: { responses: string[] }) => d)
+  .inputValidator((d: { responses: string[]; hint?: string | null }) => d)
   .handler(async ({ data }): Promise<SectorDetectionResult> => {
-    const fallback = keywordFallback(data.responses);
+    const combined = [data.hint ?? "", ...data.responses].filter(Boolean);
+    const fallback = keywordFallback(combined);
     try {
       const prompt = `Analyze these founder responses and determine the business sector.
-Sectors: A=Physical Service, B=Retail, C=Food, D=Software, E=Manufacturing
-Responses: ${data.responses.slice(0, 3).join(" ")}
+Sectors: A=Physical Service, B=Retail, C=Food, D=Software, E=Manufacturing, F=Health & Wellness (aesthetics, dentistry, clinics, medical, cosmetic, wellness)
+${data.hint ? `Founder-stated sector / industry hint: ${data.hint}\n` : ""}Responses: ${data.responses.slice(0, 3).join(" ")}
 
-Return JSON: { "sector": "A"|"B"|"C"|"D"|"E", "confidence": 0-100, "reasoning": "..." }`;
+Return JSON: { "sector": "A"|"B"|"C"|"D"|"E"|"F", "confidence": 0-100, "reasoning": "..." }`;
       const result = await callAI("You are a due diligence analyst classifying SME businesses by sector.", prompt);
       if (!result.sector) return fallback;
       return {
