@@ -2,17 +2,11 @@
 // Calls Lovable AI Gateway directly (OpenAI-compatible chat completions).
 
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
 
-function server() {
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-  return createClient<Database>(url, key, { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } });
-}
 
 async function callAI(system: string, user: string, json = true): Promise<any> {
   const key = process.env.LOVABLE_API_KEY;
@@ -114,9 +108,10 @@ Scores are 0-100. Ground everything in the transcript, facts and analyses provid
 // ---- Server functions ----
 
 export const startInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { founderId?: string; founderName?: string; businessName?: string; industry?: string; interviewer?: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     let founder: any = null;
     let org: any = null;
     if (data.founderId) {
@@ -159,9 +154,10 @@ Fit rating: ${org?.fit_rating ?? "n/a"}
   });
 
 export const analyzeInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { interviewId: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     const [{ data: interview }, { data: utterances }, { data: prior }] = await Promise.all([
       sb.from("interviews").select("*").eq("id", data.interviewId).maybeSingle(),
       sb.from("interview_utterances").select("*").eq("interview_id", data.interviewId).order("ts_ms"),
@@ -212,9 +208,10 @@ ${transcript.slice(-12000)}
   });
 
 export const finalizeInterview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { interviewId: string }) => d)
-  .handler(async ({ data }) => {
-    const sb = server();
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
     const [{ data: interview }, { data: utterances }, { data: analyses }, { data: notes }] = await Promise.all([
       sb.from("interviews").select("*").eq("id", data.interviewId).maybeSingle(),
       sb.from("interview_utterances").select("*").eq("interview_id", data.interviewId).order("ts_ms"),
