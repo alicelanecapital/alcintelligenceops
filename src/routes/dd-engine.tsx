@@ -179,6 +179,12 @@ function DDEngine() {
           </div>
         )}
       </div>
+
+      <OpportunitySynopsisDialog
+        opportunityId={synopsisId}
+        open={!!synopsisId}
+        onOpenChange={(o) => { if (!o) setSynopsisId(null); }}
+      />
     </div>
   );
 }
