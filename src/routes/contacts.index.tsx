@@ -328,13 +328,13 @@ function ContactListRow({ c }: { c: ContactRow }) {
         <Link to="/contacts/$id" params={{ id: c.id }} className="flex-1 min-w-0 flex items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-serif text-sm leading-tight truncate">{primary}</span>
+              <span className="font-serif text-base font-bold leading-tight truncate">{primary}</span>
               <Badge className={cn("border text-[10px] shrink-0", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
               <NextMeetingBadge email={c.email} />
             </div>
-            {secondary && <div className="text-[11px] text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
+            {secondary && <div className="text-xs text-muted-foreground truncate">{secondary}{c.company && c.position ? ` · ${c.position}` : ""}</div>}
           </div>
-          <div className="hidden sm:flex flex-wrap gap-3 text-[11px] text-muted-foreground shrink-0">
+          <div className="hidden sm:flex flex-wrap gap-3 text-xs text-muted-foreground shrink-0">
             {c.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
             {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
           </div>
