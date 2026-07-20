@@ -33,7 +33,8 @@ export const sendRequestInfoEmail = createServerFn({ method: "POST" })
       .map((l) => l ? `<p style="margin:0 0 0.6em 0">${escapeHtml(l)}</p>` : "<p>&nbsp;</p>")
       .join("");
     const signatureHtml = signature
-      ? (sigIsHtml ? signature : signature.split("\n").map((l) => l ? `<p style="margin:0 0 0.4em 0">${escapeHtml(l)}</p>` : "<p>&nbsp;</p>").join(""))
+      ? (sigIsHtml ? signature : signature.split("\n").map((l: string) => l ? `<p style="margin:0 0 0.4em 0">${escapeHtml(l)}</p>` : "<p>&nbsp;</p>").join(""))
+
       : "";
     const html = signatureHtml ? `${bodyHtml}<br/>${signatureHtml}` : bodyHtml;
 
