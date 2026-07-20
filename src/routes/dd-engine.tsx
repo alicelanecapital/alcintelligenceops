@@ -20,15 +20,19 @@ import { Play, Plus, Archive, ArchiveRestore, Trash2, User } from "lucide-react"
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
+import { OpportunitySynopsisDialog } from "@/components/OpportunitySynopsisDialog";
 
 export const Route = createFileRoute("/dd-engine")({ component: () => <AppShell><DDEngine /></AppShell> });
 
+// Sector labels retained for internal use elsewhere; the badge itself no longer renders on
+// the pipeline list (sector is surfaced via the synopsis dialog instead).
 const SECTOR_LABELS: Record<string, string> = {
   A: "Physical service",
   B: "Retail",
   C: "Food",
   D: "Software",
   E: "Manufacturing",
+  F: "Health & Wellness",
 };
 
 // Distinct colour per round so the pipeline is scannable at a glance across cards.
