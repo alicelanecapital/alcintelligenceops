@@ -47,8 +47,12 @@ export const generateDiscProfile = createServerFn({ method: "POST" })
 
       const withTranscript = (interviews ?? []).filter((i) => (i.transcript ?? "").trim().length > 0);
       if (!withTranscript.length) {
-        throw new Error("No round transcripts yet -- record or upload a transcript in at least one round first.");
+        // Return null instead of throwing -- callers auto-invoke this on every round load,
+        // and a thrown error surfaces as an unhandled RUNTIME_ERROR / blank screen even when
+        // the caller .catch()es it (error reporter hooks in before the promise settles).
+        return null;
       }
+
 
       const key = process.env.LOVABLE_API_KEY;
       if (!key) throw new Error("LOVABLE_API_KEY not configured");

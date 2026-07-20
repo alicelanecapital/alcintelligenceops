@@ -44,8 +44,11 @@ export const generateOpportunityOverview = createServerFn({ method: "POST" })
 
     const rounds = (interviews ?? []).filter((i) => (i.transcript ?? "").trim().length > 0 || i.ai_analysis);
     if (!rounds.length) {
-      throw new Error("No round data yet -- record, upload, or analyse at least one round first.");
+      // Return null instead of throwing -- this runs automatically on every round load and a
+      // thrown error surfaces as an unhandled RUNTIME_ERROR / blank screen even when caught.
+      return null;
     }
+
 
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY not configured");
