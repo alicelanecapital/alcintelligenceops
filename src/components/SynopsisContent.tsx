@@ -97,8 +97,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
             </button>
           ))}
         </div>
-        <div id="syn-sector">
-        <div className="p-3 bg-teal-50 border border-teal-200 rounded">
+        <div id="syn-sector" className="p-3 bg-teal-50 border border-teal-200 rounded">
           <div className="flex items-center gap-2 mb-1">
             <Target className="h-3.5 w-3.5 text-teal-700" />
             <span className="text-sm font-semibold text-teal-900">Sector Detected</span>
@@ -113,7 +112,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
           )}
         </div>
 
-        <div className="p-3 bg-sky-50 border border-sky-200 rounded">
+        <div id="syn-brief" className="p-3 bg-sky-50 border border-sky-200 rounded">
           <p className="text-sm font-semibold text-sky-900 mb-2">🧭 Stakeholder Brief</p>
           {stakeholderBrief ? (
             <div className="space-y-2">
@@ -143,7 +142,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
           )}
         </div>
 
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded">
+        <div id="syn-overview" className="p-3 bg-amber-50 border border-amber-200 rounded">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-3.5 w-3.5 text-amber-700" />
             <span className="text-sm font-semibold text-amber-900">AI Overview</span>
@@ -176,7 +175,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
           )}
         </div>
 
-        <div className="p-3 bg-cyan-50 border border-cyan-200 rounded">
+        <div id="syn-disc" className="p-3 bg-cyan-50 border border-cyan-200 rounded">
           <div className="flex items-center gap-2 mb-2">
             <BrainCircuit className="h-3.5 w-3.5 text-cyan-700" />
             <span className="text-sm font-semibold text-cyan-900">DISC Personality Profile</span>
@@ -213,7 +212,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
           )}
         </div>
 
-        <div className="p-3 bg-rose-50 border border-rose-200 rounded">
+        <div id="syn-flags" className="p-3 bg-rose-50 border border-rose-200 rounded">
           <div className="flex items-center gap-2 mb-2">
             <Flag className="h-3.5 w-3.5 text-rose-700" />
             <span className="text-sm font-semibold text-rose-900">Red Flags</span>
