@@ -57,6 +57,8 @@ function DDEngine() {
   );
   const archivedCount = useMemo(() => (q.data ?? []).filter((opp: any) => opp.archived).length, [q.data]);
 
+  const [synopsisId, setSynopsisId] = useState<string | null>(null);
+
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
   };
