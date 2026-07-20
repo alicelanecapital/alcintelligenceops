@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
 import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds } from '@/lib/dd-framework-admin';
-import { detectSector, generateAnalysisReport } from '@/lib/dd-sector-detection';
+import { detectSector, generateAnalysisReport, MIN_SECTOR_CONFIDENCE } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
 import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
