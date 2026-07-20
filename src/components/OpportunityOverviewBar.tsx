@@ -165,13 +165,13 @@ export function OpportunityOverviewBar({
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-2">
-              {DIMENSIONS.map(({ key, label, color }) => {
+              {DIMENSIONS.map(({ key, letter, label, color }) => {
                 const dim = discProfile[key] as DiscDimension | undefined;
                 if (!dim) return null;
                 return (
                   <div key={key} className="border border-cyan-200 bg-white rounded-md p-2">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium">{label} · {dim.label}</span>
+                      <span className="text-xs font-medium">{letter} — {label}</span>
                       <span className="text-[10px] text-muted-foreground">{dim.score}</span>
                     </div>
                     <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
