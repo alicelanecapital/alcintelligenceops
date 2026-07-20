@@ -337,7 +337,7 @@ function DocumentsSection({ round, documents, onChanged }: { round: number; docu
         <h2 className="font-serif text-2xl">Required documents ({documents.length})</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add document</Button>
       </div>
-      <div className="space-y-3">
+      <div className="divide-y divide-border border-t border-border">
         {documents.map((doc, idx) => (
           <DocumentCard
             key={doc.id}
