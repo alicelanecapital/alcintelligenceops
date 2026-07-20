@@ -81,8 +81,8 @@
   --ring: oklch(0.42 0.09 152);
   --forest: oklch(0.42 0.09 152);
   --forest-grey: oklch(0.50 0.03 152);
-  --record-surface: oklch(0.32 0.01 250);
-  --record-foreground: oklch(0.98 0 0);
+  --record-surface: oklch(0.945 0 0);
+  --record-foreground: oklch(0.22 0.02 250);
   --calendar-grid: oklch(0.78 0.005 250);
   --ink: oklch(0.22 0.02 250);
   --surface: oklch(0.98 0.004 250);
