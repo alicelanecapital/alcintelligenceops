@@ -34,21 +34,28 @@ function isSouthAfrican(...values: (string | undefined)[]): boolean {
 }
 
 function buildPrompt(today: string): string {
-  return `You are an expert conference scout for a South African investment firm.
+  return `You are an expert conference and events scout for a South African investment firm.
 
-Today's date is ${today}. Only return conferences starting after today.
+Today's date is ${today}. Only return events starting after today.
 
-Return TWO lists of upcoming conferences (next 9 months from today) that match the calibre of Mining Indaba: high prestige, senior/decision-maker attendees, strong deal-making potential, and international influence.
+Return TWO lists of upcoming high-prestige events (next 9 months from today). Include not just sector conferences, but also flagship events HOSTED OR HEADLINED by top-tier institutions where senior dealmakers gather:
 
-1. "sa": 12 sector-specific conferences hosted IN South Africa across sectors like mining, energy, agri, fintech, healthcare, infrastructure, tech, ESG, private equity.
-2. "global": 12 major international conferences (outside South Africa) of comparable prestige that a South African investor / dealmaker should consider attending.
+- Investment banks & houses: RMB, Investec, Standard Bank CIB, Absa CIB, Nedbank CIB, JPMorgan, Goldman Sachs, Morgan Stanley, Rothschild, Lazard, Citi, HSBC, Bank of America, Barclays, UBS, Deutsche Bank.
+- Global tech & platform companies: Microsoft (Ignite, Build), Google (Cloud Next, I/O), Meta (Connect), AWS (re:Invent, Summit), NVIDIA (GTC), Apple, OpenAI DevDay, Salesforce (Dreamforce), Oracle, IBM.
+- Prestige business/policy forums: World Economic Forum (Davos), Milken Institute Global, Bloomberg Invest, FT Live, Economist Impact, Concordia Summit, Aspen Ideas.
+- Development finance & PE bodies: IFC, AfDB, SAVCA, AVCA, EMPEA, BVCA.
+
+Quality bar (like Mining Indaba): senior/decision-maker attendees, strong deal-making potential, international influence.
+
+1. "sa": 15 events hosted IN South Africa. Include SA sector conferences (mining, energy, agri, fintech, healthcare, infrastructure, tech, ESG, private equity) AND local editions / roadshows / summits held in Johannesburg, Cape Town, Sandton, etc. by any of the institutions above.
+2. "global": 15 major international events (outside South Africa) — flagship bank client conferences, top tech developer/AI summits, WEF/Milken/FT-tier forums, and DFI/PE association summits.
 
 Return ONLY a JSON object with this exact shape (no markdown, no prose):
 {
   "sa": [ { "name": "...", "location": "City, Country", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "description": "One sentence on why it matters.", "website": "https://...", "cost": 0, "who_you_meet": "Key attendees, speakers, or target audience." } ],
   "global": [ /* same shape */ ]
 }
-Costs should be integers in USD (0 if unknown/free). All start_date values must be after ${today}.`;
+Costs should be integers in ZAR (South African Rand) — best estimate of per-delegate ticket price (0 if free / invite-only / unknown). All start_date values must be after ${today}.`;
 }
 
 export const discoverEvents = createServerFn({ method: "POST" }).handler(
