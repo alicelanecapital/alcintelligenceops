@@ -150,12 +150,39 @@ export const listGoogleSubCalendars = createServerFn({ method: "POST" })
     });
     if (!res.ok) return [];
     const json = await res.json();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conn } = await (supabaseAdmin.from("google_oauth_connections") as any)
+      .select("hidden_calendar_ids")
+      .eq("user_email", data.targetEmail)
+      .maybeSingle();
+    const hidden: string[] = conn?.hidden_calendar_ids ?? [];
     return ((json.items ?? []) as any[]).map((c) => ({
       id: c.id as string,
       summary: (c.summaryOverride ?? c.summary ?? c.id) as string,
       primary: !!c.primary,
       backgroundColor: (c.backgroundColor ?? null) as string | null,
       accessRole: (c.accessRole ?? "reader") as string,
+      hidden: hidden.includes(c.id),
     }));
+  });
+
+/** Persist which sub-calendars to exclude from sync for a given connected Google account,
+ *  and drop any already-synced events belonging to newly-hidden calendars. */
+export const setHiddenCalendars = createServerFn({ method: "POST" })
+  .inputValidator((d: { targetEmail: string; hiddenIds: string[] }) => d)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin.from("google_oauth_connections") as any)
+      .update({ hidden_calendar_ids: data.hiddenIds })
+      .eq("user_email", data.targetEmail);
+    if (error) throw error;
+    if (data.hiddenIds.length) {
+      await (supabaseAdmin.from("google_calendar_events" as any) as any)
+        .delete()
+        .eq("user_email", data.targetEmail)
+        .in("calendar_id", data.hiddenIds);
+    }
+    return { ok: true };
   });
 
