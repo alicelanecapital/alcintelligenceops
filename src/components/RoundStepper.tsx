@@ -48,7 +48,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
                 >
                   {completed ? <Check className="h-4 w-4" /> : idx + 1}
                 </span>
-                <span className={cn("block text-sm font-semibold whitespace-normal break-words", completed ? "text-white" : active ? "text-primary" : "text-foreground")}>
+                <span className={cn("block text-sm font-bold whitespace-normal break-words", completed ? "text-white" : "text-green-800")}>
                   {r.title}
                 </span>
               </span>
