@@ -1279,9 +1279,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       </Accordion>
 
 
-      {/* Round Gates -- only surfaced on the final sub-step, since advancing (or holding/
-          terminating) is a whole-round decision made once everything else has been reviewed. */}
-      {isLastStep && (
+      {/* Round Gates -- accordion exposes every step at once, so the gate panel is always
+          visible below. Advancing (or holding/terminating) remains a whole-round decision. */}
+      {(
+
       <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">
         <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
         {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
