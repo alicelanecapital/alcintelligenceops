@@ -210,7 +210,7 @@ function CalendarScreen() {
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
   const itemStyle = (it: CalItem): string => {
-    if (it.type === "event") return "text-green-700";
+    if (it.type === "event") return "bg-teal-600 text-white rounded";
     if (it.type === "task") return "text-orange-600";
     if (it.type === "meeting" && it.owner) {
       const c = COLOR_CLASSES[resolveColor(it.owner)] ?? DEFAULT_COLOR_CLASSES;
@@ -218,6 +218,7 @@ function CalendarScreen() {
     }
     return "text-foreground";
   };
+
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
