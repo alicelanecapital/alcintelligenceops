@@ -159,12 +159,12 @@ function ContactProfile() {
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Overview</TabsTrigger>
+          <TabsTrigger value="brief"><Sparkles className="h-3.5 w-3.5 mr-1" /> Stakeholder Brief</TabsTrigger>
           <TabsTrigger value="live"><PlaySquare className="h-3.5 w-3.5 mr-1" /> Live Workspace</TabsTrigger>
           <TabsTrigger value="docs"><FolderOpen className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
           <TabsTrigger value="meetings"><History className="h-3.5 w-3.5 mr-1" /> Meeting History</TabsTrigger>
-          <TabsTrigger value="notes"><StickyNote className="h-3.5 w-3.5 mr-1" /> Notes</TabsTrigger>
-          <TabsTrigger value="flags"><Flag className="h-3.5 w-3.5 mr-1" /> Red Flags</TabsTrigger>
           <TabsTrigger value="deals"><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approved Deals</TabsTrigger>
+          <TabsTrigger value="notes"><StickyNote className="h-3.5 w-3.5 mr-1" /> Notes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6 space-y-4">
@@ -172,6 +172,13 @@ function ContactProfile() {
             contact={c}
             opportunity={primaryOpp}
             openOpps={openOpps}
+            opportunities={opps.data ?? []}
+          />
+        </TabsContent>
+
+        <TabsContent value="brief" className="pt-6">
+          <StakeholderBriefTab
+            contact={c}
             briefPending={briefMut.isPending}
             onGenerateBrief={(force) => briefMut.mutate(force)}
           />
@@ -189,16 +196,12 @@ function ContactProfile() {
           <MeetingHistoryTab contactId={id} meetings={meetings.data ?? []} />
         </TabsContent>
 
-        <TabsContent value="notes" className="pt-6">
-          <NotesTab contactId={id} initial={c.notes ?? ""} />
-        </TabsContent>
-
-        <TabsContent value="flags" className="pt-6">
-          <RedFlagsTab opportunities={opps.data ?? []} />
-        </TabsContent>
-
         <TabsContent value="deals" className="pt-6">
           <ApprovedDealsTab approvedOpps={approvedOpps} />
+        </TabsContent>
+
+        <TabsContent value="notes" className="pt-6">
+          <NotesTab contactId={id} initial={c.notes ?? ""} />
         </TabsContent>
       </Tabs>
 
