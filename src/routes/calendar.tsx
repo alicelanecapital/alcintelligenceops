@@ -53,49 +53,9 @@ function maskUnavailable(title: string | null | undefined): string {
 }
 
 
-function BookingLinkCard() {
-  const getLinkFn = useServerFn(getOrCreateBookingLink);
-  const q = useQuery({ queryKey: ["booking-link"], queryFn: () => getLinkFn() });
-  const url = q.data ? `${window.location.origin}/book/${(q.data as any).slug}` : null;
-  const prettyUrl = url ? url.replace(/^https?:\/\//, "") : null;
+// BookingLinkCard now lives in src/components/BookingLinkCard.tsx and is
+// rendered on Admin → Accounts (below the Email Signature).
 
-  return (
-    <Card className="mt-6 border-primary/20">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <CalendarPlus className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-serif text-lg leading-tight">Your personal booking link</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Share this with clients — they'll see your open times and book directly into your calendar.</div>
-          </div>
-        </div>
-        {url ? (
-          <div className="flex items-center gap-2 flex-wrap pl-12">
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-primary hover:underline break-all"
-            >
-              {prettyUrl}
-            </a>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied — paste it into an email or message"); }}
-            >
-              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy link
-            </Button>
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground pl-12">{q.isLoading ? "Creating your link…" : ""}</div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
