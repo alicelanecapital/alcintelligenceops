@@ -140,10 +140,21 @@ function CalendarScreen() {
       const cat = (i.contact?.category ?? "unknown") as ContactCategory;
       out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat, hasTime: true });
     });
+    // Only surface Google events for accounts that are still active team members;
+    // stale info@ / removed-teammate events still lingering in the sync table were
+    // repeating on the calendar and the legend.
+    const activeEmails = new Set<string>((team.data ?? []).map((tm: any) => String(tm.email).toLowerCase()));
+    const seenGcal = new Set<string>();
     (teamEvents.data ?? []).forEach((g: any) => {
-      if (!g.start_time || isHolidayRow(g)) return; // holidays render as day background, not as a pill
+      if (!g.start_time || isHolidayRow(g)) return;
+      const owner = String(g.user_email ?? "").toLowerCase();
+      if (activeEmails.size > 0 && !activeEmails.has(owner)) return;
+      // Deduplicate across sub-calendars & multiple accounts by (owner, start, normalized title).
+      const dedupeKey = `${owner}::${g.start_time}::${String(g.title ?? "").trim().toLowerCase()}`;
+      if (seenGcal.has(dedupeKey)) return;
+      seenGcal.add(dedupeKey);
       out.push({
-        id: `gcal-${g.user_email}-${g.google_event_id ?? g.title}-${g.start_time}`,
+        id: `gcal-${owner}-${g.google_event_id ?? g.title}-${g.start_time}`,
         date: new Date(g.start_time),
         label: maskUnavailable(g.title),
         type: "meeting",
@@ -158,7 +169,7 @@ function CalendarScreen() {
       out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee });
     });
     return out;
-  }, [events.data, meetings.data, tasks.data, interviews.data, teamEvents.data]);
+  }, [events.data, meetings.data, tasks.data, interviews.data, teamEvents.data, team.data]);
 
   const holidayByDay = useMemo(() => {
     const m = new Map<string, string>();
