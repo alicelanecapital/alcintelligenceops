@@ -142,6 +142,7 @@ function InterviewsIndex() {
           emptyText="No client meetings yet. Start your first founder meeting to build the memo."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
           onDismiss={(i) => dismissMut.mutate(i.id)}
+          onStop={(i) => stopMut.mutate(i.id)}
         />
         <InterviewColumn
           title="Private meetings"
@@ -152,8 +153,10 @@ function InterviewsIndex() {
           emptyText="No private meetings."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
           onDismiss={(i) => dismissMut.mutate(i.id)}
+          onStop={(i) => stopMut.mutate(i.id)}
         />
       </div>
+
 
       <div className="mb-2">
         <div className="text-sm font-medium text-muted-foreground mb-2">Events ({bookedEvents.length})</div>
