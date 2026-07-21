@@ -749,10 +749,11 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   // than as the first thing reviewed. Every round ends with AI Analysis, one step after
   // Internal Verification, so the AI's findings can be compared against what the human
   // evaluator entered there.
-  const SUB_STEPS: { key: typeof activeStep; label: string }[] = isFirstRound
+  type StepKey = 'documents' | 'questions' | 'software' | 'verification' | 'ai_analysis';
+  const SUB_STEPS: { key: StepKey; label: string }[] = isFirstRound
     ? [questionsStep, softwareStep, documentsStep, verificationStep, aiAnalysisStep]
     : [documentsStep, questionsStep, softwareStep, verificationStep, aiAnalysisStep];
-  const isLastStep = SUB_STEPS[SUB_STEPS.length - 1].key === activeStep;
+
 
   if (framework.isLoading || !roundData) {
     return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
