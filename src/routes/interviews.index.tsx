@@ -111,7 +111,7 @@ function InterviewsIndex() {
         eyebrow="Diagnostic Engine"
         title="Meetings"
         description="Founder meetings recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
-        actions={<NewInterview />}
+        actions={<div className="flex items-center gap-2"><SyncGoogleButton mode="team" /><NewInterview /></div>}
       />
 
       <div className="flex items-center justify-between mb-3">
