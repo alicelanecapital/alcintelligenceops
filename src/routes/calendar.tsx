@@ -297,8 +297,15 @@ function CalendarScreen() {
               {holiday && <div className="text-[10px] text-rose-700 mb-1 truncate italic">{holiday}</div>}
               <div>
                 {dayItems.slice(0, 3).map((it, i) => (
-                  <div key={it.id} className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}>{it.label}</div>
+                  <div
+                    key={it.id}
+                    title={it.sub ? `${it.label} — ${it.sub}` : it.label}
+                    className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}
+                  >
+                    {it.label}
+                  </div>
                 ))}
+
                 {dayItems.length > 3 && <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} more</div>}
               </div>
             </button>
