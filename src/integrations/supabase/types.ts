@@ -1559,6 +1559,7 @@ export type Database = {
         Row: {
           access_token: string
           connected_at: string
+          hidden_calendar_ids: string[]
           id: string
           last_synced_at: string | null
           refresh_token: string | null
@@ -1570,6 +1571,7 @@ export type Database = {
         Insert: {
           access_token: string
           connected_at?: string
+          hidden_calendar_ids?: string[]
           id?: string
           last_synced_at?: string | null
           refresh_token?: string | null
@@ -1581,6 +1583,7 @@ export type Database = {
         Update: {
           access_token?: string
           connected_at?: string
+          hidden_calendar_ids?: string[]
           id?: string
           last_synced_at?: string | null
           refresh_token?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.google_oauth_connections ADD COLUMN IF NOT EXISTS hidden_calendar_ids text[] NOT NULL DEFAULT '{}';

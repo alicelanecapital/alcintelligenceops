@@ -1,30 +1,17 @@
-## 1. Reformat Round Gates panel (`src/components/DDInterviewEnhanced.tsx`, lines ~1282–1355)
+## 1. Fix signature save
 
-Slick forest-green + white treatment.
+In `src/routes/admin.accounts.tsx` (`EmailSignatureCard`), the editor is initialized on first render before the profile query resolves, so saved signatures render as blank on reload and the next save wipes them. Change the init effect to only run once `q.isSuccess` is true, so the stored HTML is written into the contentEditable div after the fetch resolves.
 
-- **Remove outer frame**: strip `p-6 bg-teal-50 border border-teal-200 rounded-lg` from the wrapping `<div>` — keep only top spacing (`mt-8 pt-6`).
-- **Heading**: `✅ Round Gates` becomes `text-lg font-bold text-green-800`.
-- **Inner "Clear to Proceed" card**: replace `bg-green-100 border-green-300` with `bg-white border border-green-800 rounded-lg p-5`; text `text-green-900`. Advance button switches from teal to forest green: `bg-green-800 hover:bg-green-900 text-white`.
-- **Walk-Away block**: keep red semantics (`bg-white border border-red-600 text-red-800`) so it still reads as blocking, but drop the pink fill for a cleaner white card.
-- **Hold/Terminate comment card**: switch `bg-gray-50 border-emerald-300` → `bg-white border border-green-800`; terminate variant `bg-white border border-red-600`. Confirm-hold button becomes forest green (`bg-green-800 hover:bg-green-900`).
-- **Textarea**: `border-green-800 focus:ring-green-800` on white.
-- **Secondary links** ("Do Not Proceed", "Terminate Deal"): keep as text links, tighten spacing.
+## 2. Remove Chimanimani / Cave Meeting and stop private sub-calendars re-syncing
 
-## 2. Wrap horizontal stepper titles + abbreviate (`src/components/RoundStepper.tsx`)
+`syncCalendarForUser` pulls every sub-calendar in the connected Google account's calendarList. Private/shared calendars the info@alicelane account is subscribed to get pulled in even if they're not in the primary view.
 
-Save horizontal space in the DD Interview stepper.
+- Delete the offending rows now: `DELETE FROM google_calendar_events WHERE title ILIKE '%Chimanimani%' OR title ILIKE '%Cave Meeting%'`.
+- Add a durable per-account exclusion mechanism:
+  - Migration: add `hidden_calendar_ids text[] NOT NULL DEFAULT '{}'` to `public.google_oauth_connections`.
+  - `src/lib/google-calendar-sync.functions.ts`: load `hidden_calendar_ids` for the connection and skip those calendars in the sub-calendar loop. Add `setHiddenCalendars({ targetEmail, hiddenIds })` server fn that updates the array and deletes any already-synced events whose `calendar_id` is now hidden.
+  - `src/routes/admin.accounts.tsx`: re-enable the currently-gated `SubCalendarsList` block, add a checkbox per sub-calendar wired to `setHiddenCalendars`, and invalidate `team-google-connections`, `sub-calendars`, `upcoming-calendar-meetings`, `all-meetings` on toggle.
 
-- Remove `whitespace-nowrap` from both the title and subtitle spans in the horizontal branch so long titles wrap onto a second line and subtitles wrap under that.
-- Constrain each pill to a sensible max width (`max-w-[9rem]`) so wrapping actually kicks in instead of the row stretching.
-- Replace every occurrence of "Due Diligence" with "DD" in the stepper labels. Since round titles come from the DD framework data (not hardcoded in the stepper), also apply the abbreviation at the render sites that feed `rounds` into `RoundStepper` — `src/components/DDInterviewEnhanced.tsx` and `src/routes/admin.dd-framework.tsx` — by mapping `title.replace(/Due Diligence/gi, 'DD')` before passing to the stepper. Underlying DB rows stay untouched.
+## Out of scope
 
-## 3. Google `Error 403: org_internal` for ga@firstserve.co.za
-
-Not a code bug — the OAuth consent screen for "ALC DD Engine" is set to **Internal** in Google Cloud Console, so accounts outside `alicelanecapital.com` are blocked before any app code runs.
-
-Two options (pick one, no code required):
-
-- **A. Switch consent screen to External** — Google Cloud Console → APIs & Services → OAuth consent screen → User Type: External → Save. Add ga@firstserve.co.za as a Test User while in Testing mode.
-- **B. Keep Internal, bring the address into the org** — in Google Admin, create ga@firstserve.co.za as a user under alicelanecapital.com, or add firstserve.co.za as a secondary domain.
-
-Say the word if you'd like an in-app note on the Accounts page explaining this to teammates.
+No changes to auth, RLS, or the OAuth flow itself. No global title-based blocklist — exclusion is per sub-calendar per account, which is the correct level for "this calendar is private".
