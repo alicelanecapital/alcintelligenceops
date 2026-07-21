@@ -274,6 +274,8 @@ function ContactCard({ c }: { c: ContactRow }) {
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+
   const qc = useQueryClient();
   const cat = contactColor(c.category);
   const del = useMutation({
@@ -293,12 +295,16 @@ function ContactCard({ c }: { c: ContactRow }) {
             <div className="flex items-center gap-1 flex-wrap justify-end">
               <Badge className={cn("border text-[10px]", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
               <NextMeetingBadge email={c.email} />
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Schedule meeting" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setScheduling(true); }}>
+                <CalendarPlus className="h-3.5 w-3.5" />
+              </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true); }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
+
             </div>
           </div>
           <Link to="/contacts/$id" params={{ id: c.id }} className="block space-y-2">
