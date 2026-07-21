@@ -24,7 +24,8 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X, CalendarPlus } from "lucide-react";
+import { ScheduleMeetingDialog } from "@/components/ScheduleMeetingDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -273,6 +274,8 @@ function ContactCard({ c }: { c: ContactRow }) {
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+
   const qc = useQueryClient();
   const cat = contactColor(c.category);
   const del = useMutation({
@@ -292,12 +295,16 @@ function ContactCard({ c }: { c: ContactRow }) {
             <div className="flex items-center gap-1 flex-wrap justify-end">
               <Badge className={cn("border text-[10px]", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
               <NextMeetingBadge email={c.email} />
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Schedule meeting" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setScheduling(true); }}>
+                <CalendarPlus className="h-3.5 w-3.5" />
+              </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true); }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
+
             </div>
           </div>
           <Link to="/contacts/$id" params={{ id: c.id }} className="block space-y-2">
@@ -320,6 +327,8 @@ function ContactCard({ c }: { c: ContactRow }) {
       </Card>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
       <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+      <ScheduleMeetingDialog open={scheduling} onOpenChange={setScheduling} contact={c as any} />
+
     </>
   );
 }
@@ -330,6 +339,8 @@ function ContactListRow({ c }: { c: ContactRow }) {
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+
   const qc = useQueryClient();
   const cat = contactColor(c.category);
   const del = useMutation({
@@ -355,6 +366,7 @@ function ContactListRow({ c }: { c: ContactRow }) {
           </div>
         </Link>
         <div className="flex items-center gap-1 shrink-0">
+          <Button size="icon" variant="ghost" className="h-8 w-8" title="Schedule meeting" onClick={() => setScheduling(true)}><CalendarPlus className="h-3.5 w-3.5" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setConfirming(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
           <ArrowRight className="h-3.5 w-3.5 text-primary" />
@@ -362,9 +374,11 @@ function ContactListRow({ c }: { c: ContactRow }) {
       </div>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
       <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+      <ScheduleMeetingDialog open={scheduling} onOpenChange={setScheduling} contact={c as any} />
     </>
   );
 }
+
 
 
 

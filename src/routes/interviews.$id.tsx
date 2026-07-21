@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
-  saveNote, setInterviewStatus, insertUtterance, editUtterance,
+  saveNote, setInterviewStatus, insertUtterance, editUtterance, stopInterview,
   INTERVIEW_STAGES,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
@@ -52,9 +54,17 @@ function InterviewWorkspace() {
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
             <Badge className={iv.status === "live" ? "bg-red-600 text-white" : iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status}</Badge>
+            {iv.status === "live" && (
+              <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={async () => {
+                await stopInterview(id);
+                toast.success("Meeting stopped");
+                qc.invalidateQueries({ queryKey: ["iv", id] });
+              }}><StopCircle className="h-3 w-3" /> Stop</Button>
+            )}
           </div>
         </div>
       </div>
+
 
       <Tabs value={tab} onValueChange={async (v) => {
         setTab(v);
@@ -483,12 +493,33 @@ function NoteBox({ interviewId, section, initial, compact }: { interviewId: stri
 
 function ReportView({ interviewId }: { interviewId: string }) {
   const report = useQuery({ queryKey: ["iv-report", interviewId], queryFn: () => getReport(interviewId) });
+  const interview = useQuery({ queryKey: ["iv", interviewId], queryFn: () => getInterview(interviewId) });
+  const nav = useNavigate();
+  const createOpp = useServerFn(createOpportunityFromContact);
+  const addToPipeline = useMutation({
+    mutationFn: async () => {
+      const contactId = (interview.data as any)?.contact_id;
+      if (!contactId) throw new Error("Meeting isn't linked to a contact");
+      return createOpp({ data: { contactId } });
+    },
+    onSuccess: (opp: any) => {
+      toast.success("Added to Deal Pipeline");
+      nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
   if (report.isLoading) return <div className="p-10 text-muted-foreground">Loading memo…</div>;
   if (!report.data) return <div className="p-10 text-muted-foreground">No memo yet. Complete the interview to generate the IC report.</div>;
   const r = report.data.body as any;
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-10 space-y-6">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={addToPipeline.isPending}>
+          {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
+        </Button>
+      </div>
       <Recommendation r={r.recommendation} />
+
       <div className="grid md:grid-cols-2 gap-6">
         <Section title="Executive summary" body={r.executive_summary} />
         <Section title="Founder summary" body={r.founder_summary} />

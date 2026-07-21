@@ -1,27 +1,25 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, setInterviewPrivate, dismissInterview } from "@/lib/interviews";
-import { fetchFounders, fetchEvents } from "@/lib/db";
+import { listInterviews, setInterviewPrivate, dismissInterview, stopInterview } from "@/lib/interviews";
+import { fetchEvents } from "@/lib/db";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock } from "lucide-react";
-import { startInterview } from "@/lib/interviews.functions";
+import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle } from "lucide-react";
+import { NewMeetingDialog } from "@/components/NewMeetingDialog";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
+
 
 /** The same real-world event often appears more than once because several team
  * members' synced calendars (and shared/subscribed calendars) all pick it up
@@ -95,6 +93,16 @@ function InterviewsIndex() {
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
   });
 
+  const stopMut = useMutation({
+    mutationFn: (id: string) => stopInterview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["interviews"] });
+      toast.success("Meeting stopped");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to stop"),
+  });
+
+
   const clientInterviews = (q.data ?? []).filter((i: any) => !i.is_private);
   const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private);
   const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client");
@@ -130,6 +138,7 @@ function InterviewsIndex() {
           emptyText="No client meetings yet. Start your first founder meeting to build the memo."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: true })}
           onDismiss={(i) => dismissMut.mutate(i.id)}
+          onStop={(i) => stopMut.mutate(i.id)}
         />
         <InterviewColumn
           title="Private meetings"
@@ -140,8 +149,10 @@ function InterviewsIndex() {
           emptyText="No private meetings."
           onTogglePrivate={(i) => togglePrivateMut.mutate({ id: i.id, isPrivate: false })}
           onDismiss={(i) => dismissMut.mutate(i.id)}
+          onStop={(i) => stopMut.mutate(i.id)}
         />
       </div>
+
 
       <div className="mb-2">
         <div className="text-sm font-medium text-muted-foreground mb-2">Events ({bookedEvents.length})</div>
@@ -174,7 +185,7 @@ function InterviewsIndex() {
 }
 
 
-function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, emptyText, onTogglePrivate, onDismiss }: {
+function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, emptyText, onTogglePrivate, onDismiss, onStop }: {
   title: string;
   items: any[];
   calendarEvents: any[];
@@ -183,7 +194,9 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
   emptyText: string;
   onTogglePrivate: (i: any) => void;
   onDismiss: (i: any) => void;
+  onStop: (i: any) => void;
 }) {
+
   const isPrivateColumn = title === "Private meetings";
   return (
     <div>
@@ -207,10 +220,17 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
                   </Link>
                   <div className="flex items-center gap-2 shrink-0">
                     <StatusBadge status={i.status} />
-                    <Link to="/interviews/$id" params={{ id: i.id }}>
-                      <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
-                    </Link>
+                    {i.status === "live" ? (
+                      <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={(e) => { e.preventDefault(); onStop(i); }}>
+                        <StopCircle className="h-3 w-3" /> Stop
+                      </Button>
+                    ) : (
+                      <Link to="/interviews/$id" params={{ id: i.id }}>
+                        <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+                      </Link>
+                    )}
                   </div>
+
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</span>
@@ -244,9 +264,16 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
                 <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
               </Link>
               <StatusBadge status={i.status} />
-              <Link to="/interviews/$id" params={{ id: i.id }}>
-                <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
-              </Link>
+              {i.status === "live" ? (
+                <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={() => onStop(i)}>
+                  <StopCircle className="h-3 w-3" /> Stop
+                </Button>
+              ) : (
+                <Link to="/interviews/$id" params={{ id: i.id }}>
+                  <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+                </Link>
+              )}
+
               <button
                 onClick={() => onTogglePrivate(i)}
                 title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
@@ -310,62 +337,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function NewInterview() {
-  const nav = useNavigate();
   const [open, setOpen] = useState(false);
-  const [founderId, setFounderId] = useState<string>("");
-  const [founderName, setFounderName] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [busy, setBusy] = useState(false);
-  const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders, enabled: open });
-
-  async function submit() {
-    setBusy(true);
-    try {
-      const row = await startInterview({ data: {
-        founderId: founderId || undefined,
-        founderName: founderName || undefined,
-        businessName: businessName || undefined,
-        industry: industry || undefined,
-      }});
-      toast.success("Brief generated");
-      setOpen(false);
-      nav({ to: "/interviews/$id", params: { id: (row as any).id } });
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed");
-    } finally { setBusy(false); }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button>Start meeting</Button></DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif text-2xl">New founder meeting</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Existing founder (optional)</Label>
-            <select value={founderId} onChange={(e) => {
-              setFounderId(e.target.value);
-              const f = (founders.data ?? []).find((x: any) => x.id === e.target.value);
-              if (f) { setFounderName(f.name); setBusinessName(f.startup_name ?? ""); setIndustry(f.sector ?? ""); }
-            }} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">— Start blank —</option>
-              {(founders.data ?? []).map((f: any) => (
-                <option key={f.id} value={f.id}>{f.name} · {f.startup_name}</option>
-              ))}
-            </select>
-          </div>
-          <div><Label>Founder name</Label><Input value={founderName} onChange={(e) => setFounderName(e.target.value)} className="mt-1" /></div>
-          <div><Label>Business</Label><Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="mt-1" /></div>
-          <div><Label>Industry</Label><Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" /></div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!founderId && !founderName)}>
-            {busy ? "Generating brief…" : "Create & open"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button onClick={() => setOpen(true)}>Start meeting</Button>
+      <NewMeetingDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 }
+
