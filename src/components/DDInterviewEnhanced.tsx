@@ -183,8 +183,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     setStakeholderBrief(null);
     setHumanAssessment('');
     // Round 1's stepper leads with Interview Questions (Documents Required moves to near the
-    // end there); every later round leads with Document Analysis.
-    setActiveStep(round === 1 ? 'questions' : 'documents');
+    // end there); every later round leads with Document Analysis. The accordion `defaultValue`
+    // uses SUB_STEPS[0] so ordering is enforced there.
+
 
     (async () => {
       // stakeholder_brief is new and not yet in the generated Supabase types -- cast until
