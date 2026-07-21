@@ -1283,20 +1283,20 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
           visible below. Advancing (or holding/terminating) remains a whole-round decision. */}
       {(
 
-      <div className="p-6 bg-teal-50 border border-teal-200 rounded-lg">
-        <h3 className="text-lg font-bold mb-3">✅ Round Gates</h3>
+      <div className="mt-8 pt-6">
+        <h3 className="text-lg font-bold mb-3 text-green-800">✅ Round Gates</h3>
         {aiAnalysis?.redFlags?.some((f: any) => f.severity === 'WALK_AWAY') ? (
-          <div className="p-4 bg-red-100 border border-red-300 rounded">
-            <p className="text-red-900 font-semibold">⛔ Cannot Proceed to Next Round</p>
-            <p className="text-red-800 text-sm mt-2">Walk Away flags must be resolved before continuing due diligence.</p>
+          <div className="p-5 bg-white border border-red-600 rounded-lg">
+            <p className="text-red-800 font-semibold">⛔ Cannot Proceed to Next Round</p>
+            <p className="text-red-700 text-sm mt-2">Walk Away flags must be resolved before continuing due diligence.</p>
           </div>
         ) : (
-          <div className="p-4 bg-green-100 border border-green-300 rounded">
+          <div className="p-5 bg-white border border-green-800 rounded-lg">
             <p className="text-green-900 font-semibold">✅ Clear to Proceed to Next Round</p>
             <button
               onClick={handleAdvance}
               disabled={!interviewRowId || advancing}
-              className="mt-3 px-6 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-3 px-6 py-2 bg-green-800 text-white rounded hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {advancing ? 'Saving…' : round < maxRound ? `Continue to Round ${round + 1}` : 'Complete Due Diligence'}
             </button>
@@ -1306,12 +1306,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         {/* Alternatives to advancing: hold this deal here, or terminate it outright.
             Both require a comment explaining the decision. */}
         {gateAction ? (
-          <div className={`mt-4 p-4 rounded border ${gateAction === 'terminate' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-emerald-300'}`}>
+          <div className={`mt-4 p-4 rounded-lg bg-white border ${gateAction === 'terminate' ? 'border-red-600' : 'border-green-800'}`}>
             <p className="text-sm font-semibold text-gray-900 mb-2">
               {gateAction === 'terminate' ? 'Terminate This Deal' : 'Do Not Proceed to the Next Round'}
             </p>
             <textarea
-              className="w-full text-sm border border-emerald-300 rounded px-2 py-1.5"
+              className={`w-full text-sm bg-white border rounded px-2 py-1.5 focus:outline-none focus:ring-1 ${gateAction === 'terminate' ? 'border-red-600 focus:ring-red-600' : 'border-green-800 focus:ring-green-800'}`}
               rows={3}
               placeholder="Add a comment explaining this decision…"
               value={gateComment}
@@ -1327,7 +1327,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               <button
                 onClick={handleGateAction}
                 disabled={!gateComment.trim() || submittingGateAction}
-                className={`px-4 py-1.5 text-sm text-white rounded disabled:opacity-50 ${gateAction === 'terminate' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-800'}`}
+                className={`px-4 py-1.5 text-sm text-white rounded disabled:opacity-50 ${gateAction === 'terminate' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-800 hover:bg-green-900'}`}
               >
                 {submittingGateAction ? 'Saving…' : gateAction === 'terminate' ? 'Confirm Termination' : 'Confirm Hold'}
               </button>

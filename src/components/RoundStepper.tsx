@@ -45,12 +45,12 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               >
                 {completed ? <Check className="h-3.5 w-3.5" /> : idx + 1}
               </span>
-              <span className="text-left">
-                <span className={cn("block text-sm font-bold whitespace-nowrap", active || completed ? "text-green-800" : "text-muted-foreground group-hover:text-green-800")}>
+              <span className="text-left max-w-[9rem]">
+                <span className={cn("block text-sm font-bold leading-tight break-words", active || completed ? "text-green-800" : "text-muted-foreground group-hover:text-green-800")}>
                   {r.title}
                 </span>
                 {r.subtitle && (
-                  <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{r.subtitle}</span>
+                  <span className="block text-[11px] text-muted-foreground leading-tight break-words mt-0.5">{r.subtitle}</span>
                 )}
               </span>
             </button>

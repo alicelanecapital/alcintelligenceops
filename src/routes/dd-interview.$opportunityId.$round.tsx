@@ -76,7 +76,7 @@ function DDInterviewPage() {
       {/* Horizontal stepper — no outer frame, individual round cards carry a hairline border. */}
       <div className="mb-6">
         <RoundStepper
-          rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+          rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: (r.title ?? '').replace(/Due Diligence/gi, 'DD'), subtitle: (r.subtitle ?? null)?.replace?.(/Due Diligence/gi, 'DD') ?? r.subtitle }))}
           current={roundNumber}
           onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
           orientation="horizontal"
