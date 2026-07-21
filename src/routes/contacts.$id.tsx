@@ -158,7 +158,7 @@ function ContactProfile() {
         {c.status && <Badge variant="outline" className="capitalize border-forest text-forest">{c.status}</Badge>}
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={tabParam ?? "overview"}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Overview</TabsTrigger>
           <TabsTrigger value="brief"><Sparkles className="h-3.5 w-3.5 mr-1" /> Stakeholder Brief</TabsTrigger>
