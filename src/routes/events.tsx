@@ -381,12 +381,26 @@ function Events() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label className="text-sm font-medium">Start Time</label>
+                <Input type="time" value={editingEvent?.start_time ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, start_time: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">End Time</label>
+                <Input type="time" value={editingEvent?.end_time ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, end_time: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Venue</label>
+              <Input value={editingEvent?.venue ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, venue: e.target.value }))} placeholder="Hotel, conference centre, address" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <label className="text-sm font-medium">City</label>
                 <Input value={editingEvent?.city ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, city: e.target.value }))} />
               </div>
               <div>
                 <label className="text-sm font-medium">Country</label>
-                <Input value={editingEvent?.country ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, country: e.target.value }))} />
+                <Input value={editingEvent?.country ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, country: e.target.value, region: (e.target.value ?? "").toLowerCase().includes("south africa") ? "SA" : "Global" }))} />
               </div>
             </div>
             <div>
@@ -397,21 +411,9 @@ function Events() {
               <label className="text-sm font-medium">Description</label>
               <Input value={editingEvent?.description ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, description: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Cost per person (R)</label>
-                <Input type="number" value={editingEvent?.cost ?? 0} onChange={e => setEditingEvent((s: any) => ({ ...s, cost: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Region</label>
-                <Select value={editingEvent?.region ?? "SA"} onValueChange={v => setEditingEvent((s: any) => ({ ...s, region: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SA">South Africa</SelectItem>
-                    <SelectItem value="Global">Global</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <label className="text-sm font-medium">Cost per person (R)</label>
+              <Input type="number" value={editingEvent?.cost ?? 0} onChange={e => setEditingEvent((s: any) => ({ ...s, cost: Number(e.target.value) }))} />
             </div>
             <div>
               <label className="text-sm font-medium">Website / Booking URL</label>
