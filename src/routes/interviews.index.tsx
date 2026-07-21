@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle } from "lucide-react";
+import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle, UserPlus } from "lucide-react";
 import { NewMeetingDialog } from "@/components/NewMeetingDialog";
 import { AddContactDialog } from "@/routes/contacts.index";
 import { toast } from "sonner";
