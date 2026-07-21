@@ -1,45 +1,38 @@
-## Goal
+# Plan
 
-Clicking **View Synopsis** on a Deal Pipeline row should open a dedicated full-page screen that reliably renders Sector, Stakeholder Brief, AI Overview, DISC and Red Flags. Today it navigates to `/opportunities/$id/synopsis` but the page appears blank/broken.
+## 1. Calendar — show event times
+In `src/routes/calendar.tsx`, render start time (e.g. `09:30`) as a small prefix on each meeting/event chip. Keep existing color-coding (contact category for meetings, teal for events, orange for tasks). All-day items get no time prefix.
 
-## Diagnosis
+## 2. Accounts screen — Tabs
+In `src/routes/admin.accounts.tsx`, wrap the current cards in a `Tabs` component (shadcn) with two tabs:
+- **Accounts** — team members list, connected Google accounts + sub-calendars visibility, roles/admin management (everything currently on the page except signature + booking link).
+- **Email** — `EmailSignatureCard` and `BookingLinkCard`, in that order.
 
-The route (`src/routes/opportunities_.$id.synopsis.tsx`) is wired correctly and registered in the route tree. The blank page comes from the data layer in `src/components/SynopsisContent.tsx`:
+Default tab: Accounts.
 
-```ts
-.select("*, founder:founders(name, startup_name, sector), company:companies(name, industry)")
-```
+## 3. Meetings — hide private bracketed items
+In `src/routes/interviews.index.tsx` (Meetings screen), extend the existing bracket-filter used elsewhere so any calendar item whose title contains `(smartify)`, `(nonastasia)`, or `(georgiaadams)` (case-insensitive) is hidden from BOTH the Private Meetings section and the Events section — not masked as "Unavailable", fully hidden.
 
-After the Contacts refactor, opportunities are linked to `contacts`, not `founders`/`companies`. PostgREST returns an error for the missing `founder`/`company` relationships → `q.data` is `undefined` → the page falls through to a blank state with no header, no sections, no error message. That matches "navigates to a page but it looks blank / broken".
+## 4. Contact Detail — Tabbed redesign
+Refactor `src/routes/contacts.$id.tsx`. Keep the top header (avatar, name/company, action buttons: Meet, Request Info, Edit, Delete). Below the header, replace the current 2-column card grid with a `Tabs` layout:
 
-Verified separately that the underlying data for this opportunity (Dr Botha) is present on the row: `disc_profile`, `ai_overview`, per-round `stakeholder_brief`. So once the fetch is fixed, the sections will populate.
+Tabs (in order):
+1. **AI Overview** (default) — Sector (with confidence gating already in `SynopsisContent`), Company Description, Source Event + Date Met, Stakeholder Brief (full width baby-blue panel), DISC Profile (pulled from the contact's most recent opportunity, if any).
+2. **Live Workspace** — Embed the live interview workspace layout (matches the uploaded screenshot: Interview Guide, Sub-topics, Live Transcript, Risk Alerts / Contradictions / Missing Evidence / Document Requests, Manual Assessment). Reuses `DDInterviewEnhanced` / the existing live-workspace panels bound to the contact's active or most recent meeting; if none, show a "Start meeting" CTA that opens `NewMeetingDialog`.
+3. **Documents** — Grouped accordions per Round (Round 1, Round 2, …) listing files from `dd_interview_documents` for opportunities linked to this contact. Empty rounds show "No documents".
+4. **Meeting History** — Current meetings list (with Start / dismiss actions preserved).
+5. **Notes** — Contact notes (`c.notes`), editable inline (save via existing update path).
+6. **Red Flags** — Aggregated `red_flags` across the contact's opportunities/rounds; "No red flags detected" empty state.
+7. **Approved Deals** — Current approved-opportunities list.
 
-## Fix
+Cards inside tabs use hairline borders (no heavy frames), matching current design tokens.
 
-1. **Rewrite the synopsis fetch** in `SynopsisContent.tsx` to match the current schema:
-   - Select from `opportunities` without the broken `founder`/`company` joins.
-   - Join `contact:contacts(name, company_name, sector, sector_confidence)` instead.
-   - Derive `founderName` from `contact.name ?? opp.name`, `companyName` from `contact.company_name`.
-   - Fall back to `contact.sector`/`contact.sector_confidence` when no round-level detection exists.
-   - Show a visible error state (not a blank div) if the query fails.
-
-2. **Harden the screen wrapper** (`src/routes/opportunities_.$id.synopsis.tsx`):
-   - Render the header (title + Back + Download PDF) unconditionally, before the content query resolves, so the screen is never a completely empty page.
-   - Add `errorComponent` and `notFoundComponent` to the route (currently missing) so any downstream throw shows a branded fallback rather than a white page.
-
-3. **Delete the unused modal** `src/components/OpportunitySynopsisDialog.tsx` and confirm no imports remain, so there is a single source of truth for the synopsis view.
-
-4. **Tighten the trigger** in `src/routes/dd-engine.tsx`:
-   - Keep the existing `<Button>` navigation but also let the whole row be clickable to open the synopsis (except when clicking the inline action buttons), matching the earlier "click anywhere on a Deal Pipeline record" intent.
-
-## Out of scope
-
-- No changes to how DISC / AI Overview / Stakeholder Brief are generated.
-- No schema changes; sector confidence gate (≥ 50%) stays as-is.
-- No styling changes to the synopsis section cards.
-
-## Verification
-
-- Click **View Synopsis** on Dr Botha's row → dedicated screen loads with header, Sector ("Not detected" — confidence is 20 %), Stakeholder Brief, AI Overview (summary/strengths/risks/recommendation), DISC (D 78 / I 65 / S 25 / C 35), Red Flags ("none detected").
-- Refreshing `/opportunities/<id>/synopsis` directly still renders the screen.
-- Download PDF still produces a file named after the contact.
+## Technical notes
+- No schema changes.
+- New files: `src/components/contact-tabs/AIOverviewTab.tsx`, `LiveWorkspaceTab.tsx`, `DocumentsTab.tsx`, `MeetingHistoryTab.tsx`, `NotesTab.tsx`, `RedFlagsTab.tsx`, `ApprovedDealsTab.tsx` to keep `contacts.$id.tsx` slim.
+- Live Workspace tab reuses the existing components from the interview route; it will lazy-load the meeting record via `fetchContactMeetings` (most recent live/scheduled).
+- Documents tab queries `dd_interview_documents` joined via opportunities → contact_id; groups by `round_number`.
+- Red Flags tab reads `red_flags` JSON already stored on opportunities/dd_interviews.
+- Accounts tabs: pure UI refactor, no data changes; signature persistence stays via `updateMyEmailSignature`.
+- Meetings filter: single helper `isPrivateBracketed(title)` reused for both sections.
+- Calendar times: format via `date-fns` `format(d, 'HH:mm')`; skip when `all_day` or when start/end span full day.
