@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User, Sparkles, RefreshCw } from "lucide-react";
+import { NewMeetingDialog } from "@/components/NewMeetingDialog";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -35,6 +36,8 @@ function ContactProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [meetOpen, setMeetOpen] = useState(false);
+
 
   const startMeeting = useServerFn(startMeetingForContact);
   const briefFn = useServerFn(generateContactStakeholderBrief);
@@ -124,9 +127,10 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => meetMut.mutate()} disabled={meetMut.isPending}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> {meetMut.isPending ? "Starting…" : "Meet"}
+            <Button size="sm" onClick={() => setMeetOpen(true)}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> Meet
             </Button>
+
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
             </Button>
