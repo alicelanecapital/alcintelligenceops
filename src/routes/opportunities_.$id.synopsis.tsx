@@ -8,6 +8,21 @@ import { SynopsisContent, type SynopsisData } from "@/components/SynopsisContent
 
 export const Route = createFileRoute("/opportunities_/$id/synopsis")({
   component: () => <AppShell><SynopsisPage /></AppShell>,
+  errorComponent: ({ error }) => (
+    <AppShell>
+      <div className="max-w-3xl mx-auto px-8 py-10">
+        <h1 className="text-xl font-serif mb-2">Synopsis unavailable</h1>
+        <p className="text-sm text-destructive">{error.message}</p>
+      </div>
+    </AppShell>
+  ),
+  notFoundComponent: () => (
+    <AppShell>
+      <div className="max-w-3xl mx-auto px-8 py-10">
+        <p className="text-sm text-muted-foreground">Opportunity not found.</p>
+      </div>
+    </AppShell>
+  ),
 });
 
 function SynopsisPage() {

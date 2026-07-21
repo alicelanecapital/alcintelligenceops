@@ -1,69 +1,45 @@
-## Overview
+## Goal
 
-Four small changes across Contacts, Meetings, and the IC Report:
+Clicking **View Synopsis** on a Deal Pipeline row should open a dedicated full-page screen that reliably renders Sector, Stakeholder Brief, AI Overview, DISC and Red Flags. Today it navigates to `/opportunities/$id/synopsis` but the page appears blank/broken.
 
-1. Add a **calendar (Schedule to Meet)** icon on every contact row (list and card view).
-2. Change the **"Meet" button on the Contact detail** page so it opens the same **"New founder meeting"** modal used on the Meetings screen (image-17), pre-filled with the contact.
-3. Add a **Stop** button to end **live** meetings — both on the Meetings list row and on the interview workspace header.
-4. Add an **"Add to Deal Pipeline"** button to the top-right of the IC Report ("Request More Evidence") screen.
+## Diagnosis
 
-## 1. Contact row — Schedule to Meet icon
+The route (`src/routes/opportunities_.$id.synopsis.tsx`) is wired correctly and registered in the route tree. The blank page comes from the data layer in `src/components/SynopsisContent.tsx`:
 
-Files: `src/routes/contacts.index.tsx`
+```ts
+.select("*, founder:founders(name, startup_name, sector), company:companies(name, industry)")
+```
 
-- In `ContactCard` and `ContactListRow`, add a small ghost `CalendarPlus` icon button next to the existing Edit/Delete icons.
-- Clicking it opens a lightweight "Schedule to meet" dialog with:
-  - Date + time inputs (defaults to next weekday, 10:00)
-  - Optional note
-  - Save → writes a `scheduled_meetings` entry (or reuses the existing `interviews` row created as a "scheduled" status) so it shows up in the existing `NextMeetingBadge` and the Calendar.
-- Reuses the contact's email so the meeting appears in `NextMeetingBadge`.
+After the Contacts refactor, opportunities are linked to `contacts`, not `founders`/`companies`. PostgREST returns an error for the missing `founder`/`company` relationships → `q.data` is `undefined` → the page falls through to a blank state with no header, no sections, no error message. That matches "navigates to a page but it looks blank / broken".
 
-If a simpler behaviour is preferred, this button can instead open the same "New founder meeting" modal used in change #2. Confirm preference during build; default is the scheduling dialog above so the row-level action is truly a scheduling shortcut (distinct from the "start now" flow on the detail page).
+Verified separately that the underlying data for this opportunity (Dr Botha) is present on the row: `disc_profile`, `ai_overview`, per-round `stakeholder_brief`. So once the fetch is fixed, the sections will populate.
 
-## 2. Contact detail — "Meet" opens the New Founder Meeting modal
+## Fix
 
-Files: `src/routes/contacts.$id.tsx`, small refactor of `src/routes/interviews.index.tsx`
+1. **Rewrite the synopsis fetch** in `SynopsisContent.tsx` to match the current schema:
+   - Select from `opportunities` without the broken `founder`/`company` joins.
+   - Join `contact:contacts(name, company_name, sector, sector_confidence)` instead.
+   - Derive `founderName` from `contact.name ?? opp.name`, `companyName` from `contact.company_name`.
+   - Fall back to `contact.sector`/`contact.sector_confidence` when no round-level detection exists.
+   - Show a visible error state (not a blank div) if the query fails.
 
-- Extract the existing `NewInterview` dialog from `interviews.index.tsx` into a shared component `src/components/NewMeetingDialog.tsx` (same fields: existing founder, founder name, business, industry, "Generating brief…" state) and accept an optional `defaultValues` prop.
-- On the Contact detail page, replace the current `meetMut.mutate()` behaviour with opening `NewMeetingDialog`, pre-filled from the contact:
-  - Founder name = contact name
-  - Business = company
-  - Industry = existing industry/category label
-- On submit, the shared dialog calls `startInterview` (as it does today) and navigates to `/interviews/$id` — identical to the Meetings-screen flow.
-- The existing `startMeetingForContact` server fn stays for programmatic use elsewhere but is no longer wired to the "Meet" button.
+2. **Harden the screen wrapper** (`src/routes/opportunities_.$id.synopsis.tsx`):
+   - Render the header (title + Back + Download PDF) unconditionally, before the content query resolves, so the screen is never a completely empty page.
+   - Add `errorComponent` and `notFoundComponent` to the route (currently missing) so any downstream throw shows a branded fallback rather than a white page.
 
-## 3. Stop button for live meetings
+3. **Delete the unused modal** `src/components/OpportunitySynopsisDialog.tsx` and confirm no imports remain, so there is a single source of truth for the synopsis view.
 
-Files: `src/routes/interviews.index.tsx`, `src/routes/interviews.$id.tsx`, `src/lib/interviews.ts`
+4. **Tighten the trigger** in `src/routes/dd-engine.tsx`:
+   - Keep the existing `<Button>` navigation but also let the whole row be clickable to open the synopsis (except when clicking the inline action buttons), matching the earlier "click anywhere on a Deal Pipeline record" intent.
 
-- Add a `stopInterview(id)` helper in `src/lib/interviews.ts` that calls `setInterviewStatus(id, { status: "completed", ended_at: new Date().toISOString() })`. (`setInterviewStatus` already exists.)
-- **Meetings list**: in `InterviewColumn` (card and list variants), when `status === "live"` render a red `Stop` button instead of `Start`. Clicking it calls the helper, then invalidates the `["interviews"]` query.
-- **Interview workspace header**: when `iv.status === "live"`, show a `Stop meeting` button next to the status badge that calls the same helper and switches the tab to `report` after finalize (reuses the existing `endInterview` if the user is on the Live tab, otherwise a lighter "stop without finalize" that just marks completed — final behaviour confirmed below).
+## Out of scope
 
-Behaviour choice for the header Stop:
-- Default: call `finalizeInterview` (existing) so the report is generated on Stop, matching what the workspace does today when recording ends.
+- No changes to how DISC / AI Overview / Stakeholder Brief are generated.
+- No schema changes; sector confidence gate (≥ 50%) stays as-is.
+- No styling changes to the synopsis section cards.
 
-## 4. IC Report — "Add to Deal Pipeline" button
+## Verification
 
-Files: `src/routes/interviews.$id.tsx`, reuse `createOpportunityFromContact` in `src/lib/contacts.functions.ts` (or a small new `createOpportunityFromInterview` server fn).
-
-- In `ReportView`, add a header row above the `Recommendation` card:
-  - Left: small "Investment memo" eyebrow.
-  - Right: primary button **"Add to Deal Pipeline"** (forest green).
-- On click:
-  - If the interview has a `contact_id`, call the existing `createOpportunityFromContact` (already deduplicates — it returns the existing opportunity if one already exists for the contact).
-  - If not, insert an `opportunities` row using the interview's founder/business info directly.
-  - On success: toast "Added to Deal Pipeline" and navigate to `/dd-engine` (or open the opportunity in the DD interview at round 1, matching the current pattern from the contact page).
-
-## Verification steps after build
-
-- Click the calendar icon on a contact row → schedule dialog opens; saved meeting appears in `NextMeetingBadge`.
-- Contact detail "Meet" → New Founder Meeting modal opens pre-filled; submitting takes you to the interview workspace with a generated brief.
-- A meeting whose status is `live` shows Stop (not Start) on the Meetings list; Stop marks it completed and it disappears from the live list.
-- IC report top-right shows "Add to Deal Pipeline"; clicking creates (or reuses) an opportunity and navigates to the DD engine.
-
-## Not in scope
-
-- No schema changes to `interviews` (uses existing `status`/`ended_at`).
-- No changes to the IC report content itself.
-- No changes to the AppShell or nav.
+- Click **View Synopsis** on Dr Botha's row → dedicated screen loads with header, Sector ("Not detected" — confidence is 20 %), Stakeholder Brief, AI Overview (summary/strengths/risks/recommendation), DISC (D 78 / I 65 / S 25 / C 35), Red Flags ("none detected").
+- Refreshing `/opportunities/<id>/synopsis` directly still renders the screen.
+- Download PDF still produces a file named after the contact.
