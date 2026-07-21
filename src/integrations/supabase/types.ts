@@ -1166,6 +1166,7 @@ export type Database = {
           description: string | null
           discovered_at: string | null
           end_date: string | null
+          end_time: string | null
           expected_audience: string | null
           id: string
           industry: string[] | null
@@ -1177,6 +1178,7 @@ export type Database = {
           rejected: boolean
           source_url: string | null
           start_date: string | null
+          start_time: string | null
           status: string | null
           total_cost: number | null
           updated_at: string
@@ -1201,6 +1203,7 @@ export type Database = {
           description?: string | null
           discovered_at?: string | null
           end_date?: string | null
+          end_time?: string | null
           expected_audience?: string | null
           id?: string
           industry?: string[] | null
@@ -1212,6 +1215,7 @@ export type Database = {
           rejected?: boolean
           source_url?: string | null
           start_date?: string | null
+          start_time?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string
@@ -1236,6 +1240,7 @@ export type Database = {
           description?: string | null
           discovered_at?: string | null
           end_date?: string | null
+          end_time?: string | null
           expected_audience?: string | null
           id?: string
           industry?: string[] | null
@@ -1247,6 +1252,7 @@ export type Database = {
           rejected?: boolean
           source_url?: string | null
           start_date?: string | null
+          start_time?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string

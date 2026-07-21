@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -163,6 +164,7 @@ function CalendarScreen() {
         description="Events, meetings, and task due dates in one place."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <SyncGoogleButton mode="team" />
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => subMonths(m, 1))}><ChevronLeft className="h-4 w-4" /></Button>
             <div className="font-serif text-lg w-40 text-center">{format(month, "MMMM yyyy")}</div>
             <Button size="icon" variant="outline" onClick={() => setMonth((m) => addMonths(m, 1))}><ChevronRight className="h-4 w-4" /></Button>

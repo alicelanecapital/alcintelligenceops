@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,7 +45,7 @@ function ContactsIndex() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
-  const [groupByEvent, setGroupByEvent] = useState(true);
+  const [groupBy, setGroupBy] = useState<"none" | "event" | "category" | "company">("event");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
 
   const primaryLabel = (c: ContactRow) => c.company || c.name;
@@ -66,11 +67,23 @@ function ContactsIndex() {
     [filtered, letter],
   );
 
-  const groupedByEvent = useMemo(() => {
+  const groupedRows = useMemo(() => {
+    if (groupBy === "none") return [] as { id: string; name: string; contacts: ContactRow[] }[];
     const map = new Map<string, { id: string; name: string; contacts: ContactRow[] }>();
     for (const c of displayed) {
-      const key = c.source_event?.id ?? "__none__";
-      const name = c.source_event?.name ?? "No event";
+      let key = "__none__";
+      let name = "Ungrouped";
+      if (groupBy === "event") {
+        key = c.source_event?.id ?? "__none__";
+        name = c.source_event?.name ?? "No event";
+      } else if (groupBy === "category") {
+        const cat = (c.category ?? "unknown") as keyof typeof CATEGORY_LABELS;
+        key = String(cat);
+        name = CATEGORY_LABELS[cat] ?? "Unknown";
+      } else if (groupBy === "company") {
+        key = (c.company ?? "").trim().toLowerCase() || "__none__";
+        name = c.company?.trim() || "No company";
+      }
       if (!map.has(key)) map.set(key, { id: key, name, contacts: [] });
       map.get(key)!.contacts.push(c);
     }
@@ -79,7 +92,7 @@ function ContactsIndex() {
       if (b.id === "__none__") return -1;
       return a.name.localeCompare(b.name);
     });
-  }, [displayed]);
+  }, [displayed, groupBy]);
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
@@ -117,25 +130,27 @@ function ContactsIndex() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <button
-          onClick={() => setGroupByEvent((v) => !v)}
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border transition-colors",
-            groupByEvent ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground hover:bg-muted",
-          )}
-        >
-          <CalendarDays className="h-3.5 w-3.5" /> Events
-        </button>
-        {!groupByEvent && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>}
+        <Select value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
+          <SelectTrigger className="w-[190px] h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No grouping</SelectItem>
+            <SelectItem value="event">Group by Event</SelectItem>
+            <SelectItem value="category">Group by Ecosystem</SelectItem>
+            <SelectItem value="company">Group by Company</SelectItem>
+          </SelectContent>
+        </Select>
+        {groupBy === "none" && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>}
       </div>
 
       <div className="mb-6">
         <AlphabetChips active={letter} onChange={setLetter} available={availableLetters} />
       </div>
 
-      {groupByEvent ? (
+      {groupBy !== "none" ? (
         <Accordion type="multiple" className="rounded-lg bg-card px-3">
-          {groupedByEvent.map((g) => (
+          {groupedRows.map((g) => (
             <AccordionItem key={g.id} value={g.id}>
               <AccordionTrigger className="text-sm">
                 <span className="flex items-center gap-2">
@@ -151,7 +166,7 @@ function ContactsIndex() {
               </AccordionContent>
             </AccordionItem>
           ))}
-          {q.isSuccess && !groupedByEvent.length && (
+          {q.isSuccess && !groupedRows.length && (
             <div className="p-12 text-center text-muted-foreground">
               No contacts match. Try a different filter or add one.
             </div>

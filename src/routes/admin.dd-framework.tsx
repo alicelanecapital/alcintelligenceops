@@ -193,11 +193,18 @@ function SortableRoundItem({
             >
               <GripVertical className="h-4 w-4" />
             </button>
-            <span className="flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold bg-muted text-muted-foreground border border-border shrink-0">
+            <span className="flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold bg-primary text-primary-foreground shrink-0">
               {index + 1}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium truncate">{round.title}</span>
+              <span className="block text-sm truncate">
+                {(() => {
+                  const t = round.title ?? "";
+                  const m = t.match(/^(Round\s*\d+:)\s*(.*)$/i);
+                  if (m) return (<><span className="font-bold text-primary">{m[1]}</span>{" "}{m[2]}</>);
+                  return <span className="font-medium">{t}</span>;
+                })()}
+              </span>
               {round.subtitle && <span className="block text-xs text-muted-foreground truncate">{round.subtitle}</span>}
             </span>
           </AccordionPrimitive.Trigger>
