@@ -146,9 +146,22 @@ function Events() {
     },
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["events"] });
-      if (count > 0) toast.success(`Discovered ${count} new event${count === 1 ? "" : "s"}`);
+      // Only toast when the discovered count changes since the user last saw it —
+      // avoids "Discovered 30 new events" repeating every visit for the same batch.
+      if (count > 0) {
+        try {
+          const lastShown = Number(localStorage.getItem("events:last-toast-count") || 0);
+          if (count !== lastShown) {
+            toast.success(`Discovered ${count} new event${count === 1 ? "" : "s"}`, { id: "events-discovered" });
+            localStorage.setItem("events:last-toast-count", String(count));
+          }
+        } catch {
+          toast.success(`Discovered ${count} new event${count === 1 ? "" : "s"}`, { id: "events-discovered" });
+        }
+      }
     },
-    onError: (e: any) => toast.error(`Discovery failed: ${e?.message ?? ""}`),
+    onError: (e: any) => toast.error(`Discovery failed: ${e?.message ?? ""}`, { id: "events-discovered" }),
+
   });
 
   const ranDiscoveryRef = useRef(false);
