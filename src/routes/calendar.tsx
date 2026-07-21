@@ -181,12 +181,13 @@ function CalendarScreen() {
       out.push({
         id: `gcal-${g.user_email}-${g.google_event_id ?? g.title}-${g.start_time}`,
         date: new Date(g.start_time),
-        label: g.title ?? "(no title)",
+        label: maskUnavailable(g.title),
         type: "meeting",
         sub: g.user_email,
         owner: g.user_email,
       });
     });
+
     (tasks.data ?? []).forEach((t: any) => {
       if (!t.due_date || t.status === "Done") return;
       out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee });
