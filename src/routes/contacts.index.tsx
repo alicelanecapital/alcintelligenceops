@@ -327,6 +327,8 @@ function ContactCard({ c }: { c: ContactRow }) {
       </Card>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
       <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+      <ScheduleMeetingDialog open={scheduling} onOpenChange={setScheduling} contact={c as any} />
+
     </>
   );
 }
@@ -337,6 +339,8 @@ function ContactListRow({ c }: { c: ContactRow }) {
   const secondary = c.company ? c.name : c.position;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+
   const qc = useQueryClient();
   const cat = contactColor(c.category);
   const del = useMutation({
@@ -362,6 +366,7 @@ function ContactListRow({ c }: { c: ContactRow }) {
           </div>
         </Link>
         <div className="flex items-center gap-1 shrink-0">
+          <Button size="icon" variant="ghost" className="h-8 w-8" title="Schedule meeting" onClick={() => setScheduling(true)}><CalendarPlus className="h-3.5 w-3.5" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setConfirming(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
           <ArrowRight className="h-3.5 w-3.5 text-primary" />
@@ -369,9 +374,11 @@ function ContactListRow({ c }: { c: ContactRow }) {
       </div>
       {editing && <EditContactDialog open={editing} onClose={() => setEditing(false)} contact={c} />}
       <ConfirmDeleteDialog open={confirming} onClose={() => setConfirming(false)} onConfirm={() => del.mutate()} name={primary} pending={del.isPending} />
+      <ScheduleMeetingDialog open={scheduling} onOpenChange={setScheduling} contact={c as any} />
     </>
   );
 }
+
 
 
 
