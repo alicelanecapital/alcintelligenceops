@@ -9,12 +9,12 @@ import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
 import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
-import { getOrCreateBookingLink } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactCategory } from "@/lib/contact-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Copy, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
