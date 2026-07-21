@@ -341,62 +341,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function NewInterview() {
-  const nav = useNavigate();
   const [open, setOpen] = useState(false);
-  const [founderId, setFounderId] = useState<string>("");
-  const [founderName, setFounderName] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [busy, setBusy] = useState(false);
-  const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders, enabled: open });
-
-  async function submit() {
-    setBusy(true);
-    try {
-      const row = await startInterview({ data: {
-        founderId: founderId || undefined,
-        founderName: founderName || undefined,
-        businessName: businessName || undefined,
-        industry: industry || undefined,
-      }});
-      toast.success("Brief generated");
-      setOpen(false);
-      nav({ to: "/interviews/$id", params: { id: (row as any).id } });
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed");
-    } finally { setBusy(false); }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button>Start meeting</Button></DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif text-2xl">New founder meeting</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Existing founder (optional)</Label>
-            <select value={founderId} onChange={(e) => {
-              setFounderId(e.target.value);
-              const f = (founders.data ?? []).find((x: any) => x.id === e.target.value);
-              if (f) { setFounderName(f.name); setBusinessName(f.startup_name ?? ""); setIndustry(f.sector ?? ""); }
-            }} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">— Start blank —</option>
-              {(founders.data ?? []).map((f: any) => (
-                <option key={f.id} value={f.id}>{f.name} · {f.startup_name}</option>
-              ))}
-            </select>
-          </div>
-          <div><Label>Founder name</Label><Input value={founderName} onChange={(e) => setFounderName(e.target.value)} className="mt-1" /></div>
-          <div><Label>Business</Label><Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="mt-1" /></div>
-          <div><Label>Industry</Label><Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" /></div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!founderId && !founderName)}>
-            {busy ? "Generating brief…" : "Create & open"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button onClick={() => setOpen(true)}>Start meeting</Button>
+      <NewMeetingDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 }
+
