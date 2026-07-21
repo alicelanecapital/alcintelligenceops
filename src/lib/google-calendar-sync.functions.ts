@@ -18,7 +18,16 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
     throw new Error(`Google Calendar list fetch failed [${calListRes.status}]: ${text.slice(0, 300)}`);
   }
   const calListJson = await calListRes.json();
-  const calendars: any[] = (calListJson.items ?? []).filter((c: any) => c.selected !== false);
+  let calendars: any[] = (calListJson.items ?? []).filter((c: any) => c.selected !== false);
+
+  // Skip sub-calendars the user has marked private for this account.
+  const { supabaseAdmin: adminForHidden } = await import("@/integrations/supabase/client.server");
+  const { data: connRow } = await (adminForHidden.from("google_oauth_connections") as any)
+    .select("hidden_calendar_ids")
+    .eq("user_email", email)
+    .maybeSingle();
+  const hidden: string[] = connRow?.hidden_calendar_ids ?? [];
+  if (hidden.length) calendars = calendars.filter((c: any) => !hidden.includes(c.id));
 
   const timeMin = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const timeMax = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
