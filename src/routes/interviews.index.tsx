@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle } from "lucide-react";
 import { NewMeetingDialog } from "@/components/NewMeetingDialog";
+import { AddContactDialog } from "@/routes/contacts.index";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
