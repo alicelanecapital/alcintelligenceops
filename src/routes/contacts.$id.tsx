@@ -341,6 +341,17 @@ function ContactProfile() {
         name={c.company || c.name}
         pending={delMut.isPending}
       />
+      <NewMeetingDialog
+        open={meetOpen}
+        onOpenChange={setMeetOpen}
+        defaults={{
+          contactId: c.id,
+          founderName: c.name,
+          businessName: c.company ?? undefined,
+          industry: c.industry ?? undefined,
+        }}
+      />
+
     </div>
   );
 }
