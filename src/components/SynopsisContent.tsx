@@ -23,13 +23,15 @@ const DIMENSIONS: { key: keyof DiscProfile; letter: string; label: string; color
 ];
 
 export async function fetchSynopsis(opportunityId: string) {
-  const { data: opp } = await (supabase.from("opportunities") as any)
-    .select("*, founder:founders(name, startup_name, sector), company:companies(name, industry)")
+  const { data: opp, error: oppError } = await (supabase.from("opportunities") as any)
+    .select("*, contact:contacts(name, company, stakeholder_brief)")
     .eq("id", opportunityId).maybeSingle();
-  const { data: interviews } = await (supabase.from("dd_interviews") as any)
+  if (oppError) throw new Error(oppError.message);
+  const { data: interviews, error: ivError } = await (supabase.from("dd_interviews") as any)
     .select("round, stakeholder_brief, red_flags, detected_sector, sector_confidence")
     .eq("opportunity_id", opportunityId)
     .order("round", { ascending: true });
+  if (ivError) throw new Error(ivError.message);
   return { opp, interviews: interviews ?? [] };
 }
 
