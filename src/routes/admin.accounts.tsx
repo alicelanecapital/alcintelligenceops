@@ -297,7 +297,7 @@ function AccountsScreen() {
   const iAmRegistered = (members.data ?? []).some((m) => m.email.toLowerCase() === myEmail);
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-10">
+    <div className="max-w-4xl mx-auto px-8 py-10 text-[15px]">
       <PageHeader
         eyebrow="Admin"
         title="Accounts"
@@ -316,6 +316,8 @@ function AccountsScreen() {
       />
 
       <EmailSignatureCard />
+      <BookingLinkCard />
+
 
       <p className="text-xs text-muted-foreground mb-4">
         Registering an account here gives it a name and a colour, used to tell calendar events apart on the Meetings screen.
