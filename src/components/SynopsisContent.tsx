@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef } from "react";
+import { forwardRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SECTOR_MODULES } from "@/lib/dd-framework-data";
 import { BrainCircuit, Sparkles, Target, Flag } from "lucide-react";
@@ -68,7 +68,9 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
     const founderName = opp?.founder?.name ?? opp?.name;
 
     // Push metadata up so the wrapper can render the header title / filename.
-    if (onMeta) onMeta({ companyName, founderName, isLoading: q.isLoading });
+    useEffect(() => {
+      onMeta?.({ companyName, founderName, isLoading: q.isLoading });
+    }, [onMeta, companyName, founderName, q.isLoading]);
 
     if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
