@@ -35,6 +35,8 @@ type CalItem = {
   category?: ContactCategory;
   /** For synced Google events: the connected teammate's email (used for colour + legend). */
   owner?: string;
+  /** True when start_time was a full timestamp (i.e. show HH:mm on the chip). */
+  hasTime?: boolean;
 };
 
 const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
@@ -129,12 +131,14 @@ function CalendarScreen() {
     });
     (meetings.data ?? []).forEach((m: any) => {
       if (!m.meeting_date) return;
-      out.push({ id: `meeting-${m.id}`, date: new Date(m.meeting_date), label: m.title ?? "Meeting", type: "meeting", sub: m.founder?.name ?? m.company?.name });
+      const d = new Date(m.meeting_date);
+      const hasTime = /T\d/.test(String(m.meeting_date));
+      out.push({ id: `meeting-${m.id}`, date: d, label: m.title ?? "Meeting", type: "meeting", sub: m.founder?.name ?? m.company?.name, hasTime });
     });
     (interviews.data ?? []).forEach((i: any) => {
       if (!i.created_at) return;
       const cat = (i.contact?.category ?? "unknown") as ContactCategory;
-      out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat });
+      out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat, hasTime: true });
     });
     (teamEvents.data ?? []).forEach((g: any) => {
       if (!g.start_time || isHolidayRow(g)) return; // holidays render as day background, not as a pill
@@ -145,6 +149,7 @@ function CalendarScreen() {
         type: "meeting",
         sub: g.user_email,
         owner: g.user_email,
+        hasTime: true,
       });
     });
 
@@ -262,6 +267,7 @@ function CalendarScreen() {
                     title={it.sub ? `${it.label} — ${it.sub}` : it.label}
                     className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}
                   >
+                    {it.hasTime && <span className="font-medium mr-1 tabular-nums">{format(it.date, "HH:mm")}</span>}
                     {it.label}
                   </div>
                 ))}
@@ -285,7 +291,10 @@ function CalendarScreen() {
                   <div key={it.id} className="flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
                     <span className={cn("text-[10px] px-2 py-0.5 rounded uppercase tracking-wide", itemStyle(it))}>{it.type}</span>
                     <div>
-                      <div className="font-medium">{it.label}</div>
+                      <div className="font-medium">
+                        {it.hasTime && <span className="mr-2 text-muted-foreground tabular-nums">{format(it.date, "HH:mm")}</span>}
+                        {it.label}
+                      </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
                   </div>

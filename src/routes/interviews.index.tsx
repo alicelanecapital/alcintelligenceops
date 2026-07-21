@@ -43,11 +43,20 @@ function isHoliday(ev: any): boolean {
   return HOLIDAY_TITLE_PATTERNS.some((p) => title.includes(p));
 }
 
+// Titles containing any of these bracketed tokens are fully hidden on the Meetings screen
+// (both Private and Events sections) — they are personal calendars we don't want surfaced.
+const HIDDEN_BRACKET_TOKENS = ["(smartify)", "(nonastasia)", "(georgiaadams)"];
+function isHiddenBracketed(title: string | null | undefined): boolean {
+  const t = (title ?? "").toLowerCase();
+  return HIDDEN_BRACKET_TOKENS.some((tok) => t.includes(tok));
+}
+
 function dedupeEvents(events: any[]): any[] {
   const seen = new Set<string>();
   const out: any[] = [];
   for (const ev of events) {
     if (isHoliday(ev)) continue;
+    if (isHiddenBracketed(ev.title)) continue;
     // Include the google event id so distinct entries (across sub-calendars / teammates)
     // aren't collapsed just because the title + start_time coincide.
     const key = `${(ev.google_event_id ?? ev.id ?? "")}|${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
