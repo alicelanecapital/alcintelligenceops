@@ -17,8 +17,10 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
   completedRounds?: number[];
 }) {
   if (orientation === "horizontal") {
+    // Flat numbered-pill row -- mirrors the admin DD Framework accordion header aesthetic
+    // (numbered forest-green badge + bold green title), no per-item card frames.
     return (
-      <div className="flex items-stretch gap-3 overflow-x-auto pb-1">
+      <div className="flex items-stretch gap-6 overflow-x-auto pb-1 border-b border-border">
         {rounds.map((r, idx) => {
           const active = r.round === current;
           const completed = completedRounds?.includes(r.round) ?? false;
@@ -27,42 +29,37 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               key={r.round}
               onClick={() => onSelect(r.round)}
               className={cn(
-                "flex-1 min-w-[160px] text-left flex flex-col gap-1.5 px-4 py-3 rounded-lg transition-all border",
-                completed
-                  ? "bg-emerald-600 border-emerald-600"
-                  : active
-                  ? "bg-primary/10 border-primary"
-                  : "bg-card border-border/40 hover:border-primary/40 hover:bg-muted/60",
+                "group flex items-center gap-2.5 pb-3 pt-1 px-1 bg-transparent border-0 border-b-2 transition-colors -mb-px",
+                active ? "border-primary" : "border-transparent hover:border-primary/40",
               )}
             >
-              <span className="flex items-center gap-2.5">
-                <span
-                  className={cn(
-                    "flex items-center justify-center h-7 w-7 rounded-full text-xs font-bold shrink-0 transition-colors",
-                    completed
-                      ? "bg-white text-emerald-600"
-                      : active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground border border-border",
-                  )}
-                >
-                  {completed ? <Check className="h-4 w-4" /> : idx + 1}
-                </span>
-                <span className={cn("block text-sm font-bold whitespace-normal break-words", completed ? "text-white" : "text-green-800")}>
+              <span
+                className={cn(
+                  "flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold shrink-0 transition-colors",
+                  completed
+                    ? "bg-emerald-600 text-white"
+                    : active
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground border border-border",
+                )}
+              >
+                {completed ? <Check className="h-3.5 w-3.5" /> : idx + 1}
+              </span>
+              <span className="text-left">
+                <span className={cn("block text-sm font-bold whitespace-nowrap", active || completed ? "text-green-800" : "text-muted-foreground group-hover:text-green-800")}>
                   {r.title}
                 </span>
+                {r.subtitle && (
+                  <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{r.subtitle}</span>
+                )}
               </span>
-              {r.subtitle && (
-                <span className={cn("block text-xs whitespace-normal break-words pl-[38px]", completed ? "text-white/80" : "text-muted-foreground")}>
-                  {r.subtitle}
-                </span>
-              )}
             </button>
           );
         })}
       </div>
     );
   }
+
 
   return (
     <div className="space-y-1.5">
