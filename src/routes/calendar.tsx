@@ -35,6 +35,8 @@ type CalItem = {
   category?: ContactCategory;
   /** For synced Google events: the connected teammate's email (used for colour + legend). */
   owner?: string;
+  /** True when start_time was a full timestamp (i.e. show HH:mm on the chip). */
+  hasTime?: boolean;
 };
 
 const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
