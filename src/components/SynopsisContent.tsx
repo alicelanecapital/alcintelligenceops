@@ -68,7 +68,9 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
     const founderName = opp?.founder?.name ?? opp?.name;
 
     // Push metadata up so the wrapper can render the header title / filename.
-    if (onMeta) onMeta({ companyName, founderName, isLoading: q.isLoading });
+    useEffect(() => {
+      onMeta?.({ companyName, founderName, isLoading: q.isLoading });
+    }, [onMeta, companyName, founderName, q.isLoading]);
 
     if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
