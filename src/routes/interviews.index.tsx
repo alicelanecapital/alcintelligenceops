@@ -152,7 +152,7 @@ function InterviewsIndex() {
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
       <PageHeader
-        eyebrow="Diagnostic Engine"
+        eyebrow="Alice Lane Diagnostics"
         title="Engagements"
         description="Founder engagements recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
         actions={<div className="flex items-center gap-2"><SyncGoogleButton mode="team" /><NewInterview /></div>}
