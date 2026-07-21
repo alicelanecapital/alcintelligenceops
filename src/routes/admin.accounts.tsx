@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LinkIcon, RefreshCw, Users, Plus, Trash2, Pencil, Mail } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
