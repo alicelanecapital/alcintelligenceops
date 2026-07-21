@@ -778,527 +778,504 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Within-round vertical stepper: Document Analysis / Interview Questions /
-          Sector Questions / Internal Verification / AI Analysis. */}
-      <div className="grid grid-cols-[210px_1fr] gap-16 items-start mb-8">
-        <div className="space-y-1.5">
-          {SUB_STEPS.map((step, idx) => {
-            const active = step.key === activeStep;
-            return (
-              <button
-                key={step.key}
-                onClick={() => setActiveStep(step.key)}
-                className={`w-full text-left flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm transition-all border-l-4 ${active ? 'bg-primary/10 border-l-primary shadow-sm text-primary font-semibold' : 'border-l-transparent text-gray-600 hover:bg-gray-100'}`}
-              >
-                <span className={`flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-bold shrink-0 ${active ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>
+      {/* Steps rendered as accordions, mirroring the admin DD Framework layout: a numbered
+          forest-green badge + bold green title per step, no outer card frame, thin dividers
+          between steps. Frames/shading are only preserved on the accent panels (Transcript,
+          AI Questions, Custom Questions, Red Flags). */}
+      <Accordion type="multiple" defaultValue={[SUB_STEPS[0].key]} className="mb-8">
+        {SUB_STEPS.map((step, idx) => (
+          <AccordionItem key={step.key} value={step.key} className="border-b border-border">
+            <AccordionTrigger className="hover:no-underline py-4">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
                   {idx + 1}
                 </span>
-                {step.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="min-w-0 space-y-6">
-          {activeStep === 'documents' && (
-            <>
-              {/* Documents Received -- must be reviewed before the meeting/recording starts.
-                  Auto-refreshes on load with anything sent since the last meeting (or
-                  everything, for round 1, since there's no earlier meeting). */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-blue-900">📄 {isFirstRound ? 'Documents Required' : 'Documents Received'}</p>
-                  {uploadChannel && (
-                    <button
-                      type="button"
-                      onClick={handleSyncDocuments}
-                      disabled={syncingDocs}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {syncingDocs ? 'Checking…' : 'Check for New Documents'}
-                    </button>
-                  )}
-                </div>
-                {uploadChannel ? (
-                  <div className="flex items-center gap-2 flex-wrap mb-3">
-                    <span className="text-xs text-blue-700">Sent To:</span>
-                    <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200">{uploadChannel.dedicated_email}</code>
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
-                      className="text-xs text-blue-700 underline"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-blue-700 mb-3">Loading upload address…</p>
-                )}
-
-                {requiredDocuments.data && requiredDocuments.data.length > 0 ? (
-                  <div className="space-y-1 mb-3">
-                    {requiredDocuments.data.map((doc) => {
-                      const received = isDocumentReceived(doc.name);
-                      return (
-                        <div key={doc.id} className="flex items-start justify-between gap-2 bg-white px-2 py-1.5 rounded border border-blue-200">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                            {doc.purpose && <p className="text-xs text-gray-600">{doc.purpose}</p>}
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${received ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {received ? 'Received' : 'Missing'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-blue-700 mb-3">No specific documents configured for this round in the DD Framework.</p>
-                )}
-
-                {receivedDocs.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-blue-900">All Files Received:</p>
-                    {receivedDocs.map((doc) => (
-                      <button
-                        key={doc.id}
-                        type="button"
-                        onClick={() => openDocument(doc)}
-                        className="w-full text-left text-xs bg-white px-2 py-1.5 rounded border border-blue-200 hover:border-blue-400 flex items-center justify-between"
-                      >
-                        <span>{doc.file_name}</span>
-                        <span className="text-blue-600">View</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <span className="text-base font-bold text-green-800 text-left">{step.label}</span>
               </div>
-
-              {/* AI-generated (and manually added) questions raised from reviewing the documents
-                  above -- evaluated before the session starts, fully CRUD-able since these are
-                  per-interview, not part of the admin-managed framework question set. */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-amber-900">🧩 Document Review Questions</p>
-                  <button
-                    type="button"
-                    onClick={runAnomalyDetection}
-                    disabled={!interviewRowId || generatingAnomalyQuestions}
-                    className="px-3 py-1.5 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-Check Documents'}
-                  </button>
-                </div>
-                <p className="text-xs text-amber-700 mb-3">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
-                <div className="space-y-2 mb-3">
-                  {extraQuestions.map((q) => (
-                    <div key={q.id} className="bg-white rounded border border-amber-200 p-2">
-                      {editingExtraQuestionId === q.id ? (
-                        <div className="flex items-start gap-2">
-                          <textarea
-                            className="flex-1 text-sm border border-amber-300 rounded px-2 py-1"
-                            value={editingExtraQuestionText}
-                            onChange={(e) => setEditingExtraQuestionText(e.target.value)}
-                            rows={2}
-                          />
-                          <div className="flex flex-col gap-1">
-                            <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
-                            <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm text-gray-900">{q.question_text}</p>
-                            {q.rationale && <p className="text-xs text-amber-700 mt-1">{q.rationale}</p>}
-                            {q.source === 'ai_document_review' && <span className="text-[10px] text-amber-500">AI-suggested</span>}
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              Edit
-                            </button>
-                            <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
-                          </div>
-                        </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-6 pl-10 pr-2 space-y-6">
+              {step.key === 'documents' && (
+                <>
+                  {/* Documents Received -- must be reviewed before the meeting/recording starts. */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">📄 {isFirstRound ? 'Documents Required' : 'Documents Received'}</p>
+                      {uploadChannel && (
+                        <button
+                          type="button"
+                          onClick={handleSyncDocuments}
+                          disabled={syncingDocs}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
+                        >
+                          {syncingDocs ? 'Checking…' : 'Check for New Documents'}
+                        </button>
                       )}
                     </div>
-                  ))}
-                  {!extraQuestions.length && (
-                    <p className="text-xs text-gray-500">No document-review questions yet.</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newExtraQuestion}
-                    onChange={(e) => setNewExtraQuestion(e.target.value)}
-                    placeholder="Add a question to raise this round…"
-                    className="flex-1 text-sm border border-amber-300 rounded px-2 py-1.5"
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
-                  />
-                  <button
-                    onClick={handleAddExtraQuestion}
-                    disabled={!newExtraQuestion.trim()}
-                    className="px-3 py-1.5 bg-white border border-amber-300 text-amber-800 text-xs rounded hover:bg-amber-100 disabled:opacity-50"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeStep === 'questions' && (
-            <>
-              {/* One recording for the whole round -- we don't record and stop per question.
-                  Analyze Recording lives here too, right next to Start/End Recording, and only
-                  activates once a recording has actually stopped and produced a transcript. */}
-              <div className="p-4 bg-gray-100 rounded-lg">
-                <p className="text-sm font-semibold text-gray-900 mb-3">🎙️ Round Recording ({questions.length} Questions)</p>
-                <div className="flex items-center gap-4">
-                  {isRecording ? (
-                    <>
-                      <button
-                        onClick={stopRecording}
-                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        ⏹ End Recording
-                      </button>
-                      <span className="text-lg font-mono font-semibold text-red-600">
-                        {formatTime(recordingTime)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={startRecording}
-                        className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-                      >
-                        🎤 Start Recording
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={generateAnalysis}
-                    disabled={!interviewRowId || !transcript || analyzing || isRecording}
-                    className="ml-auto px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {analyzing ? 'Analysing…' : 'Analyze Recording'}
-                  </button>
-                </div>
-              </div>
-
-              {/* All questions for this round, collapsed by default -- reference material to
-                  guide the single recording above, not separate per-question recordings. */}
-              <div>
-                <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
-                <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
-                  {questions.map((q, idx) => (
-                    <AccordionItem key={idx} value={String(idx)}>
-                      <AccordionTrigger className="text-sm">
-                        <span className="text-left">Q{idx + 1}. {q.question}</span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3 text-sm">
-                          {q.why && (
-                            <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-                              <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why This Matters:</p>
-                              <p className="text-xs text-blue-800">{q.why}</p>
-                            </div>
-                          )}
-                          {q.redFlags.length > 0 && (
-                            <div>
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Red Flags to Watch For:</p>
-                              <ul className="text-xs text-gray-600 space-y-0.5">
-                                {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </div>
-
-              {/* Custom questions the interviewer added for this specific opportunity+round --
-                  full CRUD, kept separate from the shared DD Framework template so editing one
-                  interview's questions never affects any other opportunity. */}
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
-                <div className="space-y-2 mb-3">
-                  {customQuestions.map((q) => (
-                    <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
-                      {editingCustomQuestionId === q.id ? (
-                        <div className="flex items-start gap-2">
-                          <textarea
-                            className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
-                            value={editingCustomQuestionText}
-                            onChange={(e) => setEditingCustomQuestionText(e.target.value)}
-                            rows={2}
-                          />
-                          <div className="flex flex-col gap-1">
-                            <button onClick={() => handleSaveCustomQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
-                            <button onClick={() => setEditingCustomQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-gray-900">{q.question_text}</p>
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => { setEditingCustomQuestionId(q.id); setEditingCustomQuestionText(q.question_text); }}
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              Edit
-                            </button>
-                            <button onClick={() => handleDeleteCustomQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {!customQuestions.length && (
-                    <p className="text-xs text-gray-500">No custom questions added for this interview yet.</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newCustomQuestion}
-                    onChange={(e) => setNewCustomQuestion(e.target.value)}
-                    placeholder="Add a question specific to this interview…"
-                    className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
-                  />
-                  <button
-                    onClick={handleAddCustomQuestion}
-                    disabled={!newCustomQuestion.trim()}
-                    className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {/* AI Questions -- pastel teal per style guide. */}
-              <div className="p-4 bg-teal-50 border border-teal-200 rounded">
-                <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
-                {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
-                  aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                    <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
-                  ))
-                ) : (
-                  <p className="text-sm text-teal-700">
-                    {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
-                  </p>
-                )}
-              </div>
-
-              {/* Red Flags -- surfaced per round; may show "none detected" or specific warnings
-                  from the AI analysis, including missing/anomalous data across documents. */}
-              <div className="p-4 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
-                {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
-                  <ul className="space-y-1">
-                    {aiAnalysis.redFlags.map((flag: any, idx: number) => {
-                      const text = typeof flag === "string" ? flag : flag?.text ?? "";
-                      const severity = typeof flag === "string" ? null : flag?.severity ?? null;
-                      return (
-                        <li key={idx} className="text-sm text-red-800">
-                          • {severity ? <span className="font-semibold">[{severity}] </span> : null}{text}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-red-700">
-                    {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
-                  </p>
-                )}
-              </div>
-
-
-              {/* Transcript and upload -- comes after the questions since it's the follow-up
-                  step once the round recording is done. */}
-              <div className="p-4 bg-gray-100 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
-                  <button
-                    onClick={() => transcriptFileInputRef.current?.click()}
-                    disabled={uploadingTranscript}
-                    className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {uploadingTranscript ? 'Reading…' : '📄 Upload Transcript'}
-                  </button>
-                  <input
-                    ref={transcriptFileInputRef}
-                    type="file"
-                    accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-                  />
-                </div>
-                <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
-                {transcript && (
-                  <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (Auto-Updating):</p>
-                    {renderSpeakerColoredTranscript(transcript)}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {activeStep === 'software' && (
-            sectorModule ? (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded">
-                <p className="text-sm font-semibold text-amber-900 mb-3">
-                  🏭 {sectorModule.name} - Sector-Specific Questions:
-                </p>
-                <ul className="space-y-2">
-                  {sectorModule.additionalQuestions.map((q, idx) => (
-                    <li key={idx} className="text-sm text-amber-800 flex gap-2">
-                      <span>•</span>
-                      <span>{q}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
-            )
-          )}
-
-          {activeStep === 'verification' && (
-            <>
-              <div className="p-6 bg-gray-50 rounded-lg border border-emerald-300">
-                <p className="text-sm font-semibold text-gray-900 mb-4">✅ Internal Verification Checklist</p>
-                <div className="space-y-2">
-                  {questions.slice(0, 4).map((q, idx) => (
-                    <label key={idx} className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" className="w-4 h-4" />
-                      <span className="text-sm text-gray-700">{q.internalSteps[0]}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Human evaluator's own written assessment -- compared against the AI's findings
-                  in the AI Analysis step that follows. */}
-              <div className="p-4 bg-gray-50 rounded-lg border border-emerald-300">
-                <p className="text-sm font-semibold text-gray-900 mb-3">🧑‍⚖️ Human Evaluator Assessment</p>
-                <textarea
-                  className="w-full text-sm border border-emerald-300 rounded px-3 py-2"
-                  rows={4}
-                  placeholder="Write your own assessment of this round…"
-                  value={humanAssessment}
-                  onChange={(e) => setHumanAssessment(e.target.value)}
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={saveHumanAssessment}
-                    disabled={!interviewRowId || savingAssessment}
-                    className="px-4 py-1.5 bg-gray-700 text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
-                  >
-                    {savingAssessment ? 'Saving…' : 'Save Assessment'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                <p className="text-sm font-semibold text-orange-900 mb-3">🔍 Verification Triangle</p>
-                <div className="grid grid-cols-3 gap-4">
-                  {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
-                    <div key={idx} className="text-center">
-                      <div className="text-2xl mb-2">
-                        {source.name === 'Founder Word' && '👤'}
-                        {source.name === 'Documents' && '📄'}
-                        {source.name === 'Independent Observation' && '🔎'}
+                    {uploadChannel ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Sent To:</span>
+                        <code className="text-xs bg-muted px-2 py-1 rounded border border-border">{uploadChannel.dedicated_email}</code>
+                        <button
+                          type="button"
+                          onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+                          className="text-xs text-primary underline"
+                        >
+                          Copy
+                        </button>
                       </div>
-                      <p className="text-xs font-semibold text-orange-900">{source.name}</p>
-                      <p className="text-xs text-orange-700 mt-1">{source.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-orange-700 mt-3 text-center">
-                  ✅ Every Claim Requires Validation From All 3 Sources
-                </p>
-              </div>
-            </>
-          )}
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Loading upload address…</p>
+                    )}
 
-          {activeStep === 'ai_analysis' && (
-            aiAnalysis ? (
-              <>
-                <div className="p-6 bg-gray-50 rounded-lg border border-emerald-300">
-                  <h3 className="text-lg font-bold mb-4">📊 AI Assessment</h3>
-                  {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 ? (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
-                      {aiAnalysis.redFlags.map((flag: any, idx: number) => (
-                        <div key={idx} className="mb-2 text-sm">
-                          <span className={`font-semibold ${
-                            flag.severity === 'WALK_AWAY' ? 'text-red-700' :
-                            flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
-                            'text-yellow-700'
-                          }`}>
-                            {flag.severity}:
+                    {requiredDocuments.data && requiredDocuments.data.length > 0 ? (
+                      <div className="divide-y divide-border border-t border-border">
+                        {requiredDocuments.data.map((doc) => {
+                          const received = isDocumentReceived(doc.name);
+                          return (
+                            <div key={doc.id} className="flex items-start justify-between gap-2 py-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                                {doc.purpose && <p className="text-xs text-muted-foreground">{doc.purpose}</p>}
+                              </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${received ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {received ? 'Received' : 'Missing'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No specific documents configured for this round in the DD Framework.</p>
+                    )}
+
+                    {receivedDocs.length > 0 && (
+                      <div className="space-y-1 pt-2">
+                        <p className="text-xs font-semibold text-gray-900">All Files Received:</p>
+                        {receivedDocs.map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            onClick={() => openDocument(doc)}
+                            className="w-full text-left text-xs px-2 py-1.5 border-b border-border hover:bg-muted/40 flex items-center justify-between"
+                          >
+                            <span>{doc.file_name}</span>
+                            <span className="text-primary">View</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI-generated document review questions -- not an accent panel, so unshaded. */}
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">🧩 Document Review Questions</p>
+                      <button
+                        type="button"
+                        onClick={runAnomalyDetection}
+                        disabled={!interviewRowId || generatingAnomalyQuestions}
+                        className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
+                      >
+                        {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-Check Documents'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
+                    <div className="space-y-2">
+                      {extraQuestions.map((q) => (
+                        <div key={q.id} className="border-b border-border py-2">
+                          {editingExtraQuestionId === q.id ? (
+                            <div className="flex items-start gap-2">
+                              <textarea
+                                className="flex-1 text-sm border border-border rounded px-2 py-1"
+                                value={editingExtraQuestionText}
+                                onChange={(e) => setEditingExtraQuestionText(e.target.value)}
+                                rows={2}
+                              />
+                              <div className="flex flex-col gap-1">
+                                <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                                <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm text-gray-900">{q.question_text}</p>
+                                {q.rationale && <p className="text-xs text-muted-foreground mt-1">{q.rationale}</p>}
+                                {q.source === 'ai_document_review' && <span className="text-[10px] text-muted-foreground">AI-suggested</span>}
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <button
+                                  onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
+                                  className="text-xs text-gray-500 hover:text-gray-700"
+                                >
+                                  Edit
+                                </button>
+                                <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {!extraQuestions.length && (
+                        <p className="text-xs text-gray-500">No document-review questions yet.</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newExtraQuestion}
+                        onChange={(e) => setNewExtraQuestion(e.target.value)}
+                        placeholder="Add a question to raise this round…"
+                        className="flex-1 text-sm border border-border rounded px-2 py-1.5"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
+                      />
+                      <button
+                        onClick={handleAddExtraQuestion}
+                        disabled={!newExtraQuestion.trim()}
+                        className="px-3 py-1.5 border border-border text-gray-800 text-xs rounded hover:bg-muted disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {step.key === 'questions' && (
+                <>
+                  {/* Round recording controls -- unframed, sits above the transcript block. */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">🎙️ Round Recording ({questions.length} Questions)</p>
+                    <div className="flex items-center gap-4">
+                      {isRecording ? (
+                        <>
+                          <button
+                            onClick={stopRecording}
+                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            ⏹ End Recording
+                          </button>
+                          <span className="text-lg font-mono font-semibold text-red-600">
+                            {formatTime(recordingTime)}
                           </span>
-                          <span className="text-red-800 ml-2">{flag.text}</span>
+                        </>
+                      ) : (
+                        <button
+                          onClick={startRecording}
+                          className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+                        >
+                          🎤 Start Recording
+                        </button>
+                      )}
+                      <button
+                        onClick={generateAnalysis}
+                        disabled={!interviewRowId || !transcript || analyzing || isRecording}
+                        className="ml-auto px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {analyzing ? 'Analysing…' : 'Analyze Recording'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Questions to cover -- reference material, unframed outer wrapper. */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
+                    <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
+                      {questions.map((q, idx) => (
+                        <AccordionItem key={idx} value={String(idx)}>
+                          <AccordionTrigger className="text-sm">
+                            <span className="text-left">Q{idx + 1}. {q.question}</span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3 text-sm">
+                              {q.why && (
+                                <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                  <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why This Matters:</p>
+                                  <p className="text-xs text-blue-800">{q.why}</p>
+                                </div>
+                              )}
+                              {q.redFlags.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">Red Flags to Watch For:</p>
+                                  <ul className="text-xs text-gray-600 space-y-0.5">
+                                    {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+
+                  {/* Custom questions -- pastel orange, kept per style guide. */}
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+                    <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
+                    <div className="space-y-2 mb-3">
+                      {customQuestions.map((q) => (
+                        <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
+                          {editingCustomQuestionId === q.id ? (
+                            <div className="flex items-start gap-2">
+                              <textarea
+                                className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
+                                value={editingCustomQuestionText}
+                                onChange={(e) => setEditingCustomQuestionText(e.target.value)}
+                                rows={2}
+                              />
+                              <div className="flex flex-col gap-1">
+                                <button onClick={() => handleSaveCustomQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                                <button onClick={() => setEditingCustomQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm text-gray-900">{q.question_text}</p>
+                              <div className="flex gap-2 shrink-0">
+                                <button
+                                  onClick={() => { setEditingCustomQuestionId(q.id); setEditingCustomQuestionText(q.question_text); }}
+                                  className="text-xs text-gray-500 hover:text-gray-700"
+                                >
+                                  Edit
+                                </button>
+                                <button onClick={() => handleDeleteCustomQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {!customQuestions.length && (
+                        <p className="text-xs text-gray-500">No custom questions added for this interview yet.</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newCustomQuestion}
+                        onChange={(e) => setNewCustomQuestion(e.target.value)}
+                        placeholder="Add a question specific to this interview…"
+                        className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
+                      />
+                      <button
+                        onClick={handleAddCustomQuestion}
+                        disabled={!newCustomQuestion.trim()}
+                        className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Questions -- pastel teal per style guide. */}
+                  <div className="p-4 bg-teal-50 border border-teal-200 rounded">
+                    <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
+                    {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
+                      aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
+                        <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-teal-700">
+                        {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Red Flags -- severity-coloured accent panel, kept. */}
+                  <div className="p-4 bg-red-50 border border-red-200 rounded">
+                    <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                    {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                      <ul className="space-y-1">
+                        {aiAnalysis.redFlags.map((flag: any, idx: number) => {
+                          const text = typeof flag === "string" ? flag : flag?.text ?? "";
+                          const severity = typeof flag === "string" ? null : flag?.severity ?? null;
+                          return (
+                            <li key={idx} className="text-sm text-red-800">
+                              • {severity ? <span className="font-semibold">[{severity}] </span> : null}{text}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-red-700">
+                        {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Transcript -- grey accent panel, kept. */}
+                  <div className="p-4 bg-gray-100 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
+                      <button
+                        onClick={() => transcriptFileInputRef.current?.click()}
+                        disabled={uploadingTranscript}
+                        className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {uploadingTranscript ? 'Reading…' : '📄 Upload Transcript'}
+                      </button>
+                      <input
+                        ref={transcriptFileInputRef}
+                        type="file"
+                        accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
+                    {transcript && (
+                      <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (Auto-Updating):</p>
+                        {renderSpeakerColoredTranscript(transcript)}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {step.key === 'software' && (
+                sectorModule ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
+                    <ul className="space-y-2">
+                      {sectorModule.additionalQuestions.map((q, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex gap-2">
+                          <span>•</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
+                )
+              )}
+
+              {step.key === 'verification' && (
+                <>
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">✅ Internal Verification Checklist</p>
+                    <div className="space-y-2">
+                      {questions.slice(0, 4).map((q, idx) => (
+                        <label key={idx} className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4" />
+                          <span className="text-sm text-gray-700">{q.internalSteps[0]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <p className="text-sm font-semibold text-gray-900">🧑‍⚖️ Human Evaluator Assessment</p>
+                    <textarea
+                      className="w-full text-sm border border-border rounded px-3 py-2"
+                      rows={4}
+                      placeholder="Write your own assessment of this round…"
+                      value={humanAssessment}
+                      onChange={(e) => setHumanAssessment(e.target.value)}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={saveHumanAssessment}
+                        disabled={!interviewRowId || savingAssessment}
+                        className="px-4 py-1.5 bg-gray-700 text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        {savingAssessment ? 'Saving…' : 'Save Assessment'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <p className="text-sm font-semibold text-gray-900">🔍 Verification Triangle</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      {VERIFICATION_TRIANGLE.sources.map((source, idx) => (
+                        <div key={idx} className="text-center">
+                          <div className="text-2xl mb-2">
+                            {source.name === 'Founder Word' && '👤'}
+                            {source.name === 'Documents' && '📄'}
+                            {source.name === 'Independent Observation' && '🔎'}
+                          </div>
+                          <p className="text-xs font-semibold text-gray-900">{source.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{source.description}</p>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">No red flags raised for this round.</p>
-                  )}
-                </div>
-
-                {aiAnalysis.voiceAnalysis && (
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                    <p className="text-sm font-semibold text-orange-900 mb-3">🎙️ Voice Assessment</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-orange-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
-                        <p className="text-orange-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
-                      </div>
-                      <div>
-                        <p className="text-orange-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> Markers</p>
-                        <p className="text-orange-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
-                      </div>
-                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      ✅ Every Claim Requires Validation From All 3 Sources
+                    </p>
                   </div>
-                )}
+                </>
+              )}
 
-                {/* Sets the AI's own findings next to what the human evaluator wrote in
-                    Internal Verification, so the two can be weighed against each other. */}
-                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded">
-                  <p className="text-sm font-semibold text-indigo-900 mb-3">⚖️ Comparison to Human Assessment</p>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div className="bg-white rounded border border-indigo-200 p-3">
-                      <p className="text-xs font-semibold text-indigo-900 mb-1">AI Assessment</p>
-                      <p className="text-xs text-gray-700">
-                        {aiAnalysis.redFlags?.length
-                          ? `${aiAnalysis.redFlags.length} red flag${aiAnalysis.redFlags.length === 1 ? '' : 's'} raised: ${aiAnalysis.redFlags.map((f: any) => f.severity).join(', ')}.`
-                          : 'No red flags raised.'}
-                      </p>
+              {step.key === 'ai_analysis' && (
+                aiAnalysis ? (
+                  <>
+                    <div className="space-y-3">
+                      <h3 className="text-base font-bold text-gray-900">📊 AI Assessment</h3>
+                      {aiAnalysis.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                          {aiAnalysis.redFlags.map((flag: any, idx: number) => (
+                            <div key={idx} className="mb-2 text-sm">
+                              <span className={`font-semibold ${
+                                flag.severity === 'WALK_AWAY' ? 'text-red-700' :
+                                flag.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
+                                'text-yellow-700'
+                              }`}>
+                                {flag.severity}:
+                              </span>
+                              <span className="text-red-800 ml-2">{flag.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No red flags raised for this round.</p>
+                      )}
                     </div>
-                    <div className="bg-white rounded border border-indigo-200 p-3">
-                      <p className="text-xs font-semibold text-indigo-900 mb-1">Human Assessment</p>
-                      <p className="text-xs text-gray-700">{humanAssessment || 'Not yet entered — add one in Internal Verification.'}</p>
+
+                    {aiAnalysis.voiceAnalysis && (
+                      <div className="space-y-2 pt-4 border-t border-border">
+                        <p className="text-sm font-semibold text-gray-900">🎙️ Voice Assessment</p>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-700">Confidence: <span className="font-bold">{aiAnalysis.voiceAnalysis.confidenceLevel}%</span></p>
+                            <p className="text-gray-700">Pace: <span className="font-bold">{aiAnalysis.voiceAnalysis.speakingPace}</span></p>
+                          </div>
+                          <div>
+                            <p className="text-gray-700">Hesitation: <span className="font-bold">{aiAnalysis.voiceAnalysis.hesitationMarkers}</span> Markers</p>
+                            <p className="text-gray-700">Assessment: <span className="font-bold">{aiAnalysis.voiceAnalysis.assessment}</span></p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 pt-4 border-t border-border">
+                      <p className="text-sm font-semibold text-gray-900">⚖️ Comparison to Human Assessment</p>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-gray-900 mb-1">AI Assessment</p>
+                          <p className="text-xs text-gray-700">
+                            {aiAnalysis.redFlags?.length
+                              ? `${aiAnalysis.redFlags.length} red flag${aiAnalysis.redFlags.length === 1 ? '' : 's'} raised: ${aiAnalysis.redFlags.map((f: any) => f.severity).join(', ')}.`
+                              : 'No red flags raised.'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-900 mb-1">Human Assessment</p>
+                          <p className="text-xs text-gray-700">{humanAssessment || 'Not yet entered — add one in Internal Verification.'}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">No AI analysis yet — analyze this round's recording from the Interview Questions step first.</p>
-            )
-          )}
-        </div>
-      </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No AI analysis yet — analyze this round's recording from the Interview Questions step first.</p>
+                )
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+
 
       {/* Round Gates -- only surfaced on the final sub-step, since advancing (or holding/
           terminating) is a whole-round decision made once everything else has been reviewed. */}
