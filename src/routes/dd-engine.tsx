@@ -75,8 +75,13 @@ function DDEngine() {
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
   };
-  const handleViewSynopsis = (oppId: string) => {
-    navigate({ to: "/opportunities/$id/synopsis", params: { id: oppId } });
+  const handleViewSynopsis = (opp: any) => {
+    const contactId = opp?.contact_id ?? opp?.founder?.id ?? opp?.founder_id;
+    if (contactId) {
+      navigate({ to: "/contacts/$id", params: { id: contactId }, search: { tab: "overview" } });
+    } else {
+      navigate({ to: "/opportunities/$id/synopsis", params: { id: opp.id } });
+    }
   };
 
   const archiveMut = useMutation({
