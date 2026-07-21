@@ -1,38 +1,45 @@
-# Plan
+## 1. Nav & headings
 
-## 1. Calendar — show event times
-In `src/routes/calendar.tsx`, render start time (e.g. `09:30`) as a small prefix on each meeting/event chip. Keep existing color-coding (contact category for meetings, teal for events, orange for tasks). All-day items get no time prefix.
+- `src/components/AppShell.tsx`: rename the "Meetings" nav item to **Engagements** (keeps `/interviews` route).
+- `src/routes/interviews.index.tsx`: change `PageHeader` eyebrow to **"Diagnostic Engine"** and title to **"Engagements"**.
 
-## 2. Accounts screen — Tabs
-In `src/routes/admin.accounts.tsx`, wrap the current cards in a `Tabs` component (shadcn) with two tabs:
-- **Accounts** — team members list, connected Google accounts + sub-calendars visibility, roles/admin management (everything currently on the page except signature + booking link).
-- **Email** — `EmailSignatureCard` and `BookingLinkCard`, in that order.
+## 2. Meetings screen scope
 
-Default tab: Accounts.
+In `src/routes/interviews.index.tsx`:
+- **Private & Client meetings**: filter both `q.data` interviews and `calendarPrivate` / `calendarClient` calendar rows to the **current month only** (by `start_time` / `created_at` within `startOfMonth(now)`–`endOfMonth(now)`).
+- **Events**: keep current logic but expand to the **entire current year** (drop the `end >= today` cut, filter to `start_date` within the year).
+- **Recurring meetings**: exclude from the Private list only. A calendar event is "recurring" when it has `recurring_event_id` or `recurrence` populated (available on `google_calendar_events`). Calendar rendering unchanged.
 
-## 3. Meetings — hide private bracketed items
-In `src/routes/interviews.index.tsx` (Meetings screen), extend the existing bracket-filter used elsewhere so any calendar item whose title contains `(smartify)`, `(nonastasia)`, or `(georgiaadams)` (case-insensitive) is hidden from BOTH the Private Meetings section and the Events section — not masked as "Unavailable", fully hidden.
+## 3. Calendar — Georgia's colour
 
-## 4. Contact Detail — Tabbed redesign
-Refactor `src/routes/contacts.$id.tsx`. Keep the top header (avatar, name/company, action buttons: Meet, Request Info, Edit, Delete). Below the header, replace the current 2-column card grid with a `Tabs` layout:
+In `src/lib/team-members.ts` (or wherever `TeamMember` seed/colour resolution lives) ensure `georgia@alicelanecapital.co.za` resolves to `orange`. If already stored in `team_members`, update her row via a small server-fn/one-off; otherwise add an override map in `src/routes/calendar.tsx`'s `resolveColor` so `georgia@alicelanecapital.co.za → "orange"`. Legend picks this up automatically because it reuses `resolveColor`.
 
-Tabs (in order):
-1. **AI Overview** (default) — Sector (with confidence gating already in `SynopsisContent`), Company Description, Source Event + Date Met, Stakeholder Brief (full width baby-blue panel), DISC Profile (pulled from the contact's most recent opportunity, if any).
-2. **Live Workspace** — Embed the live interview workspace layout (matches the uploaded screenshot: Interview Guide, Sub-topics, Live Transcript, Risk Alerts / Contradictions / Missing Evidence / Document Requests, Manual Assessment). Reuses `DDInterviewEnhanced` / the existing live-workspace panels bound to the contact's active or most recent meeting; if none, show a "Start meeting" CTA that opens `NewMeetingDialog`.
-3. **Documents** — Grouped accordions per Round (Round 1, Round 2, …) listing files from `dd_interview_documents` for opportunities linked to this contact. Empty rounds show "No documents".
-4. **Meeting History** — Current meetings list (with Start / dismiss actions preserved).
-5. **Notes** — Contact notes (`c.notes`), editable inline (save via existing update path).
-6. **Red Flags** — Aggregated `red_flags` across the contact's opportunities/rounds; "No red flags detected" empty state.
-7. **Approved Deals** — Current approved-opportunities list.
+## 4. Contact detail tabs
 
-Cards inside tabs use hairline borders (no heavy frames), matching current design tokens.
+In `src/routes/contacts.$id.tsx`:
+
+**Tab order becomes:**
+1. AI Overview
+2. Stakeholder Brief *(new dedicated tab)*
+3. Live Workspace
+4. Documents
+5. Meeting History
+6. Red Flags *(moved out of tabs? — see below)*  
+7. Approved Deals
+8. Notes *(moved to end)*
+
+Actually per request:
+- **Red Flags** moves *into* the AI Overview tab (remove its own tab).
+- **Stakeholder Brief** becomes its own tab, right after AI Overview, auto-populated on mount (fires `briefMut.mutate(false)` via `useEffect` when `!c.stakeholder_brief && !briefMut.isPending`).
+- **Notes** tab moves to the end.
+
+**AI Overview restructuring:** wrap Sector, Company Description, DISC Profile, Opportunities-in-workflow, and the newly-added Red Flags panel in a shadcn `Accordion` (`type="multiple"`, all items collapsed by default). Stakeholder Brief section is removed from this tab (now its own tab).
+
+The existing `RedFlagsTab` component is reused inside the AI Overview accordion.
 
 ## Technical notes
 - No schema changes.
-- New files: `src/components/contact-tabs/AIOverviewTab.tsx`, `LiveWorkspaceTab.tsx`, `DocumentsTab.tsx`, `MeetingHistoryTab.tsx`, `NotesTab.tsx`, `RedFlagsTab.tsx`, `ApprovedDealsTab.tsx` to keep `contacts.$id.tsx` slim.
-- Live Workspace tab reuses the existing components from the interview route; it will lazy-load the meeting record via `fetchContactMeetings` (most recent live/scheduled).
-- Documents tab queries `dd_interview_documents` joined via opportunities → contact_id; groups by `round_number`.
-- Red Flags tab reads `red_flags` JSON already stored on opportunities/dd_interviews.
-- Accounts tabs: pure UI refactor, no data changes; signature persistence stays via `updateMyEmailSignature`.
-- Meetings filter: single helper `isPrivateBracketed(title)` reused for both sections.
-- Calendar times: format via `date-fns` `format(d, 'HH:mm')`; skip when `all_day` or when start/end span full day.
+- Auto-generate brief: guarded `useEffect` in the Stakeholder Brief tab component so it only fires once per contact when brief is empty.
+- Recurring detection: check `ev.recurring_event_id ?? ev.recurrence?.length` on the google row.
+- Month/year windows computed once via `date-fns` `startOfMonth/endOfMonth/startOfYear/endOfYear`.
+- Georgia colour: prefer updating the `team_members` row so it's persistent across the app; fall back to a client override only if she isn't in the roster yet.

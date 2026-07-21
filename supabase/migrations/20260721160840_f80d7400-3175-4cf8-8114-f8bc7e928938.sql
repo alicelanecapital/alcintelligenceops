@@ -1,0 +1,1 @@
+UPDATE public.team_members SET color='orange' WHERE email='georgia@alicelanecapital.com';

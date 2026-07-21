@@ -17,7 +17,7 @@ const navGroups = [
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/contacts", label: "Contacts", icon: Users },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
-      { to: "/interviews", label: "Meetings", icon: MessagesSquare },
+      { to: "/interviews", label: "Engagements", icon: MessagesSquare },
       { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
     ],
   },
