@@ -1104,9 +1104,15 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
                 {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
                   <ul className="space-y-1">
-                    {aiAnalysis.redFlags.map((flag: string, idx: number) => (
-                      <li key={idx} className="text-sm text-red-800">• {flag}</li>
-                    ))}
+                    {aiAnalysis.redFlags.map((flag: any, idx: number) => {
+                      const text = typeof flag === "string" ? flag : flag?.text ?? "";
+                      const severity = typeof flag === "string" ? null : flag?.severity ?? null;
+                      return (
+                        <li key={idx} className="text-sm text-red-800">
+                          • {severity ? <span className="font-semibold">[{severity}] </span> : null}{text}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <p className="text-sm text-red-700">

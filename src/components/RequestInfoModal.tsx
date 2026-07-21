@@ -72,10 +72,9 @@ export function RequestInfoModal({ open, onClose, contactId, contactName, contac
       // Auto-create opportunity now that the outreach has gone out
       try {
         const opp: any = await createOppFn({ data: { contactId } });
-        toast.success("Opportunity created");
         onOpportunityCreated?.(opp);
       } catch (e: any) {
-        toast.error(e.message ?? "Could not auto-create opportunity");
+        toast.error(e.message ?? "Could not link opportunity");
       }
       onClose();
     } catch (e: any) {

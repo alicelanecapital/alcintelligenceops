@@ -97,6 +97,17 @@ export const createOpportunityFromContact = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const s = context.supabase;
 
+    // De-dupe: return the existing opportunity for this contact if one already exists.
+    // Prevents duplicate deals when Request Info is re-sent to chase missing documents.
+    const { data: existing } = await s
+      .from("opportunities")
+      .select("*")
+      .eq("contact_id", data.contactId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing) return existing;
+
     const { data: contact, error } = await s
       .from("contacts")
       .select("*, source_event:events(id, name)")
