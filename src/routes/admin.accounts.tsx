@@ -395,9 +395,7 @@ function AccountsScreen() {
                   </Button>
                 </div>
               </div>
-              {/* Sub-calendars UI removed per request; sync logic still uses server-side data. */}
-              {false && conn && <SubCalendarsList email={m.email} />}
-            </div>
+              {conn && <SubCalendarsList email={m.email} />}
           );
         })}
         {members.isSuccess && !members.data?.length && (
