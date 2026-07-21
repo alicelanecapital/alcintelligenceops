@@ -108,7 +108,7 @@ function DDFrameworkAdmin() {
       </div>
 
       <SortableRoundAccordion
-        rounds={list.map((r) => ({ round: r.round, title: r.title, subtitle: r.subtitle }))}
+        rounds={list.map((r) => ({ round: r.round, title: (r.title ?? '').replace(/Due Diligence/gi, 'DD'), subtitle: r.subtitle?.replace?.(/Due Diligence/gi, 'DD') ?? r.subtitle }))}
         expanded={expanded}
         onExpandedChange={setExpanded}
         onReorder={handleReorder}
