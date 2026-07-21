@@ -48,7 +48,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
                 >
                   {completed ? <Check className="h-4 w-4" /> : idx + 1}
                 </span>
-                <span className={cn("block text-sm font-semibold whitespace-normal break-words", completed ? "text-white" : active ? "text-primary" : "text-foreground")}>
+                <span className={cn("block text-sm font-bold whitespace-normal break-words", completed ? "text-white" : "text-green-800")}>
                   {r.title}
                 </span>
               </span>
@@ -95,7 +95,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               {completed ? <Check className="h-3.5 w-3.5" /> : idx + 1}
             </span>
             <span className="min-w-0">
-              <span className={cn("block text-sm font-semibold", active ? "text-primary" : completed ? "text-emerald-900" : "text-foreground")}>
+              <span className="block text-sm font-bold text-green-800">
                 {r.title}
               </span>
               {r.subtitle && <span className="block text-xs text-muted-foreground whitespace-normal break-words mt-0.5">{r.subtitle}</span>}
