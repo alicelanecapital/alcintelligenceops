@@ -37,12 +37,14 @@ export function SyncGoogleButton({ mode = "self" }: { mode?: "self" | "team" }) 
     mutationFn: async () => (mode === "team" ? await syncAllFn() : await syncFn()),
     onSuccess: (result: any) => {
       const n = mode === "team" ? result.totalSynced : result.synced;
-      toast.success(`Synced ${n} calendar event${n === 1 ? "" : "s"}`);
+      // Stable sonner id so repeat syncs replace the previous toast instead of stacking.
+      toast.success(`Synced ${n} calendar event${n === 1 ? "" : "s"}`, { id: `gcal-sync-${mode}` });
       invalidate();
     },
-    onError: (e: any) => toast.error(e.message ?? "Sync failed"),
+    onError: (e: any) => toast.error(e.message ?? "Sync failed", { id: `gcal-sync-${mode}` }),
   });
 
+  // 15-minute backstop while the tab is open, alongside the server-side cron job.
   useEffect(() => {
     if (mode === "self" && !status.data?.connected) return;
     const id = setInterval(() => syncMut.mutate(), FIFTEEN_MINUTES_MS);
@@ -50,13 +52,10 @@ export function SyncGoogleButton({ mode = "self" }: { mode?: "self" | "team" }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status.data?.connected, mode]);
 
-  // Auto-run once on mount when the screen opens so team members see the latest events
-  // without a manual click.
-  useEffect(() => {
-    if (mode === "team") { syncMut.mutate(); return; }
-    if (status.data?.connected) syncMut.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status.data?.connected, mode]);
+  // No auto-run on mount — was firing on every route mount / query invalidation and
+  // stacking "Synced N events" toasts every time the user clicked around the calendar.
+  // Sync happens on explicit button click + the 15-min interval + the server cron.
+
 
   // Surface the redirect result from /auth/google/callback (always lands on /calendar?google=...).
   useEffect(() => {
