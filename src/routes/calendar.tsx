@@ -44,6 +44,15 @@ function hashColor(email: string): TeamMemberColor {
   return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
 }
 
+// Hard-coded privacy mask: any Google event with these tokens in brackets in its
+// title renders as "Unavailable" everywhere on the calendar (chip + hover tooltip).
+const UNAVAILABLE_TOKENS = ["(smartify)", "(nonastasia)", "(georgiaadams)"];
+function maskUnavailable(title: string | null | undefined): string {
+  const t = (title ?? "").toLowerCase();
+  return UNAVAILABLE_TOKENS.some((tok) => t.includes(tok)) ? "Unavailable" : (title ?? "");
+}
+
+
 function BookingLinkCard() {
   const getLinkFn = useServerFn(getOrCreateBookingLink);
   const q = useQuery({ queryKey: ["booking-link"], queryFn: () => getLinkFn() });
