@@ -21,9 +21,6 @@ import { format } from "date-fns";
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
 
 
-
-export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
-
 /** The same real-world event often appears more than once because several team
  * members' synced calendars (and shared/subscribed calendars) all pick it up
  * independently -- collapse to one row per title + start time. */
