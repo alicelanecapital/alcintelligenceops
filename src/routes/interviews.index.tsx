@@ -189,7 +189,7 @@ function InterviewsIndex() {
 }
 
 
-function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, emptyText, onTogglePrivate, onDismiss }: {
+function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, emptyText, onTogglePrivate, onDismiss, onStop }: {
   title: string;
   items: any[];
   calendarEvents: any[];
@@ -198,7 +198,9 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
   emptyText: string;
   onTogglePrivate: (i: any) => void;
   onDismiss: (i: any) => void;
+  onStop: (i: any) => void;
 }) {
+
   const isPrivateColumn = title === "Private meetings";
   return (
     <div>
@@ -222,10 +224,17 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
                   </Link>
                   <div className="flex items-center gap-2 shrink-0">
                     <StatusBadge status={i.status} />
-                    <Link to="/interviews/$id" params={{ id: i.id }}>
-                      <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
-                    </Link>
+                    {i.status === "live" ? (
+                      <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={(e) => { e.preventDefault(); onStop(i); }}>
+                        <StopCircle className="h-3 w-3" /> Stop
+                      </Button>
+                    ) : (
+                      <Link to="/interviews/$id" params={{ id: i.id }}>
+                        <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+                      </Link>
+                    )}
                   </div>
+
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</span>
@@ -259,9 +268,16 @@ function InterviewColumn({ title, items, calendarEvents, memberByEmail, view, em
                 <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
               </Link>
               <StatusBadge status={i.status} />
-              <Link to="/interviews/$id" params={{ id: i.id }}>
-                <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
-              </Link>
+              {i.status === "live" ? (
+                <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={() => onStop(i)}>
+                  <StopCircle className="h-3 w-3" /> Stop
+                </Button>
+              ) : (
+                <Link to="/interviews/$id" params={{ id: i.id }}>
+                  <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start</Button>
+                </Link>
+              )}
+
               <button
                 onClick={() => onTogglePrivate(i)}
                 title={isPrivateColumn ? "Mark as client meeting" : "Mark as private"}
