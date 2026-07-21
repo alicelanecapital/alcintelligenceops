@@ -1,45 +1,55 @@
-## 1. Nav & headings
+## Fixes and refinements
 
-- `src/components/AppShell.tsx`: rename the "Meetings" nav item to **Engagements** (keeps `/interviews` route).
-- `src/routes/interviews.index.tsx`: change `PageHeader` eyebrow to **"Diagnostic Engine"** and title to **"Engagements"**.
+### 1. Profile photo upload fails ("new row violates row-level security policy")
 
-## 2. Meetings screen scope
+The `contact-photos` storage policies still use `auth.jwt() ->> 'email' like '%@alicelanecapital.com'`. Sessions whose JWT email doesn't match (e.g. `ga@firstserve.co.za`) are rejected.
 
-In `src/routes/interviews.index.tsx`:
-- **Private & Client meetings**: filter both `q.data` interviews and `calendarPrivate` / `calendarClient` calendar rows to the **current month only** (by `start_time` / `created_at` within `startOfMonth(now)`–`endOfMonth(now)`).
-- **Events**: keep current logic but expand to the **entire current year** (drop the `end >= today` cut, filter to `start_date` within the year).
-- **Recurring meetings**: exclude from the Private list only. A calendar event is "recurring" when it has `recurring_event_id` or `recurrence` populated (available on `google_calendar_events`). Calendar rendering unchanged.
+- Migration: drop email-pattern policies on `storage.objects` for `bucket_id = 'contact-photos'` and replace with `private.is_team_member(auth.uid())` for INSERT/UPDATE/DELETE (matches the pattern used everywhere else after the earlier security fix). Add matching SELECT policy for consistency.
 
-## 3. Calendar — Georgia's colour
+### 2. Contact detail — Overview tab layout
 
-In `src/lib/team-members.ts` (or wherever `TeamMember` seed/colour resolution lives) ensure `georgia@alicelanecapital.co.za` resolves to `orange`. If already stored in `team_members`, update her row via a small server-fn/one-off; otherwise add an override map in `src/routes/calendar.tsx`'s `resolveColor` so `georgia@alicelanecapital.co.za → "orange"`. Legend picks this up automatically because it reuses `resolveColor`.
+In `src/routes/contacts.$id.tsx` `OverviewTab`:
+- Move **Sector** out of the left accordion into the right-hand sidebar, directly under **Source event**.
+- Move **Opportunities in workflow** into the right sidebar, under Sector.
+- Left column keeps: Company **D**escription (capital D, expanded by default), DISC (expanded), Red Flags (expanded).
+- Set `Accordion type="multiple" defaultValue={["company","disc","flags"]}`.
 
-## 4. Contact detail tabs
+### 3. Live Workspace tab should only show the Live Workspace
 
-In `src/routes/contacts.$id.tsx`:
+Refactor `src/components/DDInterviewEnhanced.tsx` recorder/transcript panels into an exported `LiveWorkspacePanel`, and render it inline in the Contact's Live Workspace tab scoped to the contact's live/latest meeting (replacing the current link-out placeholder).
 
-**Tab order becomes:**
-1. AI Overview
-2. Stakeholder Brief *(new dedicated tab)*
-3. Live Workspace
-4. Documents
-5. Meeting History
-6. Red Flags *(moved out of tabs? — see below)*  
-7. Approved Deals
-8. Notes *(moved to end)*
+### 4. Upload transcripts in Live Workspace
 
-Actually per request:
-- **Red Flags** moves *into* the AI Overview tab (remove its own tab).
-- **Stakeholder Brief** becomes its own tab, right after AI Overview, auto-populated on mount (fires `briefMut.mutate(false)` via `useEffect` when `!c.stakeholder_brief && !briefMut.isPending`).
-- **Notes** tab moves to the end.
+Add an "Upload transcript" button in the Live Workspace panel using existing `src/lib/extract-transcript-text.ts`. Parsed text is inserted as utterances on the current meeting (`interview_utterances`) so downstream AI analysis matches live recording.
 
-**AI Overview restructuring:** wrap Sector, Company Description, DISC Profile, Opportunities-in-workflow, and the newly-added Red Flags panel in a shadcn `Accordion` (`type="multiple"`, all items collapsed by default). Stakeholder Brief section is removed from this tab (now its own tab).
+### 5. Auto-generate IC report on session end
 
-The existing `RedFlagsTab` component is reused inside the AI Overview accordion.
+When "Stop" marks a meeting `completed` (in `interviews.$id.tsx` and the workspace header), trigger the existing report generation server fn and save the output into `dd_interview_documents` with `document_category = 'ic_report'`, `round = 1`. Round 1 accordion label in Contact → Documents becomes "Round 1 — Discovery Meeting".
 
-## Technical notes
-- No schema changes.
-- Auto-generate brief: guarded `useEffect` in the Stakeholder Brief tab component so it only fires once per contact when brief is empty.
-- Recurring detection: check `ev.recurring_event_id ?? ev.recurrence?.length` on the google row.
-- Month/year windows computed once via `date-fns` `startOfMonth/endOfMonth/startOfYear/endOfYear`.
-- Georgia colour: prefer updating the `team_members` row so it's persistent across the app; fall back to a client override only if she isn't in the roster yet.
+### 6. Rename "DIAGNOSTIC ENGINE" eyebrow
+
+In `src/routes/interviews.index.tsx` and `src/routes/interviews.$id.tsx`, change the eyebrow from `"Diagnostic Engine"` to `"Engagements"` (page title stays contextual).
+
+### 7. "Add contact" from Events list on Engagements screen
+
+Add an "Add contact" button on each booked-event row in `interviews.index.tsx` that opens the contact-add flow with `source_event_id` prefilled.
+
+### 8. "View Synopsis" → Contact AI Overview
+
+In `src/routes/dd-engine.tsx`, `handleViewSynopsis` navigates to `/contacts/$id?tab=overview` for the opportunity's linked contact. `contacts.$id.tsx` reads the `tab` search param and defaults `Tabs` to it.
+
+### 9. Calendar — clean up duplicate "Unavailable" entries & fix legend
+
+Symptom: Multiple duplicated "Unavailable" pills on the calendar, `info@alicelanecapital.com` still appears in the legend after being removed from Accounts, while `ga@firstserve.co.za` and `georgia@alicelanecapital.co.za` don't show.
+
+- **Deduplicate calendar events** in `src/routes/calendar.tsx` (and `interviews.index.tsx` where it also renders calendar events): key by `(user_email, start_time, end_time, normalized_title)` — where `normalized_title` collapses masked "Unavailable" items — so a meeting synced under multiple sub-calendars renders once. Prefer the entry belonging to a currently-active team member.
+- **Data cleanup**: hard-delete rows from `google_calendar_events` whose `user_email` no longer maps to an active row in `team_members` (removes stale `info@alicelanecapital.com` events left behind after the team member was removed).
+- **Legend source of truth**: build the calendar legend strictly from `team_members` currently in the DB (not from `distinct user_email` in `google_calendar_events`), so removing a team member removes them from the legend immediately, and add the missing `ga@firstserve.co.za` / `georgia@alicelanecapital.co.za` rows to `team_members` (with distinct colors) if absent so their events surface with a legend chip.
+- **Sync scope**: in `src/lib/google-calendar-sync.functions.ts`, skip fetching for any `google_oauth_connections` row whose email is not in `team_members`, so a re-sync doesn't re-import the removed account.
+
+---
+
+### Technical notes
+
+- Files touched: new migration for `contact-photos` storage policies + `team_members` cleanup; `src/routes/contacts.$id.tsx`; `src/components/DDInterviewEnhanced.tsx` and/or `src/routes/interviews.$id.tsx`; `src/routes/interviews.index.tsx`; `src/routes/dd-engine.tsx`; `src/routes/calendar.tsx`; `src/lib/google-calendar-sync.functions.ts`.
+- Data ops (row deletes for stale calendar events, team_members inserts) go through the insert tool, not migrations.
