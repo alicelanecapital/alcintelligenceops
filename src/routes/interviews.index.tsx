@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, setInterviewPrivate, dismissInterview } from "@/lib/interviews";
+import { listInterviews, setInterviewPrivate, dismissInterview, stopInterview } from "@/lib/interviews";
 import { fetchFounders, fetchEvents } from "@/lib/db";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
@@ -15,11 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock } from "lucide-react";
+import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle } from "lucide-react";
 import { startInterview } from "@/lib/interviews.functions";
+import { NewMeetingDialog } from "@/components/NewMeetingDialog";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { format } from "date-fns";
+
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
 
