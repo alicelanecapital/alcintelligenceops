@@ -136,25 +136,50 @@ function sanitizeSignatureHtml(html: string): string {
 }
 
 function SubCalendarsList({ email }: { email: string }) {
+  const qc = useQueryClient();
   const listFn = useServerFn(listGoogleSubCalendars);
+  const hideFn = useServerFn(setHiddenCalendars);
   const q = useQuery({
     queryKey: ["sub-calendars", email],
     queryFn: () => listFn({ data: { targetEmail: email } }),
     staleTime: 5 * 60 * 1000,
   });
+  const mut = useMutation({
+    mutationFn: (hiddenIds: string[]) => hideFn({ data: { targetEmail: email, hiddenIds } }),
+    onSuccess: () => {
+      toast.success("Calendar visibility updated");
+      qc.invalidateQueries({ queryKey: ["sub-calendars", email] });
+      qc.invalidateQueries({ queryKey: ["upcoming-calendar-meetings"] });
+      qc.invalidateQueries({ queryKey: ["all-meetings"] });
+      qc.invalidateQueries({ queryKey: ["team-calendar-events"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to update"),
+  });
   if (q.isLoading) return <div className="text-[11px] text-muted-foreground mt-2 ml-6">Loading calendars…</div>;
   const cals = (q.data as any[]) ?? [];
   if (!cals.length) return null;
+  const toggle = (id: string, nextHidden: boolean) => {
+    const current = cals.filter((c) => c.hidden).map((c) => c.id as string);
+    const next = nextHidden ? Array.from(new Set([...current, id])) : current.filter((x) => x !== id);
+    mut.mutate(next);
+  };
   return (
     <div className="mt-2 ml-6 space-y-1">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sub-calendars</div>
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sub-calendars — untick to keep private</div>
       {cals.map((c) => (
-        <div key={c.id} className="flex items-center gap-2 text-[11px]">
+        <label key={c.id} className="flex items-center gap-2 text-[11px] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!c.hidden}
+            onChange={(e) => toggle(c.id, !e.target.checked)}
+            disabled={mut.isPending}
+          />
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
           <span className="truncate">{c.summary}</span>
           {c.primary && <Badge variant="outline" className="text-[9px] px-1 py-0">Primary</Badge>}
           <span className="text-muted-foreground">· {c.accessRole}</span>
-        </div>
+          {c.hidden && <Badge variant="outline" className="text-[9px] px-1 py-0 border-red-500 text-red-600">Hidden</Badge>}
+        </label>
       ))}
     </div>
   );
