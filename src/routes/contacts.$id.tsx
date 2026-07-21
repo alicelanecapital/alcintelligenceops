@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
+  validateSearch: (s: Record<string, unknown>) => ({ tab: typeof s.tab === "string" ? s.tab : undefined }),
 });
 
 const DISC_DIMS = [
