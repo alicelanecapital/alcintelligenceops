@@ -131,12 +131,14 @@ function CalendarScreen() {
     });
     (meetings.data ?? []).forEach((m: any) => {
       if (!m.meeting_date) return;
-      out.push({ id: `meeting-${m.id}`, date: new Date(m.meeting_date), label: m.title ?? "Meeting", type: "meeting", sub: m.founder?.name ?? m.company?.name });
+      const d = new Date(m.meeting_date);
+      const hasTime = /T\d/.test(String(m.meeting_date));
+      out.push({ id: `meeting-${m.id}`, date: d, label: m.title ?? "Meeting", type: "meeting", sub: m.founder?.name ?? m.company?.name, hasTime });
     });
     (interviews.data ?? []).forEach((i: any) => {
       if (!i.created_at) return;
       const cat = (i.contact?.category ?? "unknown") as ContactCategory;
-      out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat });
+      out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat, hasTime: true });
     });
     (teamEvents.data ?? []).forEach((g: any) => {
       if (!g.start_time || isHolidayRow(g)) return; // holidays render as day background, not as a pill
@@ -147,6 +149,7 @@ function CalendarScreen() {
         type: "meeting",
         sub: g.user_email,
         owner: g.user_email,
+        hasTime: true,
       });
     });
 
