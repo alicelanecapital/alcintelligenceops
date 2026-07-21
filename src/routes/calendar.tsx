@@ -267,6 +267,7 @@ function CalendarScreen() {
                     title={it.sub ? `${it.label} — ${it.sub}` : it.label}
                     className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}
                   >
+                    {it.hasTime && <span className="font-medium mr-1 tabular-nums">{format(it.date, "HH:mm")}</span>}
                     {it.label}
                   </div>
                 ))}
