@@ -157,7 +157,7 @@ function DDEngine() {
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium shrink-0 ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
                 {currentRound ? `Round ${currentRound}/5` : "Not started"}
               </Badge>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleViewSynopsis(opp.id)}>
                   <FileText className="h-3 w-3 mr-1" /> View Synopsis
                 </Button>
