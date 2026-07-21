@@ -76,7 +76,7 @@ function DDEngine() {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
   };
   const handleViewSynopsis = (oppId: string) => {
-    navigate({ to: `/opportunities/${oppId}/synopsis` });
+    navigate({ to: "/opportunities/$id/synopsis", params: { id: oppId } });
   };
 
   const archiveMut = useMutation({
