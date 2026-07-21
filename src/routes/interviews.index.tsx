@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listInterviews, setInterviewPrivate, dismissInterview } from "@/lib/interviews";
