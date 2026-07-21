@@ -40,13 +40,14 @@ function EmailSignatureCard() {
   const [signature, setSignature] = useState("");
   const initializedRef = useRef(false);
   useEffect(() => {
+    if (!q.isSuccess) return;
     const val = ((q.data as any)?.email_signature ?? "") as string;
     setSignature(val);
     if (editorRef.current && !initializedRef.current) {
       editorRef.current.innerHTML = val || "";
       initializedRef.current = true;
     }
-  }, [q.data]);
+  }, [q.isSuccess, q.data]);
   const save = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not signed in");
