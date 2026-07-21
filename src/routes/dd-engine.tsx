@@ -162,7 +162,7 @@ function DDEngine() {
                 </Button>
                 {!isFinal && (
                   <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
-                    <Play className="h-3 w-3 mr-1 text-green-500 fill-green-500" />
+                    <Play className="h-3 w-3 mr-1 text-green-800 fill-green-800" />
                     {currentRound ? "Resume" : "Begin"}
                   </Button>
                 )}
