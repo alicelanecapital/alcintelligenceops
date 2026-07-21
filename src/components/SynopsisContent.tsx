@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef } from "react";
+import { forwardRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SECTOR_MODULES } from "@/lib/dd-framework-data";
 import { BrainCircuit, Sparkles, Target, Flag } from "lucide-react";
