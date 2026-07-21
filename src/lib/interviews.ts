@@ -87,3 +87,8 @@ export async function setInterviewStatus(id: string, patch: Partial<{ status: st
   const { error } = await supabase.from("interviews").update(patch).eq("id", id);
   if (error) throw error;
 }
+
+export async function stopInterview(id: string) {
+  await setInterviewStatus(id, { status: "completed", ended_at: new Date().toISOString() });
+}
+
