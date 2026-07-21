@@ -33,7 +33,16 @@ type CalItem = {
   sub?: string;
   /** Only set for meetings — used to colour by contact category. */
   category?: ContactCategory;
+  /** For synced Google events: the connected teammate's email (used for colour + legend). */
+  owner?: string;
 };
+
+const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
+function hashColor(email: string): TeamMemberColor {
+  let h = 0;
+  for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) >>> 0;
+  return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+}
 
 function BookingLinkCard() {
   const getLinkFn = useServerFn(getOrCreateBookingLink);
