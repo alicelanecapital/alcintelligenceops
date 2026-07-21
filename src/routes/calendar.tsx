@@ -9,12 +9,12 @@ import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
 import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
-import { getOrCreateBookingLink } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactCategory } from "@/lib/contact-colors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Copy, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -44,49 +44,18 @@ function hashColor(email: string): TeamMemberColor {
   return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
 }
 
-function BookingLinkCard() {
-  const getLinkFn = useServerFn(getOrCreateBookingLink);
-  const q = useQuery({ queryKey: ["booking-link"], queryFn: () => getLinkFn() });
-  const url = q.data ? `${window.location.origin}/book/${(q.data as any).slug}` : null;
-  const prettyUrl = url ? url.replace(/^https?:\/\//, "") : null;
-
-  return (
-    <Card className="mt-6 border-primary/20">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <CalendarPlus className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-serif text-lg leading-tight">Your personal booking link</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Share this with clients — they'll see your open times and book directly into your calendar.</div>
-          </div>
-        </div>
-        {url ? (
-          <div className="flex items-center gap-2 flex-wrap pl-12">
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-primary hover:underline break-all"
-            >
-              {prettyUrl}
-            </a>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied — paste it into an email or message"); }}
-            >
-              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy link
-            </Button>
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground pl-12">{q.isLoading ? "Creating your link…" : ""}</div>
-        )}
-      </CardContent>
-    </Card>
-  );
+// Hard-coded privacy mask: any Google event with these tokens in brackets in its
+// title renders as "Unavailable" everywhere on the calendar (chip + hover tooltip).
+const UNAVAILABLE_TOKENS = ["(smartify)", "(nonastasia)", "(georgiaadams)"];
+function maskUnavailable(title: string | null | undefined): string {
+  const t = (title ?? "").toLowerCase();
+  return UNAVAILABLE_TOKENS.some((tok) => t.includes(tok)) ? "Unavailable" : (title ?? "");
 }
+
+
+// BookingLinkCard now lives in src/components/BookingLinkCard.tsx and is
+// rendered on Admin → Accounts (below the Email Signature).
+
 
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
@@ -172,12 +141,13 @@ function CalendarScreen() {
       out.push({
         id: `gcal-${g.user_email}-${g.google_event_id ?? g.title}-${g.start_time}`,
         date: new Date(g.start_time),
-        label: g.title ?? "(no title)",
+        label: maskUnavailable(g.title),
         type: "meeting",
         sub: g.user_email,
         owner: g.user_email,
       });
     });
+
     (tasks.data ?? []).forEach((t: any) => {
       if (!t.due_date || t.status === "Done") return;
       out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee });
@@ -200,7 +170,7 @@ function CalendarScreen() {
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
   const itemStyle = (it: CalItem): string => {
-    if (it.type === "event") return "text-green-700";
+    if (it.type === "event") return "bg-teal-600 text-white rounded";
     if (it.type === "task") return "text-orange-600";
     if (it.type === "meeting" && it.owner) {
       const c = COLOR_CLASSES[resolveColor(it.owner)] ?? DEFAULT_COLOR_CLASSES;
@@ -208,6 +178,7 @@ function CalendarScreen() {
     }
     return "text-foreground";
   };
+
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
@@ -238,13 +209,14 @@ function CalendarScreen() {
         }
       />
 
-      <BookingLinkCard />
+      {/* BookingLinkCard moved to Admin → Accounts (below the Email Signature). */}
 
       {/* Legend — public-holiday shading + core types + per-teammate colour swatches for synced Google events. */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs items-center">
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-green-500" /> Event</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-teal-600" /> Event</span>
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> Task due</span>
+
         {legendOwners.length > 0 && <span className="text-muted-foreground ml-1">Synced calendars:</span>}
         {legendOwners.map((email) => {
           const c = COLOR_CLASSES[resolveColor(email)] ?? DEFAULT_COLOR_CLASSES;
@@ -285,8 +257,15 @@ function CalendarScreen() {
               {holiday && <div className="text-[10px] text-rose-700 mb-1 truncate italic">{holiday}</div>}
               <div>
                 {dayItems.slice(0, 3).map((it, i) => (
-                  <div key={it.id} className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}>{it.label}</div>
+                  <div
+                    key={it.id}
+                    title={it.sub ? `${it.label} — ${it.sub}` : it.label}
+                    className={cn("text-[10px] px-0.5 py-0.5 truncate", itemStyle(it), i > 0 && "border-t border-border/40")}
+                  >
+                    {it.label}
+                  </div>
                 ))}
+
                 {dayItems.length > 3 && <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} more</div>}
               </div>
             </button>
