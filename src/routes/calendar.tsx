@@ -291,7 +291,10 @@ function CalendarScreen() {
                   <div key={it.id} className="flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
                     <span className={cn("text-[10px] px-2 py-0.5 rounded uppercase tracking-wide", itemStyle(it))}>{it.type}</span>
                     <div>
-                      <div className="font-medium">{it.label}</div>
+                      <div className="font-medium">
+                        {it.hasTime && <span className="mr-2 text-muted-foreground tabular-nums">{format(it.date, "HH:mm")}</span>}
+                        {it.label}
+                      </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
                   </div>
