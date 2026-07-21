@@ -92,7 +92,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
   const [gateComment, setGateComment] = useState('');
   const [submittingGateAction, setSubmittingGateAction] = useState(false);
-  const [activeStep, setActiveStep] = useState<'documents' | 'questions' | 'software' | 'verification' | 'ai_analysis'>('documents');
+  // Accordion drives which step is open now (see SUB_STEPS below); no explicit active-step state.
   const [humanAssessment, setHumanAssessment] = useState('');
   const [savingAssessment, setSavingAssessment] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
