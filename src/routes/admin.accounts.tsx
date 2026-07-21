@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
-import { syncGoogleCalendarEvents, listTeamGoogleConnections, listGoogleSubCalendars } from "@/lib/google-calendar-sync.functions";
+import { syncGoogleCalendarEvents, listTeamGoogleConnections, listGoogleSubCalendars, setHiddenCalendars } from "@/lib/google-calendar-sync.functions";
 import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES } from "@/lib/team-member-colors";
 import { useAuth } from "@/lib/auth";
