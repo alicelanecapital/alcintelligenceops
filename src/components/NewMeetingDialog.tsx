@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchFounders } from "@/lib/db";
 import { startInterview } from "@/lib/interviews.functions";
+import { startMeetingForContact } from "@/lib/contacts.functions";
 
 export type NewMeetingDefaults = {
+  contactId?: string;
   founderName?: string;
   businessName?: string;
   industry?: string;
 };
+
 
 export function NewMeetingDialog({
   open,
@@ -44,17 +47,20 @@ export function NewMeetingDialog({
   async function submit() {
     setBusy(true);
     try {
-      const row = await startInterview({
-        data: {
-          founderId: founderId || undefined,
-          founderName: founderName || undefined,
-          businessName: businessName || undefined,
-          industry: industry || undefined,
-        },
-      });
-      toast.success("Brief generated");
+      const row = defaults?.contactId
+        ? await startMeetingForContact({ data: { contactId: defaults.contactId } })
+        : await startInterview({
+            data: {
+              founderId: founderId || undefined,
+              founderName: founderName || undefined,
+              businessName: businessName || undefined,
+              industry: industry || undefined,
+            },
+          });
+      toast.success("Meeting started");
       onOpenChange(false);
       nav({ to: "/interviews/$id", params: { id: (row as any).id } });
+
     } catch (e: any) {
       toast.error(e.message ?? "Failed");
     } finally {
