@@ -39,6 +39,7 @@ const DISC_DIMS = [
 
 function ContactProfile() {
   const { id } = Route.useParams();
+  const { tab: tabParam } = Route.useSearch();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["contact", id], queryFn: () => fetchContact(id) });
