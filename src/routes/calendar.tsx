@@ -249,13 +249,14 @@ function CalendarScreen() {
         }
       />
 
-      <BookingLinkCard />
+      {/* BookingLinkCard moved to Admin → Accounts (below the Email Signature). */}
 
       {/* Legend — public-holiday shading + core types + per-teammate colour swatches for synced Google events. */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs items-center">
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-green-500" /> Event</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-teal-600" /> Event</span>
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> Task due</span>
+
         {legendOwners.length > 0 && <span className="text-muted-foreground ml-1">Synced calendars:</span>}
         {legendOwners.map((email) => {
           const c = COLOR_CLASSES[resolveColor(email)] ?? DEFAULT_COLOR_CLASSES;
