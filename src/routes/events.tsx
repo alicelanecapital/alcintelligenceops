@@ -626,9 +626,11 @@ function EventRow({ e, onEdit, onReject, onCapture, onBook, onUnbook, onIntel, f
                 </PopoverContent>
               </Popover>
             ) : null}
-            <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
-              <UserPlus className="h-3 w-3 mr-1" /> Add contact
-            </Button>
+            {e.booked ? (
+              <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
+                <UserPlus className="h-3 w-3 mr-1" /> Add contact
+              </Button>
+            ) : null}
           </div>
           {e.booked && (
             <div className="text-xs text-muted-foreground mt-1">
