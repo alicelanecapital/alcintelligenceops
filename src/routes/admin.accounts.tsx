@@ -20,6 +20,8 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { BookingLinkCard } from "@/components/BookingLinkCard";
+
 
 
 export const Route = createFileRoute("/admin/accounts")({ component: () => <AppShell><AccountsScreen /></AppShell> });
