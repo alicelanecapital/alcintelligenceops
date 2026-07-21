@@ -51,7 +51,8 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
 
     const opp = q.data?.opp;
     const interviews = q.data?.interviews ?? [];
-    const stakeholderBrief = interviews.map((i: any) => i.stakeholder_brief).filter(Boolean).slice(-1)[0];
+    const stakeholderBrief = interviews.map((i: any) => i.stakeholder_brief).filter(Boolean).slice(-1)[0]
+      ?? opp?.contact?.stakeholder_brief;
     const detectedSectorCode = interviews.map((i: any) => i.detected_sector).filter(Boolean).slice(-1)[0]
       ?? opp?.dd_detected_sector;
     const detectedSectorConfidence = interviews.map((i: any) => i.sector_confidence).filter(Boolean).slice(-1)[0]
@@ -66,15 +67,17 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
       (Array.isArray(i.red_flags) ? i.red_flags : []).map((f: any) => ({ ...f, round: i.round }))
     );
 
-    const companyName = opp?.company?.name ?? opp?.founder?.startup_name ?? opp?.name;
-    const founderName = opp?.founder?.name ?? opp?.name;
+    const companyName = opp?.contact?.company ?? opp?.name;
+    const founderName = opp?.contact?.name ?? opp?.name;
 
     // Push metadata up so the wrapper can render the header title / filename.
     useEffect(() => {
       onMeta?.({ companyName, founderName, isLoading: q.isLoading });
     }, [onMeta, companyName, founderName, q.isLoading]);
 
-    if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+    if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading synopsis…</p>;
+    if (q.error) return <p className="text-sm text-destructive">Failed to load synopsis: {(q.error as Error).message}</p>;
+    if (!opp) return <p className="text-sm text-muted-foreground">Opportunity not found.</p>;
 
     const scrollTo = (id: string) => {
       const el = document.getElementById(id);
