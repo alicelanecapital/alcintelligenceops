@@ -84,6 +84,7 @@ function InterviewsIndex() {
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const eventsQ = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const [view, setView] = useViewMode("meetings");
+  const [addContactEventId, setAddContactEventId] = useState<string | null>(null);
 
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
   const dedupedUpcoming = dedupeEvents(upcoming.data ?? []);
