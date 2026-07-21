@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { disconnectGoogle, getGoogleOAuthClientId, GOOGLE_SCOPES } from "@/lib/google-oauth.functions";
 import { syncGoogleCalendarEvents, listTeamGoogleConnections, listGoogleSubCalendars, setHiddenCalendars } from "@/lib/google-calendar-sync.functions";
+import { updateMyEmailSignature } from "@/lib/profile.functions";
 import { fetchTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES } from "@/lib/team-member-colors";
 import { useAuth } from "@/lib/auth";
@@ -27,7 +28,7 @@ function EmailSignatureCard() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const q = useQuery({
-    queryKey: ["my-profile"],
+    queryKey: ["my-profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase.from("profiles").select("id, email_signature, display_name").eq("id", user.id).maybeSingle();
@@ -48,14 +49,13 @@ function EmailSignatureCard() {
       initializedRef.current = true;
     }
   }, [q.isSuccess, q.data]);
+  const saveFn = useServerFn(updateMyEmailSignature);
   const save = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error("Not signed in");
       const html = editorRef.current?.innerHTML ?? signature;
-      const { error } = await supabase.from("profiles").upsert({ id: user.id, email_signature: html } as any);
-      if (error) throw error;
+      return await saveFn({ data: { emailSignature: html } });
     },
-    onSuccess: () => { toast.success("Signature saved"); qc.invalidateQueries({ queryKey: ["my-profile"] }); },
+    onSuccess: (res: any) => { toast.success(`Signature saved (${res.length} chars)`); qc.invalidateQueries({ queryKey: ["my-profile", user?.id] }); },
     onError: (e: any) => toast.error(e.message ?? "Failed to save"),
   });
 

@@ -72,10 +72,23 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   if (rows.length) {
+    // The same Google event can appear on more than one sub-calendar (e.g. on
+    // primary and on a shared calendar the user is an attendee of). Postgres
+    // refuses to update the same conflict target twice in a single upsert
+    // ("ON CONFLICT DO UPDATE command cannot affect row a second time"), so
+    // dedupe by (user_email, google_event_id), preferring the primary entry.
+    const byKey = new Map<string, any>();
+    for (const r of rows) {
+      const key = `${r.user_email}::${r.google_event_id}`;
+      const existing = byKey.get(key);
+      const isPrimary = r.calendar_id === email;
+      if (!existing || isPrimary) byKey.set(key, r);
+    }
+    const deduped = Array.from(byKey.values());
     // google_calendar_events / last_synced_at are new (see 20260713000000_accounts_calendar_sync.sql)
     // and aren't in the generated Supabase types yet -- cast until types.ts is regenerated post-migration.
     const { error } = await (supabaseAdmin.from("google_calendar_events" as any) as any)
-      .upsert(rows, { onConflict: "user_email,google_event_id" });
+      .upsert(deduped, { onConflict: "user_email,google_event_id" });
     if (error) throw error;
   }
 

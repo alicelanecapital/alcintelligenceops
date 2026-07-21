@@ -6,6 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
+import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
+import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
+import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { getOrCreateBookingLink } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactCategory } from "@/lib/contact-colors";
@@ -30,7 +33,16 @@ type CalItem = {
   sub?: string;
   /** Only set for meetings — used to colour by contact category. */
   category?: ContactCategory;
+  /** For synced Google events: the connected teammate's email (used for colour + legend). */
+  owner?: string;
 };
+
+const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
+function hashColor(email: string): TeamMemberColor {
+  let h = 0;
+  for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) >>> 0;
+  return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+}
 
 function BookingLinkCard() {
   const getLinkFn = useServerFn(getOrCreateBookingLink);
@@ -114,6 +126,32 @@ function CalendarScreen() {
     },
   });
 
+  // All synced Google Calendar events across every connected teammate, so the
+  // unified calendar reflects each account's real meetings (previously they only
+  // showed on the Meetings screen).
+  const teamEvents = useQuery({
+    queryKey: ["team-calendar-events"],
+    queryFn: fetchAllTeamCalendarEvents,
+  });
+
+  // Team roster — used to resolve a teammate's colour by email.
+  const team = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
+  const colorByEmail = useMemo(() => {
+    const m = new Map<string, TeamMemberColor>();
+    for (const tm of (team.data ?? []) as TeamMember[]) m.set(tm.email.toLowerCase(), tm.color);
+    return m;
+  }, [team.data]);
+  const resolveColor = (email?: string): TeamMemberColor => {
+    if (!email) return "gray";
+    return colorByEmail.get(email.toLowerCase()) ?? hashColor(email.toLowerCase());
+  };
+
+  const isHolidayRow = (r: any) => {
+    const cal = (r.calendar_id ?? "").toLowerCase();
+    const title = (r.title ?? "").toLowerCase();
+    return cal.includes("holiday") || title.includes("holiday");
+  };
+
   const items: CalItem[] = useMemo(() => {
     const out: CalItem[] = [];
     (events.data ?? []).forEach((e: any) => {
@@ -129,12 +167,23 @@ function CalendarScreen() {
       const cat = (i.contact?.category ?? "unknown") as ContactCategory;
       out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat });
     });
+    (teamEvents.data ?? []).forEach((g: any) => {
+      if (!g.start_time || isHolidayRow(g)) return; // holidays render as day background, not as a pill
+      out.push({
+        id: `gcal-${g.user_email}-${g.google_event_id ?? g.title}-${g.start_time}`,
+        date: new Date(g.start_time),
+        label: g.title ?? "(no title)",
+        type: "meeting",
+        sub: g.user_email,
+        owner: g.user_email,
+      });
+    });
     (tasks.data ?? []).forEach((t: any) => {
       if (!t.due_date || t.status === "Done") return;
       out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee });
     });
     return out;
-  }, [events.data, meetings.data, tasks.data, interviews.data]);
+  }, [events.data, meetings.data, tasks.data, interviews.data, teamEvents.data]);
 
   const holidayByDay = useMemo(() => {
     const m = new Map<string, string>();
@@ -150,11 +199,27 @@ function CalendarScreen() {
   const gridEnd = endOfWeek(endOfMonth(month));
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
-  // Events, tasks, and meetings all render as plain text rows now — no colour coding on entries.
-  const itemStyle = (_it: CalItem): string => "text-foreground";
+  const itemStyle = (it: CalItem): string => {
+    if (it.type === "event") return "text-green-700";
+    if (it.type === "task") return "text-orange-600";
+    if (it.type === "meeting" && it.owner) {
+      const c = COLOR_CLASSES[resolveColor(it.owner)] ?? DEFAULT_COLOR_CLASSES;
+      return c.badge;
+    }
+    return "text-foreground";
+  };
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
+
+  // Legend — emails that actually have events synced this window.
+  const legendOwners = useMemo(() => {
+    const emails = new Set<string>();
+    for (const g of (teamEvents.data ?? []) as any[]) {
+      if (!isHolidayRow(g) && g.user_email) emails.add(g.user_email);
+    }
+    return Array.from(emails).sort();
+  }, [teamEvents.data]);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
@@ -175,10 +240,22 @@ function CalendarScreen() {
 
       <BookingLinkCard />
 
-      {/* Legend — only public-holiday shading remains (event colour coding removed). */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs">
+      {/* Legend — public-holiday shading + core types + per-teammate colour swatches for synced Google events. */}
+      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs items-center">
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-green-500" /> Event</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> Task due</span>
+        {legendOwners.length > 0 && <span className="text-muted-foreground ml-1">Synced calendars:</span>}
+        {legendOwners.map((email) => {
+          const c = COLOR_CLASSES[resolveColor(email)] ?? DEFAULT_COLOR_CLASSES;
+          return (
+            <span key={email} className="inline-flex items-center gap-1">
+              <span className={cn("h-2.5 w-2.5 rounded-sm", c.dot)} /> {email}
+            </span>
+          );
+        })}
       </div>
+
 
       {/* Calendar grid — grid lines stay neutral (scoped local override of the global forest-green border colour). */}
       <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border" style={{ backgroundColor: "var(--calendar-grid)", borderColor: "var(--calendar-grid)" }}>
