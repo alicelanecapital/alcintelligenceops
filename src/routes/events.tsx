@@ -155,6 +155,13 @@ function Events() {
   useEffect(() => {
     if (ranDiscoveryRef.current) return;
     ranDiscoveryRef.current = true;
+    // Throttle: don't auto-run discovery more than once per 24h. Users can still
+    // trigger it manually with the "Discover events" button.
+    try {
+      const last = Number(localStorage.getItem("events:last-discovery") || 0);
+      if (Date.now() - last < 24 * 60 * 60 * 1000) return;
+      localStorage.setItem("events:last-discovery", String(Date.now()));
+    } catch { /* localStorage unavailable — fall through */ }
     discoverMut.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
