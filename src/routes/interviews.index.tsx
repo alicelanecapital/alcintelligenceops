@@ -199,23 +199,36 @@ function InterviewsIndex() {
         ) : (
           <div className="bg-card rounded-lg">
             {bookedEvents.map((ev: any) => (
-              <Link key={ev.id} to="/events" className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors border-b border-border/40 last:border-b-0">
+              <div key={ev.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors border-b border-border/40 last:border-b-0">
                 <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
-                <div className="flex-1 min-w-0">
+                <Link to="/events" className="flex-1 min-w-0">
                   <div className="font-medium truncate">{ev.name}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {ev.start_date ? format(new Date(ev.start_date), "d MMM yyyy") : "—"}
                     {ev.end_date && ev.end_date !== ev.start_date && ` – ${format(new Date(ev.end_date), "d MMM yyyy")}`}
                     {ev.location && ` · ${ev.location}`}
                   </div>
-                </div>
+                </Link>
                 <Badge variant="outline" className="border-green-600 text-green-700">Booked</Badge>
-              </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 gap-1"
+                  onClick={() => setAddContactEventId(ev.id)}
+                >
+                  <UserPlus className="h-3 w-3" /> Add contact
+                </Button>
+              </div>
             ))}
           </div>
         )}
       </div>
 
+      <AddContactDialog
+        open={!!addContactEventId}
+        onClose={() => setAddContactEventId(null)}
+        defaultEventId={addContactEventId ?? undefined}
+      />
     </div>
   );
 }
