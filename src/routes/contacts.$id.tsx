@@ -253,24 +253,11 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <Accordion type="multiple" className="w-full">
-          <AccordionItem value="sector">
-            <AccordionTrigger className="text-sm">
-              <span className="inline-flex items-center gap-2"><Target className="h-4 w-4 text-teal-700" /> Sector</span>
-            </AccordionTrigger>
-            <AccordionContent>
-              {sector ? (
-                <p className="text-sm">{sector}{detectedConf ? <span className="text-xs text-muted-foreground"> ({Math.round(detectedConf)}% confidence)</span> : null}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Not detected yet — appears once a DD round has been recorded and analysed.</p>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
+        <Accordion type="multiple" defaultValue={["company", "disc", "flags"]} className="w-full">
           {c.company_description && (
             <AccordionItem value="company">
               <AccordionTrigger className="text-sm">
-                <span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" /> Company description</span>
+                <span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" /> Company Description</span>
               </AccordionTrigger>
               <AccordionContent>
                 <p className="text-sm whitespace-pre-wrap text-foreground/80">{c.company_description}</p>
@@ -324,29 +311,6 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
               <RedFlagsTab opportunities={opportunities} />
             </AccordionContent>
           </AccordionItem>
-
-          {openOpps.length > 0 && (
-            <AccordionItem value="opps">
-              <AccordionTrigger className="text-sm">
-                <span className="inline-flex items-center gap-2"><Target className="h-4 w-4" /> Opportunities in workflow ({openOpps.length})</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                  {openOpps.map((o: any) => (
-                    <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
-                      <div className="border-b border-border py-3 hover:bg-muted/30 transition-colors flex justify-between items-center">
-                        <div>
-                          <div className="text-sm font-medium">{o.name}</div>
-                          {o.summary && <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{o.summary}</div>}
-                        </div>
-                        <Badge variant="outline">{o.current_stage}</Badge>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
         </Accordion>
       </div>
 
@@ -364,6 +328,42 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
             )}
           </section>
         )}
+
+        <section>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 inline-flex items-center gap-1">
+            <Target className="h-3 w-3 text-teal-700" /> Sector
+          </div>
+          {sector ? (
+            <div className="text-sm">
+              {sector}
+              {detectedConf ? <span className="text-xs text-muted-foreground"> ({Math.round(detectedConf)}%)</span> : null}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Not detected yet — appears once a DD round has been recorded and analysed.</p>
+          )}
+        </section>
+
+        {openOpps.length > 0 && (
+          <section>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 inline-flex items-center gap-1">
+              <Target className="h-3 w-3" /> Opportunities in workflow ({openOpps.length})
+            </div>
+            <div className="space-y-2">
+              {openOpps.map((o: any) => (
+                <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
+                  <div className="border-b border-border py-2 hover:bg-muted/30 transition-colors">
+                    <div className="text-sm font-medium">{o.name}</div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      {o.summary && <div className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-2">{o.summary}</div>}
+                      <Badge variant="outline" className="text-[10px]">{o.current_stage}</Badge>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {c.ai_summary && (
           <section>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">AI summary</div>
