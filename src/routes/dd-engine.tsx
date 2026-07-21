@@ -145,7 +145,7 @@ function DDEngine() {
           return (
             <div
               key={opp.id}
-              onClick={() => handleViewSynopsis(opp.id)}
+              onClick={() => handleViewSynopsis(opp)}
               className="flex items-center gap-3 py-2 px-1 border-b border-border hover:bg-muted/30 cursor-pointer"
             >
               <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
@@ -163,7 +163,7 @@ function DDEngine() {
                 {currentRound ? `Round ${currentRound}/5` : "Not started"}
               </Badge>
               <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleViewSynopsis(opp.id)}>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleViewSynopsis(opp)}>
                   <FileText className="h-3 w-3 mr-1" /> View Synopsis
                 </Button>
                 {!isFinal && (
