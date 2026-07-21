@@ -240,10 +240,22 @@ function CalendarScreen() {
 
       <BookingLinkCard />
 
-      {/* Legend — only public-holiday shading remains (event colour coding removed). */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs">
+      {/* Legend — public-holiday shading + core types + per-teammate colour swatches for synced Google events. */}
+      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs items-center">
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-green-500" /> Event</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> Task due</span>
+        {legendOwners.length > 0 && <span className="text-muted-foreground ml-1">Synced calendars:</span>}
+        {legendOwners.map((email) => {
+          const c = COLOR_CLASSES[resolveColor(email)] ?? DEFAULT_COLOR_CLASSES;
+          return (
+            <span key={email} className="inline-flex items-center gap-1">
+              <span className={cn("h-2.5 w-2.5 rounded-sm", c.dot)} /> {email}
+            </span>
+          );
+        })}
       </div>
+
 
       {/* Calendar grid — grid lines stay neutral (scoped local override of the global forest-green border colour). */}
       <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border" style={{ backgroundColor: "var(--calendar-grid)", borderColor: "var(--calendar-grid)" }}>
