@@ -92,6 +92,31 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
     return syncCalendarForUser(data?.targetEmail ?? sessionEmail);
   });
 
+/** Sync every connected Google account in the workspace. Used by the shared "Sync calendars"
+ * button on Calendar and Meetings so a signed-in teammate can pull the whole team's calendars,
+ * not just their own. */
+export const syncAllTeamCalendars = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin.from("google_oauth_connections") as any)
+      .select("user_email");
+    if (error) throw error;
+    const emails = ((data ?? []) as { user_email: string }[]).map((r) => r.user_email);
+    let totalSynced = 0;
+    const perAccount: { email: string; synced: number; reason: string }[] = [];
+    for (const email of emails) {
+      try {
+        const res = await syncCalendarForUser(email);
+        totalSynced += res.synced;
+        perAccount.push({ email, synced: res.synced, reason: res.reason });
+      } catch (e: any) {
+        perAccount.push({ email, synced: 0, reason: `error: ${e?.message ?? "unknown"}` });
+      }
+    }
+    return { totalSynced, accounts: perAccount };
+  });
+
 /** Admin visibility: every team member who has connected Google, for the Accounts screen. */
 export const listTeamGoogleConnections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
