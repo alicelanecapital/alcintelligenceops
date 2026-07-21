@@ -66,11 +66,23 @@ function ContactsIndex() {
     [filtered, letter],
   );
 
-  const groupedByEvent = useMemo(() => {
+  const groupedRows = useMemo(() => {
+    if (groupBy === "none") return [] as { id: string; name: string; contacts: ContactRow[] }[];
     const map = new Map<string, { id: string; name: string; contacts: ContactRow[] }>();
     for (const c of displayed) {
-      const key = c.source_event?.id ?? "__none__";
-      const name = c.source_event?.name ?? "No event";
+      let key = "__none__";
+      let name = "Ungrouped";
+      if (groupBy === "event") {
+        key = c.source_event?.id ?? "__none__";
+        name = c.source_event?.name ?? "No event";
+      } else if (groupBy === "category") {
+        const cat = (c.category ?? "unknown") as keyof typeof CATEGORY_LABELS;
+        key = String(cat);
+        name = CATEGORY_LABELS[cat] ?? "Unknown";
+      } else if (groupBy === "company") {
+        key = (c.company ?? "").trim().toLowerCase() || "__none__";
+        name = c.company?.trim() || "No company";
+      }
       if (!map.has(key)) map.set(key, { id: key, name, contacts: [] });
       map.get(key)!.contacts.push(c);
     }
@@ -79,7 +91,7 @@ function ContactsIndex() {
       if (b.id === "__none__") return -1;
       return a.name.localeCompare(b.name);
     });
-  }, [displayed]);
+  }, [displayed, groupBy]);
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
