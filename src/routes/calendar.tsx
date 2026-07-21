@@ -199,14 +199,13 @@ function CalendarScreen() {
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
 
-  // Legend — emails that actually have events synced this window.
+  // Legend — every active team member, so removed / never-synced accounts don't leak in
+  // (e.g. old info@alicelanecapital rows) and expected teammates are always visible.
   const legendOwners = useMemo(() => {
-    const emails = new Set<string>();
-    for (const g of (teamEvents.data ?? []) as any[]) {
-      if (!isHolidayRow(g) && g.user_email) emails.add(g.user_email);
-    }
-    return Array.from(emails).sort();
-  }, [teamEvents.data]);
+    return ((team.data ?? []) as any[])
+      .map((tm) => String(tm.email))
+      .sort();
+  }, [team.data]);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
