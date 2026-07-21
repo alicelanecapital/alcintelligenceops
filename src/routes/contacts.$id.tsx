@@ -240,8 +240,8 @@ function ContactProfile() {
 
 /* ============ Overview tab ============ */
 
-function OverviewTab({ contact: c, opportunity, openOpps, briefPending, onGenerateBrief }: {
-  contact: any; opportunity: any; openOpps: any[]; briefPending: boolean; onGenerateBrief: (force: boolean) => void;
+function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
+  contact: any; opportunity: any; openOpps: any[]; opportunities: any[];
 }) {
   const detectedCode = opportunity?.dd_detected_sector;
   const detectedConf = opportunity?.dd_sector_confidence ?? 0;
@@ -250,123 +250,102 @@ function OverviewTab({ contact: c, opportunity, openOpps, briefPending, onGenera
 
   return (
     <div className="grid md:grid-cols-3 gap-6">
-      <div className="md:col-span-2 space-y-6">
-        {/* Sector */}
-        <section className="rounded-lg border border-teal-200 bg-teal-50 p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Target className="h-4 w-4 text-teal-700" />
-            <span className="text-sm font-semibold text-teal-900">Sector</span>
-          </div>
-          {sector ? (
-            <p className="text-sm text-teal-900">{sector}{detectedConf ? <span className="text-xs text-teal-700"> ({Math.round(detectedConf)}% confidence)</span> : null}</p>
-          ) : (
-            <p className="text-xs text-teal-700">Not detected yet — appears once a DD round has been recorded and analysed.</p>
+      <div className="md:col-span-2">
+        <Accordion type="multiple" className="w-full">
+          <AccordionItem value="sector">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><Target className="h-4 w-4 text-teal-700" /> Sector</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              {sector ? (
+                <p className="text-sm">{sector}{detectedConf ? <span className="text-xs text-muted-foreground"> ({Math.round(detectedConf)}% confidence)</span> : null}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Not detected yet — appears once a DD round has been recorded and analysed.</p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {c.company_description && (
+            <AccordionItem value="company">
+              <AccordionTrigger className="text-sm">
+                <span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" /> Company description</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm whitespace-pre-wrap text-foreground/80">{c.company_description}</p>
+              </AccordionContent>
+            </AccordionItem>
           )}
-        </section>
 
-        {/* Company description */}
-        {c.company_description && (
-          <section>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Company description</div>
-            <p className="text-sm whitespace-pre-wrap text-foreground/80">{c.company_description}</p>
-          </section>
-        )}
-
-        {/* Stakeholder brief */}
-        <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-sky-900 inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Stakeholder Brief</div>
-            <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
-              <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
-            </Button>
-          </div>
-          {c.stakeholder_brief ? (
-            <div className="space-y-2 text-sm text-sky-900">
-              {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
-              {c.stakeholder_brief.talking_points?.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium mb-1">Talking points</div>
-                  <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                    {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                  </ul>
-                </div>
-              )}
-              {c.stakeholder_brief.watch_outs?.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium mb-1">Watch-outs</div>
-                  <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                    {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-sky-700">No brief yet.</p>
-              <Button size="sm" variant="outline" onClick={() => onGenerateBrief(false)} disabled={briefPending}>
-                <Sparkles className="h-3.5 w-3.5 mr-1" /> {briefPending ? "Generating…" : "Generate brief"}
-              </Button>
-            </div>
-          )}
-        </section>
-
-        {/* DISC */}
-        <section className="rounded-lg border border-cyan-200 bg-cyan-50 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <BrainCircuit className="h-4 w-4 text-cyan-700" />
-            <span className="text-sm font-semibold text-cyan-900">DISC Personality Profile</span>
-          </div>
-          {disc ? (
-            <div className="space-y-2">
-              {disc.primary_style && (
-                <div className="text-sm text-cyan-900">
-                  Primary: <span className="font-medium">{disc.primary_style}</span>
-                  {disc.secondary_style ? ` · Secondary: ${disc.secondary_style}` : ""}
-                </div>
-              )}
-              <div className="grid sm:grid-cols-2 gap-2">
-                {DISC_DIMS.map(({ key, letter, label, color }) => {
-                  const dim: any = disc[key];
-                  if (!dim) return null;
-                  return (
-                    <div key={key} className="border border-cyan-200 bg-white rounded-md p-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium">{letter} — {label}</span>
-                        <span className="text-[10px] text-muted-foreground">{dim.score}</span>
-                      </div>
-                      <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
-                        <div className={`h-full ${color}`} style={{ width: `${Math.min(100, Math.max(0, dim.score))}%` }} />
-                      </div>
-                      {dim.evidence && <p className="text-[11px] text-muted-foreground">{dim.evidence}</p>}
+          <AccordionItem value="disc">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-cyan-700" /> DISC Personality Profile</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              {disc ? (
+                <div className="space-y-2">
+                  {disc.primary_style && (
+                    <div className="text-sm">
+                      Primary: <span className="font-medium">{disc.primary_style}</span>
+                      {disc.secondary_style ? ` · Secondary: ${disc.secondary_style}` : ""}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-cyan-700">Not enough information yet — completes as DD rounds are recorded.</p>
-          )}
-        </section>
-
-        {/* Opportunities in workflow */}
-        {openOpps.length > 0 && (
-          <section>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Opportunities in workflow</div>
-            <div className="space-y-2">
-              {openOpps.map((o: any) => (
-                <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
-                  <div className="border-b border-border py-3 hover:bg-muted/30 transition-colors flex justify-between items-center">
-                    <div>
-                      <div className="text-sm font-medium">{o.name}</div>
-                      {o.summary && <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{o.summary}</div>}
-                    </div>
-                    <Badge variant="outline">{o.current_stage}</Badge>
+                  )}
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {DISC_DIMS.map(({ key, letter, label, color }) => {
+                      const dim: any = disc[key];
+                      if (!dim) return null;
+                      return (
+                        <div key={key} className="border border-border rounded-md p-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium">{letter} — {label}</span>
+                            <span className="text-[10px] text-muted-foreground">{dim.score}</span>
+                          </div>
+                          <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
+                            <div className={`h-full ${color}`} style={{ width: `${Math.min(100, Math.max(0, dim.score))}%` }} />
+                          </div>
+                          {dim.evidence && <p className="text-[11px] text-muted-foreground">{dim.evidence}</p>}
+                        </div>
+                      );
+                    })}
                   </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Not enough information yet — completes as DD rounds are recorded.</p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="flags">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><Flag className="h-4 w-4 text-rose-600" /> Red Flags</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <RedFlagsTab opportunities={opportunities} />
+            </AccordionContent>
+          </AccordionItem>
+
+          {openOpps.length > 0 && (
+            <AccordionItem value="opps">
+              <AccordionTrigger className="text-sm">
+                <span className="inline-flex items-center gap-2"><Target className="h-4 w-4" /> Opportunities in workflow ({openOpps.length})</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {openOpps.map((o: any) => (
+                    <Link key={o.id} to="/dd-interview/$opportunityId/$round" params={{ opportunityId: o.id, round: "1" }} className="block">
+                      <div className="border-b border-border py-3 hover:bg-muted/30 transition-colors flex justify-between items-center">
+                        <div>
+                          <div className="text-sm font-medium">{o.name}</div>
+                          {o.summary && <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{o.summary}</div>}
+                        </div>
+                        <Badge variant="outline">{o.current_stage}</Badge>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
       </div>
 
       <aside className="space-y-6">
@@ -397,6 +376,55 @@ function OverviewTab({ contact: c, opportunity, openOpps, briefPending, onGenera
         )}
       </aside>
     </div>
+  );
+}
+
+/* ============ Stakeholder Brief tab (auto-generates on first view) ============ */
+
+function StakeholderBriefTab({ contact: c, briefPending, onGenerateBrief }: {
+  contact: any; briefPending: boolean; onGenerateBrief: (force: boolean) => void;
+}) {
+  const triggeredRef = useRef(false);
+  useEffect(() => {
+    if (triggeredRef.current) return;
+    if (!c.stakeholder_brief && !briefPending) {
+      triggeredRef.current = true;
+      onGenerateBrief(false);
+    }
+  }, [c.stakeholder_brief, briefPending, onGenerateBrief]);
+
+  return (
+    <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-semibold text-sky-900 inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Stakeholder Brief</div>
+        <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
+          <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
+        </Button>
+      </div>
+      {c.stakeholder_brief ? (
+        <div className="space-y-2 text-sm text-sky-900">
+          {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
+          {c.stakeholder_brief.talking_points?.length > 0 && (
+            <div>
+              <div className="text-xs font-medium mb-1">Talking points</div>
+              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+          {c.stakeholder_brief.watch_outs?.length > 0 && (
+            <div>
+              <div className="text-xs font-medium mb-1">Watch-outs</div>
+              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
+      )}
+    </section>
   );
 }
 
