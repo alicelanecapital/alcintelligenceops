@@ -30,7 +30,7 @@ function EmailSignatureCard() {
     queryKey: ["my-profile"],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase.from("profiles").select("id, email_signature, full_name").eq("id", user.id).maybeSingle();
+      const { data, error } = await supabase.from("profiles").select("id, email_signature, display_name").eq("id", user.id).maybeSingle();
       if (error) throw error;
       return data;
     },
