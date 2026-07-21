@@ -112,23 +112,49 @@ function InterviewsIndex() {
   });
 
 
-  const clientInterviews = (q.data ?? []).filter((i: any) => !i.is_private);
-  const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private);
-  const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client");
-  const calendarPrivate = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "private");
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // Scope Private + Client to the current month only.
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+  const yearStart = startOfYear(now);
+  const yearEnd = endOfYear(now);
+  const inMonth = (d: string | Date | null | undefined) => {
+    if (!d) return false;
+    const t = new Date(d).getTime();
+    return t >= monthStart.getTime() && t <= monthEnd.getTime();
+  };
+
+  // Detect recurring calendar events heuristically: same (user_email, normalized title)
+  // appearing 3+ times across the synced window.
+  const recurringKeys = new Set<string>();
+  {
+    const counts = new Map<string, number>();
+    for (const ev of dedupedUpcoming) {
+      const k = `${(ev.user_email ?? "").toLowerCase()}|${(ev.title ?? "").trim().toLowerCase()}`;
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    for (const [k, n] of counts) if (n >= 3) recurringKeys.add(k);
+  }
+  const isRecurring = (ev: any) =>
+    recurringKeys.has(`${(ev.user_email ?? "").toLowerCase()}|${(ev.title ?? "").trim().toLowerCase()}`);
+
+  const clientInterviews = (q.data ?? []).filter((i: any) => !i.is_private && inMonth(i.created_at));
+  const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private && inMonth(i.created_at));
+  const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client" && inMonth(ev.start_time));
+  const calendarPrivate = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "private" && inMonth(ev.start_time) && !isRecurring(ev));
   const bookedEvents = (eventsQ.data ?? []).filter((e: any) => {
     if (!e.booked || e.rejected) return false;
-    const end = e.end_date ?? e.start_date;
-    return !end || end >= todayIso;
+    const d = e.start_date ? new Date(e.start_date) : null;
+    if (!d) return false;
+    return d >= yearStart && d <= yearEnd;
   });
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
       <PageHeader
         eyebrow="Diagnostic Engine"
-        title="Meetings"
-        description="Founder meetings recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
+        title="Engagements"
+        description="Founder engagements recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
         actions={<div className="flex items-center gap-2"><SyncGoogleButton mode="team" /><NewInterview /></div>}
       />
 
