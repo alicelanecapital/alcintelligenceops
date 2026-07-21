@@ -126,6 +126,32 @@ function CalendarScreen() {
     },
   });
 
+  // All synced Google Calendar events across every connected teammate, so the
+  // unified calendar reflects each account's real meetings (previously they only
+  // showed on the Meetings screen).
+  const teamEvents = useQuery({
+    queryKey: ["team-calendar-events"],
+    queryFn: fetchAllTeamCalendarEvents,
+  });
+
+  // Team roster — used to resolve a teammate's colour by email.
+  const team = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
+  const colorByEmail = useMemo(() => {
+    const m = new Map<string, TeamMemberColor>();
+    for (const tm of (team.data ?? []) as TeamMember[]) m.set(tm.email.toLowerCase(), tm.color);
+    return m;
+  }, [team.data]);
+  const resolveColor = (email?: string): TeamMemberColor => {
+    if (!email) return "gray";
+    return colorByEmail.get(email.toLowerCase()) ?? hashColor(email.toLowerCase());
+  };
+
+  const isHolidayRow = (r: any) => {
+    const cal = (r.calendar_id ?? "").toLowerCase();
+    const title = (r.title ?? "").toLowerCase();
+    return cal.includes("holiday") || title.includes("holiday");
+  };
+
   const items: CalItem[] = useMemo(() => {
     const out: CalItem[] = [];
     (events.data ?? []).forEach((e: any) => {
@@ -141,12 +167,23 @@ function CalendarScreen() {
       const cat = (i.contact?.category ?? "unknown") as ContactCategory;
       out.push({ id: `interview-${i.id}`, date: new Date(i.created_at), label: i.title ?? "Meeting", type: "meeting", sub: i.contact?.name, category: cat });
     });
+    (teamEvents.data ?? []).forEach((g: any) => {
+      if (!g.start_time || isHolidayRow(g)) return; // holidays render as day background, not as a pill
+      out.push({
+        id: `gcal-${g.user_email}-${g.google_event_id ?? g.title}-${g.start_time}`,
+        date: new Date(g.start_time),
+        label: g.title ?? "(no title)",
+        type: "meeting",
+        sub: g.user_email,
+        owner: g.user_email,
+      });
+    });
     (tasks.data ?? []).forEach((t: any) => {
       if (!t.due_date || t.status === "Done") return;
       out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee });
     });
     return out;
-  }, [events.data, meetings.data, tasks.data, interviews.data]);
+  }, [events.data, meetings.data, tasks.data, interviews.data, teamEvents.data]);
 
   const holidayByDay = useMemo(() => {
     const m = new Map<string, string>();
@@ -162,11 +199,27 @@ function CalendarScreen() {
   const gridEnd = endOfWeek(endOfMonth(month));
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
-  // Events, tasks, and meetings all render as plain text rows now — no colour coding on entries.
-  const itemStyle = (_it: CalItem): string => "text-foreground";
+  const itemStyle = (it: CalItem): string => {
+    if (it.type === "event") return "text-green-700";
+    if (it.type === "task") return "text-orange-600";
+    if (it.type === "meeting" && it.owner) {
+      const c = COLOR_CLASSES[resolveColor(it.owner)] ?? DEFAULT_COLOR_CLASSES;
+      return c.badge;
+    }
+    return "text-foreground";
+  };
 
   const itemsForDay = (day: Date) => items.filter((it) => isSameDay(it.date, day));
   const selectedItems = selectedDay ? itemsForDay(selectedDay).sort((a, b) => a.date.getTime() - b.date.getTime()) : [];
+
+  // Legend — emails that actually have events synced this window.
+  const legendOwners = useMemo(() => {
+    const emails = new Set<string>();
+    for (const g of (teamEvents.data ?? []) as any[]) {
+      if (!isHolidayRow(g) && g.user_email) emails.add(g.user_email);
+    }
+    return Array.from(emails).sort();
+  }, [teamEvents.data]);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
