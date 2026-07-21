@@ -97,6 +97,16 @@ function InterviewsIndex() {
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
   });
 
+  const stopMut = useMutation({
+    mutationFn: (id: string) => stopInterview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["interviews"] });
+      toast.success("Meeting stopped");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to stop"),
+  });
+
+
   const clientInterviews = (q.data ?? []).filter((i: any) => !i.is_private);
   const privateInterviews = (q.data ?? []).filter((i: any) => i.is_private);
   const calendarClient = dedupedUpcoming.filter((ev) => classifyCalendarEvent(ev) === "client");
