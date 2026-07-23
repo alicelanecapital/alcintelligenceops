@@ -348,14 +348,14 @@ function AccountsScreen() {
             <div className="font-serif text-lg">Accounts</div>
           </div>
 
-          <div className="bg-card space-y-2">
+          <div className="bg-card divide-y divide-border/40">
             {(members.data ?? []).map((m) => {
               const conn = connectionByEmail.get(m.email);
               const classes = COLOR_CLASSES[m.color];
               const isMe = m.email.toLowerCase() === myEmail;
               return (
                 <div key={m.id} className="px-5 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="grid grid-cols-[minmax(0,1fr)_120px_150px_32px_32px] items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
                       <div className="min-w-0">
@@ -371,39 +371,38 @@ function AccountsScreen() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        value={m.color}
-                        onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
-                        className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
-                      >
-                        {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
 
-                      {conn ? (
-                        <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
-                          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                          {syncMut.isPending ? "Syncing…" : "Sync now"}
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => connect(m.email)}>
-                          <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
-                        </Button>
-                      )}
+                    <select
+                      value={m.color}
+                      onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
+                      className="h-8 w-full text-xs border border-input rounded-md bg-background px-2 capitalize"
+                    >
+                      {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
 
-                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
-                        <Pencil className="h-3.5 w-3.5" />
+                    {conn ? (
+                      <Button size="sm" className="w-full" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                        {syncMut.isPending ? "Syncing…" : "Sync now"}
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive"
-                        title={conn ? "Remove and disconnect account" : "Remove account"}
-                        onClick={() => deleteMemberMut.mutate(m)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Button size="sm" className="w-full" onClick={() => connect(m.email)}>
+                        <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect
                       </Button>
-                    </div>
+                    )}
+
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive"
+                      title={conn ? "Remove and disconnect account" : "Remove account"}
+                      onClick={() => deleteMemberMut.mutate(m)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                   {conn && <SubCalendarsList email={m.email} />}
                 </div>
