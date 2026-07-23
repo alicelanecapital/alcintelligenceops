@@ -77,7 +77,7 @@ export const createGoogleCalendarEvent = createServerFn({ method: "POST" })
     );
     if (!res.ok) throw new Error(`Google create failed [${res.status}]: ${(await res.text()).slice(0, 300)}`);
     const ev = await res.json();
-    await mirror(email, data.calendarId, ev);
+    await mirror(email, data.calendarId, ev, { status: "adhoc" });
     return { id: ev.id as string };
   });
 
