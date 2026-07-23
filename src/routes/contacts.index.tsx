@@ -182,6 +182,8 @@ function ContactsIndex() {
             </div>
           )}
         </div>
+      ) : view === "sheet" ? (
+        <ContactsDatasheet rows={displayed} />
       ) : (
         <div className="rounded-lg divide-y divide-border bg-card">
           {displayed.map((c) => <ContactListRow key={c.id} c={c} />)}
@@ -192,6 +194,7 @@ function ContactsIndex() {
           )}
         </div>
       )}
+
 
       <AddContactDialog open={addOpen} onClose={() => setAddOpen(false)} />
 
