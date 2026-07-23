@@ -1,28 +1,29 @@
-## Goal
-Show organiser + attendees inline on Google calendar rows in the Day Detail panel (8px, no extra line). Treat three specific personal emails as Busy on the calendar grid, and hide their organiser/attendee info in the day panel.
+## Rename Intelligence Toolkits → Playbooks
 
-## Changes
+Pure UI/label rename. No schema, route, or business-logic changes. The existing `/admin/dd-framework` route is added as its own nav link.
 
-### 1. `src/lib/google-calendar.ts`
-Add `organizer_email` to the select in `fetchAllTeamCalendarEvents` and to the return type.
+### 1. Nav (`src/components/AppShell.tsx`)
+Under Admin, replace the single "Intelligence Toolkits" item with two entries (order):
+- `/admin/toolkits` → **Playbooks** (existing icon)
+- `/admin/dd-framework` → **DD Intelligence Engine** (icon: `Brain` or existing `ShieldCheck` variant)
 
-### 2. `src/routes/calendar.tsx`
+### 2. Playbooks index (`src/routes/admin.toolkits.index.tsx`)
+- Page title/eyebrow: "Playbooks" (was "Intelligence Toolkits").
+- Description mentions playbooks instead of toolkits.
+- Head meta title: "Playbooks · Alice Lane".
+- Button labels: "New playbook" / "Create playbook" / "Edit playbook" / "Delete this playbook?".
+- Empty state: "No playbooks yet".
+- Toast messages: "Playbook created/updated/deleted".
+- The DD row: rename displayed name from "DD Intelligence Engine" to **"DD Intelligence Engine (Playbook Template)"** (label only; the underlying seeded toolkit row keeps its id, so the `isDD` check by name still routes to `/admin/dd-framework`). Update that name check to match the new label.
 
-**a. Extend `CalItem`** with `organizerEmail?: string` and `attendees?: {email?: string; name?: string|null}[]`, and populate them from the Google row.
+### 3. Playbook designer (`src/routes/admin.toolkits.$id.tsx`)
+- Eyebrow "Admin · Playbook", back-link text "All playbooks", head meta "Playbook designer · Alice Lane", inline copy about "custom playbooks".
 
-**b. Busy detection by email.** Add a constant:
-```
-const BUSY_EMAILS = new Set([
-  "georgia.adams@smartify.co.za",
-  "info@georgiaadams.co.za",
-  "nonastasia@gmail.com",
-]);
-```
-When building the Google item, mark `busy = true` if the existing bracket-token check matches OR if the organizer_email OR any attendee email is in `BUSY_EMAILS`. For those rows the calendar chip already renders "GA" + red no-entry icon via existing `busy` path — no grid change needed beyond making `initialsFromEmail` return "GA" for these emails (extend `BUSY_INITIALS` map).
+### 4. Not touched
+- Table name `toolkits`, function names in `src/lib/toolkits.ts`, route paths (`/admin/toolkits`), query keys — internal only.
+- DD Intelligence Engine functionality at `/admin/dd-framework` — unchanged, just now reachable directly from Admin nav.
 
-**c. Day Detail row (lines ~426-466).** Inside the existing `<div className="flex-1 min-w-0">` block, append a single inline `<span className="text-[8px] text-muted-foreground ml-2">` on the same line as the title (no new `<div>`), showing `Org: <organizer> · With: <a1>, <a2>, +N` — truncated to 2 names + overflow count. Suppress this span entirely when `it.busy` is true (per spec: show nothing for those emails). Only render for `sourceTable === "google_calendar_events"`.
-
-## Notes
-- Attendees are already selected in the query; only `organizer_email` is missing from the select.
-- No DB migration required.
-- No changes to the meetings/engagements screen.
+### Files edited
+- `src/components/AppShell.tsx`
+- `src/routes/admin.toolkits.index.tsx`
+- `src/routes/admin.toolkits.$id.tsx`
