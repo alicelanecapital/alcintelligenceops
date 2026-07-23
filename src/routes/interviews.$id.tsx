@@ -274,14 +274,14 @@ function LiveView({ interview }: { interview: any }) {
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 py-4">
+    <div className="max-w-[1600px] mx-auto px-6 py-6">
       {/* Header strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border rounded-md overflow-hidden border border-border mb-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
         <Strip label="Founder" value={interview.founder_name} />
         <Strip label="Business" value={interview.business_name} />
         <Strip label="Stage" value={
           <select value={stagePointer} onChange={(e) => { setStagePointer(e.target.value); setInterviewStatus(id, { current_stage: e.target.value }); }}
-            className="bg-transparent border-none outline-none font-serif text-base p-0">
+            className="bg-transparent border-none outline-none font-serif text-lg p-0">
             {INTERVIEW_STAGES.map(s => <option key={s.name}>{s.name}</option>)}
           </select>
         } />
@@ -294,141 +294,47 @@ function LiveView({ interview }: { interview: any }) {
         } />
       </div>
 
-      <div className="grid grid-cols-12 gap-3">
-        {/* Left sidebar — tabs: Guide / AI signals / Docs */}
-        <aside className="col-span-3">
-          <Card><CardContent className="p-3">
-            <Tabs defaultValue="guide">
-              <TabsList className="grid grid-cols-3 h-8 mb-2">
-                <TabsTrigger value="guide" className="text-xs">Guide</TabsTrigger>
-                <TabsTrigger value="ai" className="text-xs">AI signals</TabsTrigger>
-                <TabsTrigger value="docs" className="text-xs">Docs</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="guide" className="space-y-3 mt-0">
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Interview guide</div>
-                  <div className="space-y-1">
-                    {INTERVIEW_STAGES.map(s => (
-                      <button key={s.name}
-                        onClick={() => { setStagePointer(s.name); setInterviewStatus(id, { current_stage: s.name }); }}
-                        className={`w-full text-left px-2 py-1 rounded text-xs flex items-center justify-between ${stagePointer === s.name ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}>
-                        <span>{s.name}</span><ChevronRight className="h-3 w-3 opacity-50" />
-                      </button>
-                    ))}
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left rail — interview guide */}
+        <aside className="col-span-3 space-y-3">
+          <Card><CardContent className="p-4">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Interview guide</div>
+            <div className="space-y-1.5">
+              {INTERVIEW_STAGES.map(s => (
+                <button key={s.name}
+                  onClick={() => { setStagePointer(s.name); setInterviewStatus(id, { current_stage: s.name }); }}
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between ${stagePointer === s.name ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}>
+                  <span>{s.name}</span><ChevronRight className="h-3 w-3 opacity-50" />
+                </button>
+              ))}
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Sub-topics · {stagePointer}</div>
+            <ul className="text-xs space-y-1 text-foreground/75">
+              {(INTERVIEW_STAGES.find(s => s.name === stagePointer)?.topics ?? []).map(t => <li key={t}>· {t}</li>)}
+            </ul>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Suggested follow-ups</div>
+            {followUps.length === 0 ? <div className="text-xs text-muted-foreground italic">Waiting for signal…</div> :
+              followUps.map((a: any, i: number) => {
+                const p: any = a.payload ?? {};
+                return (
+                  <div key={i} className="border-b border-border last:border-0 py-2">
+                    <div className="text-sm font-medium">{p.question}</div>
+                    {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
+                    {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
                   </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Sub-topics · {stagePointer}</div>
-                  <ul className="text-xs space-y-0.5 text-foreground/75">
-                    {(INTERVIEW_STAGES.find(s => s.name === stagePointer)?.topics ?? []).map(t => <li key={t}>· {t}</li>)}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Suggested follow-ups</div>
-                  {followUps.length === 0 ? <div className="text-xs text-muted-foreground italic">Waiting for signal…</div> :
-                    followUps.map((a: any, i: number) => {
-                      const p: any = a.payload ?? {};
-                      return (
-                        <div key={i} className="border-b border-border last:border-0 py-1.5">
-                          <div className="text-xs font-medium">{p.question}</div>
-                          {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
-                        </div>
-                      );
-                    })}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="ai" className="space-y-2 mt-0">
-                {scores && (
-                  <Accordion type="multiple" defaultValue={["scoring"]}>
-                    <AccordionItem value="scoring" className="border-0">
-                      <AccordionTrigger className="py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:no-underline">Live scoring</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-2">
-                          {Object.entries(scores).map(([k, v]: any) => (
-                            <div key={k}>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="capitalize">{k.replace(/_/g, " ")}</span>
-                                <Badge className={`text-[10px] border ${scoreTone(v.value)}`}>{v.value}</Badge>
-                              </div>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">{v.why}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="risks" className="border-0">
-                      <AccordionTrigger className="py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:no-underline">Risks ({risks.length})</AccordionTrigger>
-                      <AccordionContent>
-                        {risks.length === 0 ? <div className="text-xs text-muted-foreground italic">None yet.</div> :
-                          risks.map((a: any, i: number) => {
-                            const p: any = a.payload ?? {};
-                            return (
-                              <div key={i} className="border-b border-border last:border-0 py-1.5">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium text-xs">{p.category}</div>
-                                  <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>
-                                </div>
-                                <div className="text-[11px] text-muted-foreground mt-0.5">{p.reason}</div>
-                              </div>
-                            );
-                          })}
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="contra" className="border-0">
-                      <AccordionTrigger className="py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:no-underline">Contradictions ({contradictions.length})</AccordionTrigger>
-                      <AccordionContent>
-                        {contradictions.length === 0 ? <div className="text-xs text-muted-foreground italic">None yet.</div> :
-                          contradictions.map((a: any, i: number) => {
-                            const p: any = a.payload ?? {};
-                            return (
-                              <div key={i} className="border-b border-border last:border-0 py-1.5">
-                                <div className="text-xs italic">"{p.statement_a}"</div>
-                                <div className="text-[11px] italic text-muted-foreground">vs "{p.statement_b}"</div>
-                              </div>
-                            );
-                          })}
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="missing" className="border-0">
-                      <AccordionTrigger className="py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:no-underline">Missing evidence ({missing.length})</AccordionTrigger>
-                      <AccordionContent>
-                        {missing.length === 0 ? <div className="text-xs text-muted-foreground italic">None yet.</div> :
-                          missing.map((a: any, i: number) => {
-                            const p: any = a.payload ?? {};
-                            return (
-                              <div key={i} className="border-b border-border last:border-0 py-1.5">
-                                <div className="text-xs font-medium">{p.topic}</div>
-                                <div className="text-[11px] text-muted-foreground">{p.why}</div>
-                              </div>
-                            );
-                          })}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                )}
-                {!scores && <div className="text-xs text-muted-foreground italic">Awaiting first analysis…</div>}
-              </TabsContent>
-
-              <TabsContent value="docs" className="mt-0">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document requests</div>
-                {(docs.data ?? []).length === 0 ? <div className="text-xs text-muted-foreground italic">Auto-generated as gaps appear.</div> :
-                  (docs.data ?? []).slice(0, 12).map((d: any) => (
-                    <div key={d.id} className="border-b border-border last:border-0 py-1.5">
-                      <div className="text-xs">{d.doc_type}</div>
-                      {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
-                    </div>
-                  ))}
-              </TabsContent>
-            </Tabs>
+                );
+              })}
           </CardContent></Card>
         </aside>
 
         {/* Center — transcript */}
         <section className="col-span-6">
           <Card>
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
                 <div className="flex items-center gap-2 text-xs flex-wrap">
@@ -459,7 +365,7 @@ function LiveView({ interview }: { interview: any }) {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="max-h-[55vh] overflow-y-auto pr-2 pt-2">
+                      <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
                         {g.utterances.length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
                         <div className="space-y-2">
                           {g.utterances.map((u: any) => (
@@ -475,29 +381,85 @@ function LiveView({ interview }: { interview: any }) {
           </Card>
         </section>
 
-        {/* Right sidebar — Notes tabs (Assessment / Observations) */}
-        <aside className="col-span-3">
-          <Card><CardContent className="p-3">
-            <Tabs defaultValue="assessment">
-              <TabsList className="grid grid-cols-2 h-8 mb-2">
-                <TabsTrigger value="assessment" className="text-xs">Assessment</TabsTrigger>
-                <TabsTrigger value="observations" className="text-xs">Observations</TabsTrigger>
-              </TabsList>
-              <TabsContent value="assessment" className="mt-0 space-y-2">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Private notes · never shown externally</div>
-                {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (
-                  <NoteBox key={section} interviewId={id} section={section} initial={(notes.data ?? []).find((n: any) => n.section === section)?.body ?? ""} compact />
+
+        {/* Right — AI analysis */}
+        <aside className="col-span-3 space-y-3">
+          {scores && (
+            <Card><CardContent className="p-4">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Live scoring</div>
+              <div className="space-y-2">
+                {Object.entries(scores).map(([k, v]: any) => (
+                  <div key={k}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="capitalize">{k.replace(/_/g, " ")}</span>
+                      <Badge className={`text-[10px] border ${scoreTone(v.value)}`}>{v.value}</Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{v.why}</div>
+                  </div>
                 ))}
-              </TabsContent>
-              <TabsContent value="observations" className="mt-0 space-y-2">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Body language · interviewer-supplied</div>
-                {["Eye contact","Energy","Defensiveness","Confidence"].map(s => (
-                  <NoteBox key={s} interviewId={id} section={s} initial={(notes.data ?? []).find((n: any) => n.section === s)?.body ?? ""} compact />
-                ))}
-              </TabsContent>
-            </Tabs>
+              </div>
+            </CardContent></Card>
+          )}
+          <RailList title="Risk alerts" items={risks} render={(p) => (
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="font-medium text-sm">{p.category}</div>
+                <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">{p.reason}</div>
+              {p.mitigation && <div className="text-[11px] mt-1"><span className="font-medium">Mitigation:</span> {p.mitigation}</div>}
+            </div>
+          )} />
+          <RailList title="Contradictions" items={contradictions} render={(p) => (
+            <div>
+              <div className="text-xs italic">"{p.statement_a}"</div>
+              <div className="text-xs italic text-muted-foreground mt-1">vs "{p.statement_b}"</div>
+              <div className="text-[11px] mt-1">{p.reason}</div>
+            </div>
+          )} />
+          <RailList title="Missing evidence" items={missing} render={(p) => (
+            <div>
+              <div className="text-sm font-medium">{p.topic}</div>
+              <div className="text-[11px] text-muted-foreground">{p.why}</div>
+            </div>
+          )} />
+          <Card><CardContent className="p-4">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document requests</div>
+            {(docs.data ?? []).length === 0 ? <div className="text-xs text-muted-foreground italic">Auto-generated as gaps appear.</div> :
+              (docs.data ?? []).slice(0, 8).map((d: any) => (
+                <div key={d.id} className="border-b border-border last:border-0 py-1.5">
+                  <div className="text-sm">{d.doc_type}</div>
+                  {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
+                </div>
+              ))}
           </CardContent></Card>
         </aside>
+      </div>
+
+      {/* Manual assessment */}
+      <div className="grid grid-cols-12 gap-4 mt-4">
+        <div className="col-span-8">
+          <Card><CardContent className="p-6">
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
+              <div className="font-serif text-lg">Private notes · never shown externally</div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (
+                <NoteBox key={section} interviewId={id} section={section} initial={(notes.data ?? []).find((n: any) => n.section === section)?.body ?? ""} />
+              ))}
+            </div>
+          </CardContent></Card>
+        </div>
+        <div className="col-span-4">
+          <Card><CardContent className="p-6">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Observations · body language</div>
+            <div className="text-xs text-muted-foreground italic mb-3">Interviewer-supplied. Never used as sole basis for a decision.</div>
+            {["Eye contact","Energy","Defensiveness","Confidence"].map(s => (
+              <NoteBox key={s} interviewId={id} section={s} initial={(notes.data ?? []).find((n: any) => n.section === s)?.body ?? ""} compact />
+            ))}
+          </CardContent></Card>
+        </div>
       </div>
     </div>
   );
@@ -505,9 +467,9 @@ function LiveView({ interview }: { interview: any }) {
 
 function Strip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="bg-card px-3 py-2">
+    <div className="bg-card px-4 py-3">
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-      <div className="font-serif text-base mt-0.5 truncate">{value}</div>
+      <div className="font-serif text-lg mt-0.5 truncate">{value}</div>
     </div>
   );
 }
