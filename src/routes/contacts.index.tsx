@@ -946,7 +946,7 @@ function ContactsDatasheet({ rows }: { rows: ContactRow[] }) {
     { key: "position", label: "Position" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
-    { key: "linkedin_url", label: "LinkedIn" },
+    { key: "linkedin", label: "LinkedIn" },
     { key: "website", label: "Website" },
   ];
   async function save(id: string, key: string, value: string) {
