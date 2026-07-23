@@ -474,20 +474,42 @@ function Strip({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 function fmt(ms: number) { const s = Math.floor(ms/1000); const m = Math.floor(s/60); return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
-function transcriptTitle(recording: boolean, uploadedAt: Date | null, interview: any, utterances: any[] | undefined) {
-  if (recording) return "Live transcript";
-  const items = utterances ?? [];
-  if (items.length === 0 && !uploadedAt) return "Live transcript";
-  const d =
-    uploadedAt ??
-    (interview?.started_at ? new Date(interview.started_at) : null) ??
-    (interview?.ended_at ? new Date(interview.ended_at) : null) ??
-    (items[0]?.created_at ? new Date(items[0].created_at) : new Date());
-  return `Transcript · ${format(d, "MMM d, yyyy · HH:mm")}`;
+function transcriptGroups(utterances: any[], interview: any) {
+  // Today each interview holds one transcript session. Grouping by session_id
+  // lets future multi-session meetings stack transcripts newest-first.
+  const map = new Map<string, any[]>();
+  for (const u of utterances) {
+    const key = u.session_id || "current";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(u);
+  }
+  if (map.size === 0) {
+    const d = interview?.started_at ? new Date(interview.started_at) : new Date();
+    return [{ id: "current", title: transcriptGroupTitle(d), utterances: [] }];
+  }
+  const groups = Array.from(map.entries()).map(([id, items]) => {
+    const d = items[0]?.created_at ? new Date(items[0].created_at) : (interview?.started_at ? new Date(interview.started_at) : new Date());
+    return { id, title: transcriptGroupTitle(d), utterances: items };
+  });
+  groups.sort((a, b) => {
+    const ta = a.utterances[0]?.created_at || 0;
+    const tb = b.utterances[0]?.created_at || 0;
+    return tb.localeCompare(ta);
+  });
+  return groups;
+}
+function transcriptGroupTitle(d: Date) {
+  return `TRANSCRIPT · ${format(d, "MMM d, yyyy").toUpperCase()} · ${format(d, "HH:mm")}`;
 }
 function scoreTone(value: any) {
   const n = typeof value === "number" ? value : parseFloat(String(value));
-  if (!isFinite(n)) return "bg-secondary text-secondary-foreground border-border";
+  if (!isFinite(n)) {
+    const s = String(value).toLowerCase();
+    if (s.includes("low") || s === "poor") return "bg-red-100 text-red-800 border-red-200";
+    if (s.includes("medium") || s === "fair" || s.includes("moderate")) return "bg-amber-100 text-amber-800 border-amber-200";
+    if (s.includes("high") || s === "good" || s.includes("strong")) return "bg-green-100 text-green-800 border-green-200";
+    return "bg-secondary text-secondary-foreground border-border";
+  }
   if (n >= 8) return "bg-green-100 text-green-800 border-green-200";
   if (n >= 5) return "bg-amber-100 text-amber-800 border-amber-200";
   return "bg-red-100 text-red-800 border-red-200";
