@@ -153,13 +153,30 @@ function LiveView({ interview }: { interview: any }) {
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [currentSpeaker, setCurrentSpeaker] = useState<"Founder" | "Interviewer">("Founder");
-  const [stagePointer, setStagePointer] = useState(interview.current_stage ?? "Founder");
   const startedAtRef = useRef<number>(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
   const [openSessions, setOpenSessions] = useState<string[]>([]);
+
+  // Playbook: the top-of-workspace stepper and left-hand questions column both come from
+  // the playbook picked when the meeting was started. Fallback to the DD Intelligence
+  // Engine template so pre-playbook interviews still render their historical 5-round view.
+  const playbook = useQuery<PlaybookShape>({
+    queryKey: ["iv-playbook", interview.playbook_id ?? "default"],
+    queryFn: () => fetchPlaybookShape(interview.playbook_id ?? null),
+  });
+  const steps = playbook.data?.steps ?? [];
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  useEffect(() => {
+    if (steps.length && !steps.some((s) => s.key === currentStep)) setCurrentStep(steps[0].key);
+  }, [steps, currentStep]);
+  const stepDetail = useQuery({
+    queryKey: ["iv-playbook-step", playbook.data?.playbookId ?? "none", currentStep],
+    enabled: Boolean(playbook.data),
+    queryFn: () => fetchPlaybookStepDetail(playbook.data!, currentStep),
+  });
 
   // Elapsed timer
   useEffect(() => {
