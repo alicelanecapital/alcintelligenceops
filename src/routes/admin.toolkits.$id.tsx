@@ -10,8 +10,8 @@ export const Route = createFileRoute("/admin/toolkits/$id")({
   component: () => <AppShell><ToolkitDesigner /></AppShell>,
   head: () => ({
     meta: [
-      { title: "Toolkit designer · Alice Lane" },
-      { name: "description", content: "Design the rounds, questions and required documents for this Alice Lane toolkit." },
+      { title: "Playbook designer · Alice Lane" },
+      { name: "description", content: "Design the rounds, questions and required documents for this Alice Lane playbook." },
     ],
   }),
 });
@@ -24,11 +24,11 @@ function ToolkitDesigner() {
   return (
     <div className="max-w-5xl mx-auto px-8 py-10">
       <Link to="/admin/toolkits" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="h-3.5 w-3.5" /> All toolkits
+        <ArrowLeft className="h-3.5 w-3.5" /> All playbooks
       </Link>
       <PageHeader
-        eyebrow="Admin · Toolkit"
-        title={toolkit?.name ?? "Toolkit"}
+        eyebrow="Admin · Playbook"
+        title={toolkit?.name ?? "Playbook"}
         description={toolkit?.description ?? "Design the rounds, questions and required documents for this playbook."}
       />
 
@@ -38,10 +38,10 @@ function ToolkitDesigner() {
         </div>
         <div className="font-serif text-lg">Designer coming online</div>
         <p className="text-sm text-muted-foreground mt-2 max-w-lg mx-auto">
-          The round / question / document designer is currently wired up for the DD Intelligence Engine. Support for custom toolkits will be added next -- ping the team when you're ready to define this playbook and we'll enable the designer for it.
+          The round / question / document designer is currently wired up for the DD Intelligence Engine. Support for custom playbooks will be added next -- ping the team when you're ready to define this playbook and we'll enable the designer for it.
         </p>
         <Link to="/admin/toolkits" className="inline-block mt-4">
-          <Button variant="outline" size="sm">Back to toolkits</Button>
+          <Button variant="outline" size="sm">Back to playbooks</Button>
         </Link>
       </div>
     </div>
