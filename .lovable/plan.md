@@ -1,52 +1,25 @@
+## Live Transcript accordion + Live Scoring badge colors
 
-## 1. New Event save
-Root cause: the Events list filters to `end_date/start_date >= today`, and new events don't get `is_new=true`, so a freshly created event with today's or past dates disappears from view even though it saved.
-- In `src/routes/events.tsx`, when opening "Add event", seed `editingEvent` with `{ is_new: true, status: "Medium" }`.
-- Change the Upcoming list filter to include events with no dates OR dates >= today.
-- Show a validation toast if `name` is empty on save.
+### 1. Live Transcript accordion (`src/routes/interviews.$id.tsx`)
+- Wrap the Live Transcript card in a shadcn `Accordion` (type="single", collapsible) with one item.
+- Header row keeps the current controls (Speaker toggle, Start/Stop, Upload transcript). Stop propagation on those controls so clicks don't toggle the accordion.
+- Title text:
+  - Default / while recording: `Live transcript`.
+  - After a transcript upload OR after Stop/finalize (utterances exist and `recording === false`): show meeting date + time, e.g. `Transcript · Jul 23, 2026 · 14:32`. Source: `interview.started_at` → `interview.ended_at` → earliest utterance timestamp → now.
+- Default open state: open while `recording === true` or utterances.length === 0. Auto-collapse after upload completes and after Stop finalizes. User can still re-expand.
+- Body is the existing transcript list + speaker editor, unchanged.
 
-## 2. "Personal Contacts" event grouping
-- Data change: null out `contacts.source_event_id` for any contact whose linked event is named "Personal Contacts" (targets Botha and any others), then delete the "Personal Contacts" event row. The contacts fall into the existing "No event" bucket automatically.
+### 2. Colour the Live Scoring badges (`src/routes/interviews.$id.tsx`)
+- The Live Scoring panel currently renders each score as a neutral badge. Give the badges semantic colours based on the score value:
+  - High (≥ 8 / 10): pastel forest green background, dark green text — matches app accent.
+  - Mid (5–7): pastel amber background, dark amber text.
+  - Low (< 5): pastel red background, dark red text.
+  - No score yet / null: existing neutral muted badge.
+- Use the shared badge component with a small `scoreTone(value)` helper local to the file. No new tokens; use existing Tailwind pastel utilities already used elsewhere (e.g. `bg-green-100 text-green-800`, `bg-amber-100 text-amber-800`, `bg-red-100 text-red-800`) to stay consistent.
+- Keep the topic/label text unchanged; only the badge pill colour changes.
 
-## 3. Event picker deduplication
-Event dropdowns currently list duplicates from Google-imported/discovered rows.
-- In the shared `EventSelect` component, dedupe options by normalized name + start_date, keeping the earliest-created row. Sort alphabetically.
-
-## 4. Calendar duplicate cleanup — same account, same event
-Google-synced rows sometimes duplicate within a single account (event appearing in both the primary and a sub-calendar the user also owns).
-- SQL cleanup: for each `(user_email, google_event_id)` and, when `google_event_id` is null, `(user_email, title, start_time)`, keep the earliest `created_at` row and delete the rest from `google_calendar_events`.
-- Update the sync upsert path in `src/lib/google-calendar-sync.functions.ts` to prevent re-introducing the duplicates (dedupe in memory before upsert using the same key).
-- Apply the same dedupe key to the Meetings screen and the Calendar screen render passes so any surviving duplicates still collapse in the UI.
-
-## 5. Rename "Unavailable" → "Busy"
-- Global rename across the app for the bracketed-private masking label used on the Calendar and Meetings screens (`(smartify)`, `(nonastasia)`, `(georgiaadams)` titles show as "Busy" instead of "Unavailable").
-- Update the constant, all render sites, tooltip text, and legend.
-
-## 6. Company description hallucinations
-- Tighten the AI description prompt: require empty string when sources are thin, forbid invented awards/valuations/investors, lower temperature.
-- On the Contact Overview, if `company_description` is empty show a "Generate description" affordance instead of auto-filling speculative text.
-
-## 7. Relationship History (AI Overview)
-- New "Relationship History" panel above "DISC Personality Profile" on the Contact AI Overview tab.
-- New server function `getRelationshipTimeline({ contactId })` reads `communications` rows for the contact, sends them to Lovable AI, returns `{ bullets: [{ date, summary, source }] }`.
-- Render as a vertical timeline (date · bullet) with a subtle left rail. Empty state: "No email intelligence yet."
-
-## 8. Upload transcript in Live Workspace
-- Add an "Upload transcript" button in the Live Transcript frame.
-- Accepts `.txt`, `.vtt`, `.srt`, `.docx` (reuse `extract-transcript-text`).
-- Parses to utterances (split on blank lines or speaker labels; otherwise single utterance) and inserts via `insertUtterance`.
-- After upload, marks interview `completed` and auto-runs `finalizeInterview`.
-
-## 9. New Founder Meeting dialog
-- In `src/components/NewMeetingDialog.tsx` remove the "Existing founder (optional)" select block; keep only Founder name / Business / Industry. Remove the unused `founders` query and `founderId` state.
-
-## 10. Live Workspace auto-finalize + control placement
-- Remove the "End interview & generate memo" button from Manual Assessment.
-- Trigger `finalizeInterview` automatically when Stop is clicked or a transcript upload completes.
-- Move Start/Stop out of the header strip into the Live Transcript card header (right side, next to the Speaker toggle).
-- Show Start only when `recording === false`, Stop only when `recording === true`, so the button no longer sticks on "Stop" after finalization. On finalize, set `recording=false` and swap in a "Regenerate memo" secondary link.
-
-## Technical notes
-- Files touched: `src/routes/events.tsx`, `src/components/EventSelect.tsx`, `src/routes/contacts.$id.tsx`, `src/routes/interviews.$id.tsx`, `src/routes/interviews.index.tsx`, `src/routes/calendar.tsx`, `src/components/NewMeetingDialog.tsx`, `src/lib/contact-brief.functions.ts`, `src/lib/google-calendar-sync.functions.ts`, plus new `src/lib/relationship-history.functions.ts`.
-- One SQL migration + data cleanup: "Personal Contacts" event, and `google_calendar_events` intra-account duplicates.
-- No schema additions required for Relationship History (uses existing `communications`).
+### Technical notes
+- Single file: `src/routes/interviews.$id.tsx`.
+- Accordion from `@/components/ui/accordion`. Date formatting via `date-fns` `format(d, "MMM d, yyyy · HH:mm")`.
+- Local state `transcriptOpen`; flip to `false` in the upload-success handler and after auto-finalize on Stop.
+- No schema, server function, or cross-route changes.

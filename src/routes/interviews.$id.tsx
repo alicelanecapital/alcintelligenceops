@@ -14,9 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, ChevronRight, Circle, FileText, Mic, Sparkles, StopCircle } from "lucide-react";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/$id")({ component: () => <AppShell><InterviewWorkspace /></AppShell> });
 
@@ -162,6 +164,8 @@ function LiveView({ interview }: { interview: any }) {
   const streamRef = useRef<MediaStream | null>(null);
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(true);
+  const [uploadedAt, setUploadedAt] = useState<Date | null>(null);
 
   // Elapsed timer
   useEffect(() => {
@@ -231,6 +235,7 @@ function LiveView({ interview }: { interview: any }) {
     streamRef.current = null;
     recorderRef.current?.stop();
     setRecording(false);
+    setTranscriptOpen(false);
     // Auto-finalise: the memo is generated the moment recording stops,
     // no separate "End interview" button needed.
     void finalizeNow();
@@ -261,6 +266,8 @@ function LiveView({ interview }: { interview: any }) {
         ts += 5000;
       }
       qc.invalidateQueries({ queryKey: ["iv-utt", id] });
+      setUploadedAt(new Date());
+      setTranscriptOpen(false);
       toast.success(`Uploaded ${lines.length} lines — generating memo…`);
       await finalizeNow();
     } catch (e: any) {
@@ -336,35 +343,46 @@ function LiveView({ interview }: { interview: any }) {
         {/* Center — transcript */}
         <section className="col-span-6">
           <Card className="h-full"><CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
-              <div className="flex items-center gap-2 text-xs flex-wrap">
-                <span className="text-muted-foreground">Speaker:</span>
-                {(["Founder", "Interviewer"] as const).map(s => (
-                  <button key={s} onClick={() => setCurrentSpeaker(s)}
-                    className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
-                ))}
-                <span className="mx-1 text-muted-foreground">·</span>
-                {!recording
-                  ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
-                  : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
-                <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
-                  <FileText className="h-3.5 w-3.5" />
-                  <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
-                  <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
-                    disabled={finalizing} />
-                </label>
-              </div>
-            </div>
-            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
-              {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
-              {(utt.data ?? []).map((u: any) => (
-                <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
-              ))}
-            </div>
+            <Accordion type="single" collapsible value={transcriptOpen ? "t" : ""} onValueChange={(v) => setTranscriptOpen(v === "t")}>
+              <AccordionItem value="t" className="border-0">
+                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                  <AccordionTrigger className="hover:no-underline py-1 flex-1 justify-start gap-2 [&>svg]:ml-1">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                      {transcriptTitle(recording, uploadedAt, interview, utt.data)}
+                    </span>
+                  </AccordionTrigger>
+                  <div className="flex items-center gap-2 text-xs flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-muted-foreground">Speaker:</span>
+                    {(["Founder", "Interviewer"] as const).map(s => (
+                      <button key={s} onClick={() => setCurrentSpeaker(s)}
+                        className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
+                    ))}
+                    <span className="mx-1 text-muted-foreground">·</span>
+                    {!recording
+                      ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                      : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                    <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
+                      <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
+                        disabled={finalizing} />
+                    </label>
+                  </div>
+                </div>
+                <AccordionContent>
+                  <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 pt-2">
+                    {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
+                    {(utt.data ?? []).map((u: any) => (
+                      <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent></Card>
         </section>
+
 
         {/* Right — AI analysis */}
         <aside className="col-span-3 space-y-3">
@@ -376,7 +394,7 @@ function LiveView({ interview }: { interview: any }) {
                   <div key={k}>
                     <div className="flex items-center justify-between text-xs">
                       <span className="capitalize">{k.replace(/_/g, " ")}</span>
-                      <Badge variant="outline" className="text-[10px]">{v.value}</Badge>
+                      <Badge className={`text-[10px] border ${scoreTone(v.value)}`}>{v.value}</Badge>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">{v.why}</div>
                   </div>
@@ -458,6 +476,24 @@ function Strip({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 function fmt(ms: number) { const s = Math.floor(ms/1000); const m = Math.floor(s/60); return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
+function transcriptTitle(recording: boolean, uploadedAt: Date | null, interview: any, utterances: any[] | undefined) {
+  if (recording) return "Live transcript";
+  const items = utterances ?? [];
+  if (items.length === 0 && !uploadedAt) return "Live transcript";
+  const d =
+    uploadedAt ??
+    (interview?.started_at ? new Date(interview.started_at) : null) ??
+    (interview?.ended_at ? new Date(interview.ended_at) : null) ??
+    (items[0]?.created_at ? new Date(items[0].created_at) : new Date());
+  return `Transcript · ${format(d, "MMM d, yyyy · HH:mm")}`;
+}
+function scoreTone(value: any) {
+  const n = typeof value === "number" ? value : parseFloat(String(value));
+  if (!isFinite(n)) return "bg-secondary text-secondary-foreground border-border";
+  if (n >= 8) return "bg-green-100 text-green-800 border-green-200";
+  if (n >= 5) return "bg-amber-100 text-amber-800 border-amber-200";
+  return "bg-red-100 text-red-800 border-red-200";
+}
 function ratingColor(r: string) {
   const s = (r ?? "").toLowerCase();
   if (s.startsWith("crit")) return "bg-red-700 text-white";
