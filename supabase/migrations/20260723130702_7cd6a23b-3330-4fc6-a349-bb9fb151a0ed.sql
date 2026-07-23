@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "contact_photos public read" ON storage.objects;
