@@ -118,7 +118,7 @@ function DDEngine() {
   return (
     <div className="max-w-5xl mx-auto px-8 py-10">
       <PageHeader
-        eyebrow="Diligence"
+        eyebrow="Due Diligence"
         title="Deal Pipeline"
         description="Founder interviews guided by the 5-round due diligence framework."
         actions={<AddOpportunity />}
