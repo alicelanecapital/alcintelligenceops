@@ -460,7 +460,9 @@ function CalendarScreen() {
         onSubmit={async (payload) => {
           try {
             if (editItem?.googleEventId && editItem.calendarId) {
-              await updateFn({ data: { calendarId: editItem.calendarId, googleEventId: editItem.googleEventId, ...payload } });
+              const { calendarId: _drop, ...rest } = payload;
+              void _drop;
+              await updateFn({ data: { calendarId: editItem.calendarId, googleEventId: editItem.googleEventId, ...rest } });
               toast.success("Event updated");
             } else {
               await createFn({ data: payload });
