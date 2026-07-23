@@ -52,19 +52,10 @@ function ContactProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [meetOpen, setMeetOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(tabParam ?? "overview");
+  useEffect(() => { if (tabParam) setActiveTab(tabParam); }, [tabParam]);
 
-  const startMeeting = useServerFn(startMeetingForContact);
   const briefFn = useServerFn(generateContactStakeholderBrief);
-
-  const meetMut = useMutation({
-    mutationFn: () => startMeeting({ data: { contactId: id } }),
-    onSuccess: (row: any) => {
-      toast.success("Meeting started");
-      navigate({ to: "/interviews/$id", params: { id: row.id } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
 
   const delMut = useMutation({
     mutationFn: () => deleteContact(id),
@@ -135,8 +126,8 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => setMeetOpen(true)}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> Meet
+            <Button size="sm" onClick={() => setActiveTab("live")}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> Start Meeting
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
@@ -161,13 +152,11 @@ function ContactProfile() {
         {c.status && <Badge variant="outline" className="capitalize border-forest text-forest">{c.status}</Badge>}
       </div>
 
-      <Tabs defaultValue={tabParam ?? "overview"}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Overview</TabsTrigger>
-          <TabsTrigger value="brief"><Sparkles className="h-3.5 w-3.5 mr-1" /> Stakeholder Brief</TabsTrigger>
           <TabsTrigger value="live"><PlaySquare className="h-3.5 w-3.5 mr-1" /> Live Workspace</TabsTrigger>
           <TabsTrigger value="docs"><FolderOpen className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
-          <TabsTrigger value="meetings"><History className="h-3.5 w-3.5 mr-1" /> Meeting History</TabsTrigger>
           <TabsTrigger value="deals"><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approved Deals</TabsTrigger>
           <TabsTrigger value="notes"><StickyNote className="h-3.5 w-3.5 mr-1" /> Notes</TabsTrigger>
         </TabsList>
@@ -178,27 +167,19 @@ function ContactProfile() {
             opportunity={primaryOpp}
             openOpps={openOpps}
             opportunities={opps.data ?? []}
-          />
-        </TabsContent>
-
-        <TabsContent value="brief" className="pt-6">
-          <StakeholderBriefTab
-            contact={c}
+            contactId={id}
+            meetings={meetings.data ?? []}
             briefPending={briefMut.isPending}
             onGenerateBrief={(force) => briefMut.mutate(force)}
           />
         </TabsContent>
 
         <TabsContent value="live" className="pt-6">
-          <LiveWorkspaceTab liveMeeting={liveMeeting} onStartMeeting={() => setMeetOpen(true)} />
+          <LiveWorkspaceTab contact={c} meetings={meetings.data ?? []} />
         </TabsContent>
 
         <TabsContent value="docs" className="pt-6">
           <DocumentsTab opportunities={opps.data ?? []} />
-        </TabsContent>
-
-        <TabsContent value="meetings" className="pt-6">
-          <MeetingHistoryTab contactId={id} meetings={meetings.data ?? []} />
         </TabsContent>
 
         <TabsContent value="deals" className="pt-6">
@@ -228,16 +209,6 @@ function ContactProfile() {
         onConfirm={() => delMut.mutate()}
         name={c.company || c.name}
         pending={delMut.isPending}
-      />
-      <NewMeetingDialog
-        open={meetOpen}
-        onOpenChange={setMeetOpen}
-        defaults={{
-          contactId: c.id,
-          founderName: c.name,
-          businessName: c.company ?? undefined,
-          industry: c.industry ?? undefined,
-        }}
       />
     </div>
   );
