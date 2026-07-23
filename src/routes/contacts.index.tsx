@@ -103,9 +103,6 @@ function ContactsIndex() {
         description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
         actions={
           <div className="flex gap-2 flex-nowrap items-center">
-            <Button variant="outline" onClick={() => setMergeOpen(true)}>
-              <GitMerge className="h-4 w-4 mr-1" /> Deduplicate
-            </Button>
             <Button variant="outline" onClick={() => setScanOpen(true)}>
               <Camera className="h-4 w-4 mr-1" /> Scan card / QR
             </Button>
@@ -115,6 +112,9 @@ function ContactsIndex() {
           </div>
         }
       />
+
+      <DuplicateBanner onReview={() => setMergeOpen(true)} />
+
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <Tabs value={category} onValueChange={setCategory}>
