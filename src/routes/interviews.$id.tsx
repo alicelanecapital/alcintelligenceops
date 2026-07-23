@@ -278,7 +278,7 @@ function LiveView({ interview }: { interview: any }) {
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
       {/* Header strip */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
         <Strip label="Founder" value={interview.founder_name} />
         <Strip label="Business" value={interview.business_name} />
         <Strip label="Stage" value={
@@ -294,11 +294,6 @@ function LiveView({ interview }: { interview: any }) {
             {recording ? "Live" : "Idle"}
           </span>
         } />
-        <div className="bg-card px-4 py-3 flex items-center gap-2">
-          {!recording
-            ? <Button onClick={startRec} size="sm" className="w-full"><Mic className="h-4 w-4 mr-2" />Start</Button>
-            : <Button onClick={stopRec} size="sm" variant="destructive" className="w-full"><StopCircle className="h-4 w-4 mr-2" />Stop</Button>}
-        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4">
