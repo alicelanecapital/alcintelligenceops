@@ -258,8 +258,7 @@ function LiveView({ interview }: { interview: any }) {
         ts += 5000;
       }
       qc.invalidateQueries({ queryKey: ["iv-utt", id] });
-      setUploadedAt(new Date());
-      setTranscriptOpen(false);
+      setOpenSessions([]);
       toast.success(`Uploaded ${lines.length} lines — generating memo…`);
       await finalizeNow();
     } catch (e: any) {
