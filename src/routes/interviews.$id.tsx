@@ -333,47 +333,52 @@ function LiveView({ interview }: { interview: any }) {
 
         {/* Center — transcript */}
         <section className="col-span-6">
-          <Card className="h-full"><CardContent className="p-4">
-            <Accordion type="single" collapsible value={transcriptOpen ? "t" : ""} onValueChange={(v) => setTranscriptOpen(v === "t")}>
-              <AccordionItem value="t" className="border-0">
-                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                  <AccordionTrigger className="hover:no-underline py-1 flex-1 justify-start gap-2 [&>svg]:ml-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                      {transcriptTitle(recording, uploadedAt, interview, utt.data)}
-                    </span>
-                  </AccordionTrigger>
-                  <div className="flex items-center gap-2 text-xs flex-wrap" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-muted-foreground">Speaker:</span>
-                    {(["Founder", "Interviewer"] as const).map(s => (
-                      <button key={s} onClick={() => setCurrentSpeaker(s)}
-                        className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
-                    ))}
-                    <span className="mx-1 text-muted-foreground">·</span>
-                    {!recording
-                      ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
-                      : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
-                    <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
-                      <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
-                        disabled={finalizing} />
-                    </label>
-                  </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
+                <div className="flex items-center gap-2 text-xs flex-wrap">
+                  <span className="text-muted-foreground">Speaker:</span>
+                  {(["Founder", "Interviewer"] as const).map(s => (
+                    <button key={s} onClick={() => setCurrentSpeaker(s)}
+                      className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
+                  ))}
+                  <span className="mx-1 text-muted-foreground">·</span>
+                  {!recording
+                    ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                    : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                  <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
+                    <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
+                      disabled={finalizing} />
+                  </label>
                 </div>
-                <AccordionContent>
-                  <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
-                    {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
-                    <Accordion type="multiple" className="space-y-2">
-                      {(utt.data ?? []).map((u: any) => (
-                        <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
-                      ))}
-                    </Accordion>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </CardContent></Card>
+              </div>
+              <Accordion type="multiple" value={openSessions} onValueChange={setOpenSessions}>
+                {transcriptGroups(utt.data ?? [], interview).map((g) => (
+                  <AccordionItem key={g.id} value={g.id} className="border-0">
+                    <AccordionTrigger className="hover:no-underline py-1 justify-start gap-2 [&>svg]:ml-1">
+                      <span className="bg-green-800 text-white text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full">
+                        {g.title}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
+                        {g.utterances.length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
+                        <div className="space-y-2">
+                          {g.utterances.map((u: any) => (
+                            <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
         </section>
 
 
