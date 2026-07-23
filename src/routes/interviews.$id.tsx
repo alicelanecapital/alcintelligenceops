@@ -536,31 +536,23 @@ function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(u.text);
   useEffect(() => setVal(u.text), [u.text]);
-  const preview = (u.text ?? "").replace(/\s+/g, " ").trim();
   return (
-    <AccordionItem value={u.id} className="border border-green-900/20 rounded-md overflow-hidden">
-      <AccordionTrigger className="hover:no-underline py-2 px-3 bg-green-800 text-white hover:bg-green-800/90 data-[state=open]:bg-green-800 gap-3 [&>svg]:text-white">
-        <div className="flex items-center gap-2 text-xs min-w-0 flex-1 text-left">
-          <span className="font-mono opacity-80">{fmt(u.ts_ms)}</span>
-          <Badge className="text-[10px] py-0 bg-white/20 text-white border-white/30 hover:bg-white/20">{u.speaker}</Badge>
-          <span className="truncate opacity-95">{preview}</span>
+    <div className="border-b border-border last:border-0 py-2">
+      <div className="flex items-center gap-2 text-xs mb-1">
+        <span className="font-mono text-muted-foreground">{fmt(u.ts_ms)}</span>
+        <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
+        {u.confidence != null && <span className="text-[11px] text-muted-foreground">conf {(u.confidence * 100).toFixed(0)}%</span>}
+        <button onClick={() => setEditing(!editing)} className="ml-auto text-[11px] text-muted-foreground hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
+      </div>
+      {editing ? (
+        <div>
+          <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
+          <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
         </div>
-      </AccordionTrigger>
-      <AccordionContent className="bg-white px-3 pb-3 pt-2">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
-          {u.confidence != null && <span>conf {(u.confidence * 100).toFixed(0)}%</span>}
-          <button onClick={() => setEditing(!editing)} className="ml-auto hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
-        </div>
-        {editing ? (
-          <div>
-            <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
-            <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
-          </div>
-        ) : (
-          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
-        )}
-      </AccordionContent>
-    </AccordionItem>
+      ) : (
+        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
+      )}
+    </div>
   );
 }
 
