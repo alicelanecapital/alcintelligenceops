@@ -1753,6 +1753,7 @@ export type Database = {
           is_private: boolean
           meeting_type: string | null
           organisation_id: string | null
+          playbook_id: string | null
           started_at: string | null
           status: string
           title: string | null
@@ -1776,6 +1777,7 @@ export type Database = {
           is_private?: boolean
           meeting_type?: string | null
           organisation_id?: string | null
+          playbook_id?: string | null
           started_at?: string | null
           status?: string
           title?: string | null
@@ -1799,6 +1801,7 @@ export type Database = {
           is_private?: boolean
           meeting_type?: string | null
           organisation_id?: string | null
+          playbook_id?: string | null
           started_at?: string | null
           status?: string
           title?: string | null
@@ -1838,6 +1841,13 @@ export type Database = {
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_playbook_id_fkey"
+            columns: ["playbook_id"]
+            isOneToOne: false
+            referencedRelation: "toolkits"
             referencedColumns: ["id"]
           },
         ]

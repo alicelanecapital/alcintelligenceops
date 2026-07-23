@@ -109,7 +109,7 @@ Scores are 0-100. Ground everything in the transcript, facts and analyses provid
 
 export const startInterview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { founderId?: string; founderName?: string; businessName?: string; industry?: string; interviewer?: string }) => d)
+  .inputValidator((d: { founderId?: string; founderName?: string; businessName?: string; industry?: string; interviewer?: string; playbookId?: string }) => d)
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     let founder: any = null;
@@ -148,6 +148,7 @@ Fit rating: ${org?.fit_rating ?? "n/a"}
       interviewer_name: data.interviewer ?? null,
       status: "draft",
       brief,
+      playbook_id: data.playbookId ?? null,
     }).select("*").single();
     if (error) throw error;
     return row;

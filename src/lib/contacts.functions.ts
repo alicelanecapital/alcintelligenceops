@@ -49,7 +49,7 @@ Write a concise 1-2 sentence description of what this company does (its product/
 // Start a meeting for a contact: creates an interview row linked back to the contact + event.
 export const startMeetingForContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { contactId: string; meetingType?: string; interviewer?: string }) => d)
+  .inputValidator((d: { contactId: string; meetingType?: string; interviewer?: string; playbookId?: string; industry?: string }) => d)
   .handler(async ({ data, context }) => {
     const s = context.supabase;
 
@@ -75,10 +75,11 @@ export const startMeetingForContact = createServerFn({ method: "POST" })
         title: `${founderName} · ${businessName}`,
         founder_name: founderName,
         business_name: businessName,
-        industry: null,
+        industry: data.industry ?? null,
         interviewer_name: data.interviewer ?? null,
         status: "draft",
         meeting_type: data.meetingType ?? "intro",
+        playbook_id: data.playbookId ?? null,
       } as any)
       .select("*")
       .single();

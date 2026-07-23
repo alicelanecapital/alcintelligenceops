@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, updateContact, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact } from "@/lib/contacts.functions";
 import { generateContactStakeholderBrief } from "@/lib/contact-brief.functions";
-import { dismissInterview } from "@/lib/interviews";
+import { listToolkits } from "@/lib/toolkits";
 import { EditContactDialog } from "@/components/EditContactDialog";
 import { SmartLink } from "@/components/SmartLink";
 import { contactColor } from "@/lib/contact-colors";
@@ -14,12 +14,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { SECTOR_MODULES } from "@/lib/dd-framework-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useRef, useState, useEffect } from "react";
-import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, X, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare } from "lucide-react";
-import { NewMeetingDialog } from "@/components/NewMeetingDialog";
+import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -49,19 +51,10 @@ function ContactProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [meetOpen, setMeetOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(tabParam ?? "overview");
+  useEffect(() => { if (tabParam) setActiveTab(tabParam); }, [tabParam]);
 
-  const startMeeting = useServerFn(startMeetingForContact);
   const briefFn = useServerFn(generateContactStakeholderBrief);
-
-  const meetMut = useMutation({
-    mutationFn: () => startMeeting({ data: { contactId: id } }),
-    onSuccess: (row: any) => {
-      toast.success("Meeting started");
-      navigate({ to: "/interviews/$id", params: { id: row.id } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
 
   const delMut = useMutation({
     mutationFn: () => deleteContact(id),
@@ -132,8 +125,8 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => setMeetOpen(true)}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> Meet
+            <Button size="sm" onClick={() => setActiveTab("live")}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> Start Meeting
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
@@ -158,13 +151,11 @@ function ContactProfile() {
         {c.status && <Badge variant="outline" className="capitalize border-forest text-forest">{c.status}</Badge>}
       </div>
 
-      <Tabs defaultValue={tabParam ?? "overview"}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Overview</TabsTrigger>
-          <TabsTrigger value="brief"><Sparkles className="h-3.5 w-3.5 mr-1" /> Stakeholder Brief</TabsTrigger>
           <TabsTrigger value="live"><PlaySquare className="h-3.5 w-3.5 mr-1" /> Live Workspace</TabsTrigger>
           <TabsTrigger value="docs"><FolderOpen className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
-          <TabsTrigger value="meetings"><History className="h-3.5 w-3.5 mr-1" /> Meeting History</TabsTrigger>
           <TabsTrigger value="deals"><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approved Deals</TabsTrigger>
           <TabsTrigger value="notes"><StickyNote className="h-3.5 w-3.5 mr-1" /> Notes</TabsTrigger>
         </TabsList>
@@ -175,27 +166,19 @@ function ContactProfile() {
             opportunity={primaryOpp}
             openOpps={openOpps}
             opportunities={opps.data ?? []}
-          />
-        </TabsContent>
-
-        <TabsContent value="brief" className="pt-6">
-          <StakeholderBriefTab
-            contact={c}
+            contactId={id}
+            meetings={meetings.data ?? []}
             briefPending={briefMut.isPending}
             onGenerateBrief={(force) => briefMut.mutate(force)}
           />
         </TabsContent>
 
         <TabsContent value="live" className="pt-6">
-          <LiveWorkspaceTab liveMeeting={liveMeeting} onStartMeeting={() => setMeetOpen(true)} />
+          <LiveWorkspaceTab contact={c} meetings={meetings.data ?? []} />
         </TabsContent>
 
         <TabsContent value="docs" className="pt-6">
           <DocumentsTab opportunities={opps.data ?? []} />
-        </TabsContent>
-
-        <TabsContent value="meetings" className="pt-6">
-          <MeetingHistoryTab contactId={id} meetings={meetings.data ?? []} />
         </TabsContent>
 
         <TabsContent value="deals" className="pt-6">
@@ -226,34 +209,75 @@ function ContactProfile() {
         name={c.company || c.name}
         pending={delMut.isPending}
       />
-      <NewMeetingDialog
-        open={meetOpen}
-        onOpenChange={setMeetOpen}
-        defaults={{
-          contactId: c.id,
-          founderName: c.name,
-          businessName: c.company ?? undefined,
-          industry: c.industry ?? undefined,
-        }}
-      />
     </div>
   );
 }
 
 /* ============ Overview tab ============ */
 
-function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
+function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contactId, meetings, briefPending, onGenerateBrief }: {
   contact: any; opportunity: any; openOpps: any[]; opportunities: any[];
+  contactId: string; meetings: any[];
+  briefPending: boolean; onGenerateBrief: (force: boolean) => void;
 }) {
   const detectedCode = opportunity?.dd_detected_sector;
   const detectedConf = opportunity?.dd_sector_confidence ?? 0;
   const sector = detectedCode && detectedConf >= 50 ? (SECTOR_MODULES as any)[detectedCode]?.name : null;
   const disc = opportunity?.disc_profile as any;
 
+  // Auto-generate the stakeholder brief on first Overview view if none exists.
+  const triggeredRef = useRef(false);
+  useEffect(() => {
+    if (triggeredRef.current) return;
+    if (!c.stakeholder_brief && !briefPending) {
+      triggeredRef.current = true;
+      onGenerateBrief(false);
+    }
+  }, [c.stakeholder_brief, briefPending, onGenerateBrief]);
+
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <Accordion type="multiple" defaultValue={["company", "disc", "flags"]} className="w-full">
+        <Accordion type="multiple" defaultValue={["brief", "company", "disc", "flags", "history"]} className="w-full">
+          <AccordionItem value="brief">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-sky-700" /> Stakeholder Brief</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold text-sky-900">Summary & talking points</div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
+                    <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
+                  </Button>
+                </div>
+                {c.stakeholder_brief ? (
+                  <div className="space-y-2 text-sm text-sky-900">
+                    {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
+                    {c.stakeholder_brief.talking_points?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Talking points</div>
+                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                          {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {c.stakeholder_brief.watch_outs?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Watch-outs</div>
+                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                          {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
+                )}
+              </section>
+            </AccordionContent>
+          </AccordionItem>
+
           {c.company_description && (
             <AccordionItem value="company">
               <AccordionTrigger className="text-sm">
@@ -308,7 +332,16 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
               <span className="inline-flex items-center gap-2"><Flag className="h-4 w-4 text-rose-600" /> Red Flags</span>
             </AccordionTrigger>
             <AccordionContent>
-              <RedFlagsTab opportunities={opportunities} />
+              <RedFlagsInline contactId={contactId} opportunities={opportunities} />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="history">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><History className="h-4 w-4" /> Meeting History</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <MeetingHistoryInline contactId={contactId} meetings={meetings} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -381,81 +414,120 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
   );
 }
 
-/* ============ Stakeholder Brief tab (auto-generates on first view) ============ */
+/* ============ Meeting history inline (used inside AI Overview) ============ */
 
-function StakeholderBriefTab({ contact: c, briefPending, onGenerateBrief }: {
-  contact: any; briefPending: boolean; onGenerateBrief: (force: boolean) => void;
-}) {
-  const triggeredRef = useRef(false);
-  useEffect(() => {
-    if (triggeredRef.current) return;
-    if (!c.stakeholder_brief && !briefPending) {
-      triggeredRef.current = true;
-      onGenerateBrief(false);
-    }
-  }, [c.stakeholder_brief, briefPending, onGenerateBrief]);
-
+function MeetingHistoryInline({ contactId, meetings }: { contactId: string; meetings: any[] }) {
+  if (!meetings.length) return <p className="text-sm text-muted-foreground">No meetings yet.</p>;
   return (
-    <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold text-sky-900 inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Stakeholder Brief</div>
-        <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
-          <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
-        </Button>
-      </div>
-      {c.stakeholder_brief ? (
-        <div className="space-y-2 text-sm text-sky-900">
-          {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
-          {c.stakeholder_brief.talking_points?.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">Talking points</div>
-              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
-              </ul>
-            </div>
-          )}
-          {c.stakeholder_brief.watch_outs?.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">Watch-outs</div>
-              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
-      )}
-    </section>
+    <div>
+      {meetings.map((m: any) => (
+        <Link key={m.id} to="/interviews/$id" params={{ id: m.id }} className="block py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+          <div className="flex justify-between items-center">
+            <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
+            <Badge variant="outline">{m.status}</Badge>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
+        </Link>
+      ))}
+    </div>
   );
 }
 
-/* ============ Live Workspace tab ============ */
+/* ============ Live Workspace tab (playbook-driven start + records list) ============ */
 
-function LiveWorkspaceTab({ liveMeeting, onStartMeeting }: { liveMeeting: any; onStartMeeting: () => void }) {
-  if (!liveMeeting) {
-    return (
-      <div className="rounded-lg border border-dashed border-border p-10 text-center">
-        <PlaySquare className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground mb-4">No live or recent meeting for this contact.</p>
-        <Button onClick={onStartMeeting}><Mic className="h-4 w-4 mr-1" /> Start meeting</Button>
-      </div>
-    );
-  }
+function LiveWorkspaceTab({ contact, meetings }: { contact: any; meetings: any[] }) {
+  const navigate = useNavigate();
+  const startMeeting = useServerFn(startMeetingForContact);
+  const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
+
+  // Default to the DD Intelligence Engine template if present.
+  const ddTemplate = (toolkits.data ?? []).find((t) => (t as any).kind === "due_diligence");
+  const [playbookId, setPlaybookId] = useState<string>("");
+  useEffect(() => {
+    if (!playbookId && ddTemplate) setPlaybookId(ddTemplate.id);
+  }, [ddTemplate, playbookId]);
+  const [industry, setIndustry] = useState<string>(contact.industry ?? "");
+
+  const startMut = useMutation({
+    mutationFn: () => startMeeting({ data: { contactId: contact.id, playbookId: playbookId || undefined, industry: industry || undefined } }),
+    onSuccess: (row: any) => {
+      toast.success("Meeting started");
+      navigate({ to: "/interviews/$id", params: { id: row.id } });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to start meeting"),
+  });
+
+  const live = meetings.find((m: any) => m.status === "live");
+  const past = meetings.filter((m: any) => m.status !== "live");
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <div className="text-sm font-medium">{liveMeeting.title ?? liveMeeting.meeting_type ?? "Meeting"}</div>
-          <div className="text-xs text-muted-foreground">{new Date(liveMeeting.created_at).toLocaleString()} · {liveMeeting.status}</div>
+    <div className="space-y-8">
+      {live && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-emerald-800 uppercase tracking-widest">Live session</div>
+            <div className="text-sm font-medium">{live.title ?? "Meeting"}</div>
+            <div className="text-xs text-muted-foreground">Started {new Date(live.started_at ?? live.created_at).toLocaleString()}</div>
+          </div>
+          <Link to="/interviews/$id" params={{ id: live.id }}>
+            <Button size="sm"><PlaySquare className="h-4 w-4 mr-1" /> Resume</Button>
+          </Link>
         </div>
-        <Link to="/interviews/$id" params={{ id: liveMeeting.id }}>
-          <Button size="sm"><PlaySquare className="h-4 w-4 mr-1" /> Open workspace</Button>
-        </Link>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        The full live workspace (interview guide, transcript, risk alerts, contradictions, missing evidence, document requests and manual assessment) opens in a dedicated screen so you have full width for recording.
-      </p>
+      )}
+
+      <section className="space-y-4">
+        <div>
+          <div className="text-sm font-semibold text-green-800">Start a meeting</div>
+          <p className="text-xs text-muted-foreground mt-1">Pick a playbook to run the meeting against — the workspace stepper and questions come from the playbook.</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
+          <div>
+            <Label>Playbook</Label>
+            <Select value={playbookId} onValueChange={setPlaybookId}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={toolkits.isLoading ? "Loading playbooks…" : "Select a playbook"} /></SelectTrigger>
+              <SelectContent>
+                {(toolkits.data ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {(t as any).kind === "due_diligence" ? `${t.name} (Template)` : t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Industry</Label>
+            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" placeholder="e.g. Aesthetics & dentistry" />
+          </div>
+        </div>
+        <div>
+          <Button onClick={() => startMut.mutate()} disabled={startMut.isPending || !playbookId}>
+            <Mic className="h-4 w-4 mr-1" /> {startMut.isPending ? "Starting…" : "Start Meeting"}
+          </Button>
+        </div>
+      </section>
+
+      <section>
+        <div className="text-sm font-semibold text-green-800 mb-2">Live Workspace records</div>
+        {past.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No previous sessions yet.</p>
+        ) : (
+          <div>
+            {past.map((m: any) => (
+              <Link key={m.id} to="/interviews/$id" params={{ id: m.id }} className="block py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(m.started_at ?? m.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <Badge variant="outline">{m.status}</Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -532,42 +604,6 @@ function DocumentsTab({ opportunities }: { opportunities: any[] }) {
   );
 }
 
-/* ============ Meeting history tab ============ */
-
-function MeetingHistoryTab({ contactId, meetings }: { contactId: string; meetings: any[] }) {
-  const qc = useQueryClient();
-  const dismissMut = useMutation({
-    mutationFn: (meetingId: string) => dismissInterview(meetingId),
-    onSuccess: () => { toast.success("Removed from view"); qc.invalidateQueries({ queryKey: ["contact-meetings", contactId] }); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
-  });
-
-  if (!meetings.length) return <p className="text-sm text-muted-foreground">No meetings yet.</p>;
-
-  return (
-    <div>
-      {meetings.map((m: any) => (
-        <div key={m.id} className="relative group border-b border-border last:border-0">
-          <button
-            onClick={(e) => { e.preventDefault(); dismissMut.mutate(m.id); }}
-            title="Dismiss from view"
-            className="absolute top-3 right-3 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground z-10"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <Link to="/interviews/$id" params={{ id: m.id }} className="block py-3 pr-10 hover:bg-muted/30 transition-colors">
-            <div className="flex justify-between items-center">
-              <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
-              <Badge variant="outline" className="mr-8">{m.status}</Badge>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
-          </Link>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ============ Notes tab (editable) ============ */
 
 function NotesTab({ contactId, initial }: { contactId: string; initial: string }) {
@@ -594,38 +630,63 @@ function NotesTab({ contactId, initial }: { contactId: string; initial: string }
   );
 }
 
-/* ============ Red Flags tab ============ */
+/* ============ Red Flags (aggregated from DD rounds + Live Workspace sessions) ============ */
 
-function RedFlagsTab({ opportunities }: { opportunities: any[] }) {
+function RedFlagsInline({ contactId, opportunities }: { contactId: string; opportunities: any[] }) {
   const oppIds = opportunities.map((o) => o.id);
   const q = useQuery({
-    queryKey: ["contact-flags", oppIds.join(",")],
-    enabled: oppIds.length > 0,
+    queryKey: ["contact-flags", contactId, oppIds.join(",")],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dd_interviews") as any)
-        .select("round, red_flags, opportunity_id")
-        .in("opportunity_id", oppIds);
-      if (error) throw error;
-      return data ?? [];
+      const results: { source: string; round?: number | null; when?: string | null; flags: any[] }[] = [];
+      if (oppIds.length) {
+        const { data, error } = await (supabase.from("dd_interviews") as any)
+          .select("round, red_flags, opportunity_id")
+          .in("opportunity_id", oppIds);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          if (Array.isArray(r.red_flags) && r.red_flags.length) {
+            results.push({ source: "DD", round: r.round, when: null, flags: r.red_flags });
+          }
+        }
+      }
+      // Live Workspace sessions — red_flags surfaced from interview_analyses risk rows.
+      const { data: ivs, error: ivErr } = await (supabase.from("interviews") as any)
+        .select("id, created_at, red_flags")
+        .eq("contact_id", contactId);
+      if (ivErr) throw ivErr;
+      for (const r of ivs ?? []) {
+        if (Array.isArray(r.red_flags) && r.red_flags.length) {
+          results.push({ source: "Meeting", round: null, when: r.created_at, flags: r.red_flags });
+        }
+      }
+      return results;
     },
   });
-  if (!oppIds.length) return <p className="text-sm text-muted-foreground">No red flags — flags surface once DD rounds are recorded.</p>;
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  const flags = (q.data ?? []).flatMap((i: any) =>
-    (Array.isArray(i.red_flags) ? i.red_flags : []).map((f: any) => ({ ...(typeof f === "object" ? f : { text: String(f) }), round: i.round })),
+  const groups = q.data ?? [];
+  const flat = groups.flatMap((g) =>
+    g.flags.map((f: any) => ({
+      ...(typeof f === "object" ? f : { text: String(f) }),
+      source: g.source,
+      round: g.round,
+      when: g.when,
+    })),
   );
-  if (!flags.length) return (
+  if (!flat.length) return (
     <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 inline-flex items-center gap-2">
-      <CheckCircle2 className="h-4 w-4" /> No red flags detected — continue to verify claims in later rounds.
+      <CheckCircle2 className="h-4 w-4" /> No red flags detected — flags from DD rounds and Live Workspace meetings will surface here.
     </div>
   );
   return (
     <ul className="space-y-2">
-      {flags.map((f: any, i: number) => (
+      {flat.map((f: any, i: number) => (
         <li key={i} className="border-b border-border py-2 text-sm">
           <span className="inline-flex items-center gap-2">
             <Flag className="h-3.5 w-3.5 text-rose-600" />
-            <span className="font-medium text-rose-700">Round {f.round}{f.severity ? ` · ${f.severity}` : ""}</span>
+            <span className="font-medium text-rose-700">
+              {f.source === "DD" ? `Round ${f.round}` : `Meeting${f.when ? ` · ${new Date(f.when).toLocaleDateString()}` : ""}`}
+              {f.severity ? ` · ${f.severity}` : ""}
+            </span>
           </span>
           <div className="text-sm text-foreground/80 mt-1 ml-6">{f.text ?? f.flag_text ?? String(f)}</div>
         </li>
