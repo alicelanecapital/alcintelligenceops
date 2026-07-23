@@ -250,7 +250,14 @@ function Events() {
   }, [q.data]);
 
   const futureEvents = useMemo(() => {
-    let all = (q.data ?? []).filter((e: any) => !e.rejected && new Date(e.end_date || e.start_date) >= new Date());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let all = (q.data ?? []).filter((e: any) => {
+      if (e.rejected) return false;
+      const ref = e.end_date || e.start_date;
+      if (!ref) return true;
+      const d = new Date(ref); d.setHours(0, 0, 0, 0);
+      return d.getTime() >= today.getTime();
+    });
 
     const seen = new Set<string>();
     all = all.filter((e: any) => {
