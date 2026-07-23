@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, dismissInterview } from "@/lib/interviews";
+import { useQuery } from "@tanstack/react-query";
+import { listInterviews } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
@@ -11,8 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useMemo } from "react";
-import { Play, CalendarClock, MapPin, Video, X } from "lucide-react";
-import { toast } from "sonner";
+import { Play, CalendarClock, MapPin, Video } from "lucide-react";
 import {
   format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks,
 } from "date-fns";
@@ -99,17 +98,10 @@ function bucketOf(when: Date): "Today" | "Next week" | string {
 
 
 function InterviewsIndex() {
-  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
-
-  const dismissMut = useMutation({
-    mutationFn: (id: string) => dismissInterview(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Removed from view"); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
-  });
 
   const grouped = useMemo(() => {
     const items: Item[] = [];
