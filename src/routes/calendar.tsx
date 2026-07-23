@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -62,6 +62,12 @@ function maskUnavailable(title: string | null | undefined): string {
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const selectedDayRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedDay && selectedDayRef.current) {
+      selectedDayRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedDay]);
 
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const meetings = useQuery({ queryKey: ["all-meetings"], queryFn: fetchAllMeetings });
@@ -290,7 +296,7 @@ function CalendarScreen() {
       </div>
 
       {selectedDay && (
-        <Card className="mt-6">
+        <Card ref={selectedDayRef} className="mt-6">
           <CardContent className="p-5">
             <div className="font-serif text-xl mb-3">{format(selectedDay, "EEEE, d MMMM yyyy")}</div>
             {selectedItems.length === 0 ? (
@@ -314,7 +320,11 @@ function CalendarScreen() {
           </CardContent>
         </Card>
       )}
+
+
     </div>
   );
 }
+
+
 

@@ -16,7 +16,7 @@ const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
  * user's. Auto-runs on mount if data is stale and every 15 minutes while open --
  * backstop alongside the server-side cron job at /api/cron/sync-google-calendars.
  */
-export function SyncGoogleButton({ mode = "self" }: { mode?: "self" | "team" }) {
+export function SyncGoogleButton({ mode = "self", className }: { mode?: "self" | "team"; className?: string }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const statusFn = useServerFn(getGoogleConnectionStatus);
@@ -98,7 +98,7 @@ export function SyncGoogleButton({ mode = "self" }: { mode?: "self" | "team" }) 
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={syncMut.isPending}>
+    <Button variant="outline" size="sm" onClick={onClick} disabled={syncMut.isPending} className={className}>
       <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
       {syncMut.isPending ? "Syncing…" : label}
     </Button>
