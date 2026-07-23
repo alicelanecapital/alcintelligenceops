@@ -922,3 +922,75 @@ function MergeDuplicatesDialog({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
+function DuplicateBanner({ onReview }: { onReview: () => void }) {
+  const preview = useServerFn(previewDuplicateContacts);
+  const q = useQuery({ queryKey: ["contacts-dup-preview"], queryFn: () => preview(), refetchInterval: 60_000 });
+  const count = q.data?.duplicateCount ?? 0;
+  if (!count) return null;
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-4 py-2 text-sm">
+      <AlertCircle className="h-4 w-4 shrink-0" />
+      <span className="flex-1">{count} likely duplicate contact{count === 1 ? "" : "s"} detected.</span>
+      <Button size="sm" variant="outline" className="h-7" onClick={onReview}>
+        <GitMerge className="h-3.5 w-3.5 mr-1" /> Review & merge
+      </Button>
+    </div>
+  );
+}
+
+function ContactsDatasheet({ rows }: { rows: ContactRow[] }) {
+  const qc = useQueryClient();
+  const fields: { key: keyof ContactRow; label: string }[] = [
+    { key: "name", label: "Name" },
+    { key: "company", label: "Company" },
+    { key: "position", label: "Position" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Phone" },
+    { key: "linkedin_url", label: "LinkedIn" },
+    { key: "website", label: "Website" },
+  ];
+  async function save(id: string, key: string, value: string) {
+    try {
+      await updateContact(id, { [key]: value || null } as any);
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Update failed");
+    }
+  }
+  return (
+    <div className="rounded-lg bg-card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="border-b border-border">
+          <tr>
+            {fields.map((f) => (
+              <th key={String(f.key)} className="text-left px-3 py-2 font-medium text-muted-foreground">{f.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((c) => (
+            <tr key={c.id}>
+              {fields.map((f) => (
+                <td key={String(f.key)} className="px-1 py-1 align-top">
+                  <Input
+                    defaultValue={(c[f.key] as string) ?? ""}
+                    className="h-8 border-transparent hover:border-input focus:border-input"
+                    onBlur={(e) => {
+                      const v = e.currentTarget.value;
+                      if (v !== ((c[f.key] as string) ?? "")) void save(c.id, String(f.key), v);
+                    }}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr><td colSpan={fields.length} className="p-8 text-center text-muted-foreground">No contacts match.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
