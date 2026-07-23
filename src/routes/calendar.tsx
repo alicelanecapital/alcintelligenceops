@@ -295,3 +295,37 @@ function CalendarScreen() {
   );
 }
 
+function SelectedDayPanel({ selectedDay, selectedItems }: { selectedDay: Date | null; selectedItems: CalItem[] }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedDay && ref.current) ref.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedDay]);
+  if (!selectedDay) return null;
+  return (
+    <Card ref={ref as any} className="mt-6">
+      <CardContent className="p-5">
+        <div className="font-serif text-xl mb-3">{format(selectedDay, "EEEE, d MMMM yyyy")}</div>
+        {selectedItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing scheduled.</p>
+        ) : (
+          <div className="space-y-2">
+            {selectedItems.map((it) => (
+              <div key={it.id} className="flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
+                <span className={cn("text-[10px] px-2 py-0.5 rounded uppercase tracking-wide", itemStyle(it))}>{it.type}</span>
+                <div>
+                  <div className="font-medium">
+                    {it.hasTime && <span className="mr-2 text-muted-foreground tabular-nums">{format(it.date, "HH:mm")}</span>}
+                    {it.label}
+                  </div>
+                  {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
