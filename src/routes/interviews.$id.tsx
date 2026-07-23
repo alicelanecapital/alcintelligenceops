@@ -394,7 +394,7 @@ function LiveView({ interview }: { interview: any }) {
                   <div key={k}>
                     <div className="flex items-center justify-between text-xs">
                       <span className="capitalize">{k.replace(/_/g, " ")}</span>
-                      <Badge variant="outline" className="text-[10px]">{v.value}</Badge>
+                      <Badge className={`text-[10px] border ${scoreTone(v.value)}`}>{v.value}</Badge>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">{v.why}</div>
                   </div>
