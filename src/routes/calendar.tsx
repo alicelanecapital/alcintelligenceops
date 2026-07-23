@@ -80,9 +80,22 @@ function isBusy(title: string | null | undefined): boolean {
   return BUSY_TOKENS.some((tok) => t.includes(tok));
 }
 
+const BUSY_EMAILS = new Set([
+  "georgia.adams@smartify.co.za",
+  "info@georgiaadams.co.za",
+  "nonastasia@gmail.com",
+]);
+function isBusyEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return BUSY_EMAILS.has(email.toLowerCase());
+}
+
 /** Per-teammate override for the busy-chip initials. */
 const BUSY_INITIALS: Record<string, string> = {
   "georgia@alicelanecapital.co.za": "GA",
+  "georgia.adams@smartify.co.za": "GA",
+  "info@georgiaadams.co.za": "GA",
+  "nonastasia@gmail.com": "GA",
 };
 function initialsFromEmail(email?: string): string {
   if (!email) return "??";
