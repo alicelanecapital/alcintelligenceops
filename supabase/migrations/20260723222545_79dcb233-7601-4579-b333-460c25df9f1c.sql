@@ -1,0 +1,1 @@
+ALTER TABLE public.interviews ADD COLUMN IF NOT EXISTS playbook_id uuid REFERENCES public.toolkits(id) ON DELETE SET NULL;
