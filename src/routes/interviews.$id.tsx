@@ -157,8 +157,7 @@ function LiveView({ interview }: { interview: any }) {
   const streamRef = useRef<MediaStream | null>(null);
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
-  const [transcriptOpen, setTranscriptOpen] = useState(true);
-  const [uploadedAt, setUploadedAt] = useState<Date | null>(null);
+  const [openSessions, setOpenSessions] = useState<string[]>([]);
 
   // Elapsed timer
   useEffect(() => {
@@ -228,7 +227,7 @@ function LiveView({ interview }: { interview: any }) {
     streamRef.current = null;
     recorderRef.current?.stop();
     setRecording(false);
-    setTranscriptOpen(false);
+    setOpenSessions([]);
     // Auto-finalise: the memo is generated the moment recording stops,
     // no separate "End interview" button needed.
     void finalizeNow();
@@ -259,8 +258,7 @@ function LiveView({ interview }: { interview: any }) {
         ts += 5000;
       }
       qc.invalidateQueries({ queryKey: ["iv-utt", id] });
-      setUploadedAt(new Date());
-      setTranscriptOpen(false);
+      setOpenSessions([]);
       toast.success(`Uploaded ${lines.length} lines — generating memo…`);
       await finalizeNow();
     } catch (e: any) {
@@ -335,47 +333,52 @@ function LiveView({ interview }: { interview: any }) {
 
         {/* Center — transcript */}
         <section className="col-span-6">
-          <Card className="h-full"><CardContent className="p-4">
-            <Accordion type="single" collapsible value={transcriptOpen ? "t" : ""} onValueChange={(v) => setTranscriptOpen(v === "t")}>
-              <AccordionItem value="t" className="border-0">
-                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                  <AccordionTrigger className="hover:no-underline py-1 flex-1 justify-start gap-2 [&>svg]:ml-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                      {transcriptTitle(recording, uploadedAt, interview, utt.data)}
-                    </span>
-                  </AccordionTrigger>
-                  <div className="flex items-center gap-2 text-xs flex-wrap" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-muted-foreground">Speaker:</span>
-                    {(["Founder", "Interviewer"] as const).map(s => (
-                      <button key={s} onClick={() => setCurrentSpeaker(s)}
-                        className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
-                    ))}
-                    <span className="mx-1 text-muted-foreground">·</span>
-                    {!recording
-                      ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
-                      : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
-                    <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
-                      <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
-                        disabled={finalizing} />
-                    </label>
-                  </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
+                <div className="flex items-center gap-2 text-xs flex-wrap">
+                  <span className="text-muted-foreground">Speaker:</span>
+                  {(["Founder", "Interviewer"] as const).map(s => (
+                    <button key={s} onClick={() => setCurrentSpeaker(s)}
+                      className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
+                  ))}
+                  <span className="mx-1 text-muted-foreground">·</span>
+                  {!recording
+                    ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                    : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                  <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
+                    <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
+                      disabled={finalizing} />
+                  </label>
                 </div>
-                <AccordionContent>
-                  <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
-                    {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
-                    <Accordion type="multiple" className="space-y-2">
-                      {(utt.data ?? []).map((u: any) => (
-                        <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
-                      ))}
-                    </Accordion>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </CardContent></Card>
+              </div>
+              <Accordion type="multiple" value={openSessions} onValueChange={setOpenSessions}>
+                {transcriptGroups(utt.data ?? [], interview).map((g) => (
+                  <AccordionItem key={g.id} value={g.id} className="border-0">
+                    <AccordionTrigger className="hover:no-underline py-1 justify-start gap-2 [&>svg]:ml-1">
+                      <span className="bg-green-800 text-white text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full">
+                        {g.title}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
+                        {g.utterances.length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
+                        <div className="space-y-2">
+                          {g.utterances.map((u: any) => (
+                            <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
         </section>
 
 
@@ -471,20 +474,42 @@ function Strip({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 function fmt(ms: number) { const s = Math.floor(ms/1000); const m = Math.floor(s/60); return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
-function transcriptTitle(recording: boolean, uploadedAt: Date | null, interview: any, utterances: any[] | undefined) {
-  if (recording) return "Live transcript";
-  const items = utterances ?? [];
-  if (items.length === 0 && !uploadedAt) return "Live transcript";
-  const d =
-    uploadedAt ??
-    (interview?.started_at ? new Date(interview.started_at) : null) ??
-    (interview?.ended_at ? new Date(interview.ended_at) : null) ??
-    (items[0]?.created_at ? new Date(items[0].created_at) : new Date());
-  return `Transcript · ${format(d, "MMM d, yyyy · HH:mm")}`;
+function transcriptGroups(utterances: any[], interview: any) {
+  // Today each interview holds one transcript session. Grouping by session_id
+  // lets future multi-session meetings stack transcripts newest-first.
+  const map = new Map<string, any[]>();
+  for (const u of utterances) {
+    const key = u.session_id || "current";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(u);
+  }
+  if (map.size === 0) {
+    const d = interview?.started_at ? new Date(interview.started_at) : new Date();
+    return [{ id: "current", title: transcriptGroupTitle(d), utterances: [] }];
+  }
+  const groups = Array.from(map.entries()).map(([id, items]) => {
+    const d = items[0]?.created_at ? new Date(items[0].created_at) : (interview?.started_at ? new Date(interview.started_at) : new Date());
+    return { id, title: transcriptGroupTitle(d), utterances: items };
+  });
+  groups.sort((a, b) => {
+    const ta = a.utterances[0]?.created_at || 0;
+    const tb = b.utterances[0]?.created_at || 0;
+    return tb.localeCompare(ta);
+  });
+  return groups;
+}
+function transcriptGroupTitle(d: Date) {
+  return `TRANSCRIPT · ${format(d, "MMM d, yyyy").toUpperCase()} · ${format(d, "HH:mm")}`;
 }
 function scoreTone(value: any) {
   const n = typeof value === "number" ? value : parseFloat(String(value));
-  if (!isFinite(n)) return "bg-secondary text-secondary-foreground border-border";
+  if (!isFinite(n)) {
+    const s = String(value).toLowerCase();
+    if (s.includes("low") || s === "poor") return "bg-red-100 text-red-800 border-red-200";
+    if (s.includes("medium") || s === "fair" || s.includes("moderate")) return "bg-amber-100 text-amber-800 border-amber-200";
+    if (s.includes("high") || s === "good" || s.includes("strong")) return "bg-green-100 text-green-800 border-green-200";
+    return "bg-secondary text-secondary-foreground border-border";
+  }
   if (n >= 8) return "bg-green-100 text-green-800 border-green-200";
   if (n >= 5) return "bg-amber-100 text-amber-800 border-amber-200";
   return "bg-red-100 text-red-800 border-red-200";
@@ -511,31 +536,23 @@ function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(u.text);
   useEffect(() => setVal(u.text), [u.text]);
-  const preview = (u.text ?? "").replace(/\s+/g, " ").trim();
   return (
-    <AccordionItem value={u.id} className="border border-green-900/20 rounded-md overflow-hidden">
-      <AccordionTrigger className="hover:no-underline py-2 px-3 bg-green-800 text-white hover:bg-green-800/90 data-[state=open]:bg-green-800 gap-3 [&>svg]:text-white">
-        <div className="flex items-center gap-2 text-xs min-w-0 flex-1 text-left">
-          <span className="font-mono opacity-80">{fmt(u.ts_ms)}</span>
-          <Badge className="text-[10px] py-0 bg-white/20 text-white border-white/30 hover:bg-white/20">{u.speaker}</Badge>
-          <span className="truncate opacity-95">{preview}</span>
+    <div className="border-b border-border last:border-0 py-2">
+      <div className="flex items-center gap-2 text-xs mb-1">
+        <span className="font-mono text-muted-foreground">{fmt(u.ts_ms)}</span>
+        <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
+        {u.confidence != null && <span className="text-[11px] text-muted-foreground">conf {(u.confidence * 100).toFixed(0)}%</span>}
+        <button onClick={() => setEditing(!editing)} className="ml-auto text-[11px] text-muted-foreground hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
+      </div>
+      {editing ? (
+        <div>
+          <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
+          <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
         </div>
-      </AccordionTrigger>
-      <AccordionContent className="bg-white px-3 pb-3 pt-2">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
-          {u.confidence != null && <span>conf {(u.confidence * 100).toFixed(0)}%</span>}
-          <button onClick={() => setEditing(!editing)} className="ml-auto hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
-        </div>
-        {editing ? (
-          <div>
-            <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
-            <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
-          </div>
-        ) : (
-          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
-        )}
-      </AccordionContent>
-    </AccordionItem>
+      ) : (
+        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
+      )}
+    </div>
   );
 }
 
