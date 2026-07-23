@@ -42,7 +42,7 @@ import {
 
 export const Route = createFileRoute("/calendar")({ component: () => <AppShell><CalendarScreen /></AppShell> });
 
-type Status = "done" | "cancelled" | "postponed" | null;
+type Status = "done" | "cancelled" | "adhoc" | null;
 
 type CalItem = {
   id: string;
@@ -263,7 +263,6 @@ function CalendarScreen() {
   const statusClasses = (s: Status): string => {
     if (s === "cancelled") return "line-through opacity-60";
     if (s === "done") return "opacity-40";
-    if (s === "postponed") return "italic";
     return "";
   };
 
@@ -353,7 +352,6 @@ function CalendarScreen() {
         <span className="inline-flex items-center gap-1"><Ban className="h-3 w-3 text-red-600" /> Busy</span>
         <span className="inline-flex items-center gap-1 line-through opacity-60">Cancelled</span>
         <span className="inline-flex items-center gap-1 opacity-40">Done</span>
-        <span className="inline-flex items-center gap-1 italic">Postponed</span>
 
         {legendOwners.length > 0 && <span className="text-muted-foreground ml-1">Synced calendars:</span>}
         {legendOwners.map((email) => {
@@ -444,9 +442,9 @@ function CalendarScreen() {
                         <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="adhoc">Adhoc</SelectItem>
                           <SelectItem value="done">Done</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
-                          <SelectItem value="postponed">Postponed</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
