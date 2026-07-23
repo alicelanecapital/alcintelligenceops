@@ -56,8 +56,9 @@ function dedupeEvents(events: any[]): any[] {
   for (const ev of events) {
     if (isHoliday(ev)) continue;
     if (isHiddenBracketed(ev.title)) continue;
-    // Include the google event id so distinct entries (across sub-calendars / teammates)
-    // aren't collapsed just because the title + start_time coincide.
+    // Meetings must have at least one non-alicelanecapital attendee. Zero-attendee
+    // entries are events/personal blocks and belong on the Events screen instead.
+    if (!hasExternalAttendees(ev)) continue;
     const key = `${(ev.google_event_id ?? ev.id ?? "")}|${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -66,13 +67,18 @@ function dedupeEvents(events: any[]): any[] {
   return out;
 }
 
-const INTERNAL_DOMAIN = "alicelanecapital.com";
-function classifyCalendarEvent(ev: any): "private" | "client" {
+const INTERNAL_DOMAINS = ["alicelanecapital.co.za", "alicelanecapital.com"];
+function isInternalEmail(e: string): boolean {
+  return INTERNAL_DOMAINS.some((d) => e.endsWith(`@${d}`));
+}
+function externalAttendees(ev: any): string[] {
   const attendees: any[] = ev.attendees ?? [];
-  const externals = attendees
+  return attendees
     .map((a) => (a?.email ?? "").toLowerCase())
-    .filter((e) => e && !e.endsWith(`@${INTERNAL_DOMAIN}`) && !e.includes("resource.calendar.google.com"));
-  return externals.length === 0 ? "private" : "client";
+    .filter((e) => e && !isInternalEmail(e) && !e.includes("resource.calendar.google.com"));
+}
+function hasExternalAttendees(ev: any): boolean {
+  return externalAttendees(ev).length > 0;
 }
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
