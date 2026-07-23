@@ -229,7 +229,9 @@ function CalendarScreen() {
       const dedupeKey = `${owner}::${g.start_time}::${String(g.title ?? "").trim().toLowerCase()}`;
       if (seenGcal.has(dedupeKey)) return;
       seenGcal.add(dedupeKey);
-      const busy = isBusy(g.title);
+      const organizerEmail = g.organizer_email ?? null;
+      const busyByEmail = isBusyEmail(organizerEmail) || attendees.some((a) => isBusyEmail(a?.email));
+      const busy = isBusy(g.title) || busyByEmail;
       out.push({
         id: `gcal-${owner}-${g.google_event_id ?? g.title}-${g.start_time}`,
         date: new Date(g.start_time),
@@ -246,6 +248,10 @@ function CalendarScreen() {
         location: g.location,
         description: g.description,
         sourceTable: "google_calendar_events",
+        organizerEmail: organizerEmail ?? undefined,
+        attendees: attendees
+          .map((a) => ({ email: a?.email ?? undefined, name: a?.name ?? null }))
+          .filter((a) => a.email && !isBusyEmail(a.email)),
       });
     });
 
