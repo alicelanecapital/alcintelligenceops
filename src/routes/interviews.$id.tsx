@@ -267,11 +267,60 @@ function LiveView({ interview }: { interview: any }) {
   }
 
   const analyses: any[] = ana.data ?? [];
-  const risks = analyses.filter(a => a.kind === "risk").slice(0, 8);
-  const contradictions = analyses.filter(a => a.kind === "contradiction").slice(0, 6);
-  const missing = analyses.filter(a => a.kind === "missing_evidence").slice(0, 6);
-  const followUps = analyses.filter(a => a.kind === "follow_up").slice(0, 6);
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
+
+  // ---- Dedup + cross-frame precedence (see plan §7) ----
+  const rawRisks = analyses.filter(a => a.kind === "risk");
+  const rawContradictions = analyses.filter(a => a.kind === "contradiction");
+  const rawMissing = analyses.filter(a => a.kind === "missing_evidence");
+  const rawFollowUps = analyses.filter(a => a.kind === "follow_up");
+  const rawDocs = (docs.data ?? []) as any[];
+
+  const contradictions = dedupList(rawContradictions, (a) => {
+    const p = a.payload ?? {};
+    const pair = [norm(p.statement_a), norm(p.statement_b)].sort().join("|");
+    return `${pair}|${norm(p.reason)}`;
+  }, (a) => `${a.payload?.statement_a ?? ""} ${a.payload?.statement_b ?? ""} ${a.payload?.reason ?? ""}`);
+
+  const contradictionSigs = new Set(contradictions.flatMap((a: any) => [norm(a.payload?.statement_a), norm(a.payload?.statement_b), norm(a.payload?.reason)]).filter(Boolean));
+
+  const risks = dedupList(rawRisks, (a) => {
+    const p = a.payload ?? {};
+    return `${norm(p.category)}|${norm(p.reason)}`;
+  }, (a) => `${a.payload?.category ?? ""} ${a.payload?.reason ?? ""}`).filter((a: any) => {
+    const sig = norm(a.payload?.reason);
+    // drop risk if its reason is already told by a contradiction
+    return !anyJaccard(sig, [...contradictionSigs], 0.8);
+  }).slice(0, 24);
+
+  const riskSigs = new Set(risks.flatMap((a: any) => [norm(a.payload?.category), norm(a.payload?.reason)]).filter(Boolean));
+
+  const missing = dedupList(rawMissing, (a) => norm(a.payload?.topic || a.payload?.why), (a) => `${a.payload?.topic ?? ""} ${a.payload?.why ?? ""}`)
+    .filter((a: any) => {
+      const sig = norm(a.payload?.topic || a.payload?.why);
+      return !anyJaccard(sig, [...riskSigs], 0.8);
+    }).slice(0, 20);
+
+  const missingSigs = new Set(missing.map((a: any) => norm(a.payload?.topic || a.payload?.why)).filter(Boolean));
+
+  const followUps = dedupList(rawFollowUps, (a) => norm(a.payload?.question), (a) => `${a.payload?.question ?? ""} ${a.payload?.reason ?? ""} ${a.payload?.alternative ?? ""}`)
+    .filter((a: any) => {
+      const sig = norm(a.payload?.question);
+      // remove follow-up if it token-contains a missing-evidence topic
+      const toks = new Set(sig.split(" ").filter(Boolean));
+      for (const m of missingSigs) {
+        const mt = m.split(" ").filter(Boolean);
+        if (mt.length && mt.every((t) => toks.has(t))) return false;
+      }
+      return true;
+    }).slice(0, 20);
+
+  const documentRequests = dedupList(rawDocs, (d) => norm(d.doc_type), (d) => `${d.doc_type ?? ""} ${d.reason ?? ""}`)
+    .filter((d: any) => !missingSigs.has(norm(d.doc_type))).slice(0, 20);
+
+  // Group risks by category for accordion
+  const risksByCategory = groupRisks(risks);
+
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
