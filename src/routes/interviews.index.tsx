@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, dismissInterview } from "@/lib/interviews";
+import { useQuery } from "@tanstack/react-query";
+import { listInterviews } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
@@ -11,8 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useMemo } from "react";
-import { Play, CalendarClock, MapPin, Video, X } from "lucide-react";
-import { toast } from "sonner";
+import { Play, CalendarClock, MapPin, Video } from "lucide-react";
 import {
   format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks,
 } from "date-fns";
@@ -56,8 +55,9 @@ function dedupeEvents(events: any[]): any[] {
   for (const ev of events) {
     if (isHoliday(ev)) continue;
     if (isHiddenBracketed(ev.title)) continue;
-    // Include the google event id so distinct entries (across sub-calendars / teammates)
-    // aren't collapsed just because the title + start_time coincide.
+    // Meetings must have at least one non-alicelanecapital attendee. Zero-attendee
+    // entries are events/personal blocks and belong on the Events screen instead.
+    if (!hasExternalAttendees(ev)) continue;
     const key = `${(ev.google_event_id ?? ev.id ?? "")}|${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -66,13 +66,18 @@ function dedupeEvents(events: any[]): any[] {
   return out;
 }
 
-const INTERNAL_DOMAIN = "alicelanecapital.com";
-function classifyCalendarEvent(ev: any): "private" | "client" {
+const INTERNAL_DOMAINS = ["alicelanecapital.co.za", "alicelanecapital.com"];
+function isInternalEmail(e: string): boolean {
+  return INTERNAL_DOMAINS.some((d) => e.endsWith(`@${d}`));
+}
+function externalAttendees(ev: any): string[] {
   const attendees: any[] = ev.attendees ?? [];
-  const externals = attendees
+  return attendees
     .map((a) => (a?.email ?? "").toLowerCase())
-    .filter((e) => e && !e.endsWith(`@${INTERNAL_DOMAIN}`) && !e.includes("resource.calendar.google.com"));
-  return externals.length === 0 ? "private" : "client";
+    .filter((e) => e && !isInternalEmail(e) && !e.includes("resource.calendar.google.com"));
+}
+function hasExternalAttendees(ev: any): boolean {
+  return externalAttendees(ev).length > 0;
 }
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
@@ -93,17 +98,10 @@ function bucketOf(when: Date): "Today" | "Next week" | string {
 
 
 function InterviewsIndex() {
-  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
-
-  const dismissMut = useMutation({
-    mutationFn: (id: string) => dismissInterview(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Removed from view"); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
-  });
 
   const grouped = useMemo(() => {
     const items: Item[] = [];
@@ -154,7 +152,7 @@ function InterviewsIndex() {
                   <div className="divide-y divide-border/40">
                     {items.map((it) =>
                       it.kind === "interview"
-                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} onDismiss={() => dismissMut.mutate(it.data.id)} />
+                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} />
                         : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
                     )}
                   </div>
@@ -169,7 +167,7 @@ function InterviewsIndex() {
 }
 
 
-function InterviewRow({ i, onDismiss }: { i: any; onDismiss: () => void }) {
+function InterviewRow({ i }: { i: any }) {
   return (
     <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
       <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
@@ -180,13 +178,6 @@ function InterviewRow({ i, onDismiss }: { i: any; onDismiss: () => void }) {
       <Link to="/interviews/$id" params={{ id: i.id }}>
         <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start meeting</Button>
       </Link>
-      <button
-        onClick={onDismiss}
-        title="Dismiss from view"
-        className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }
