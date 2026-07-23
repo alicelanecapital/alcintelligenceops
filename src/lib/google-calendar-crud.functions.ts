@@ -153,7 +153,7 @@ export const deleteGoogleCalendarEvent = createServerFn({ method: "POST" })
  *  Alice Lane-side annotation used only for calendar chip rendering. */
 export const setGoogleEventStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { googleEventId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { googleEventId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const email = await callerEmail(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -168,7 +168,7 @@ export const setGoogleEventStatus = createServerFn({ method: "POST" })
 /** Same, for app-native interview/meeting rows. */
 export const setInterviewStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { interviewId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { interviewId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await (context.supabase.from("interviews" as any) as any)
       .update({ status: data.status })
@@ -180,7 +180,7 @@ export const setInterviewStatus = createServerFn({ method: "POST" })
 /** Same, for public.events rows. */
 export const setEventStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { eventId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { eventId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await (context.supabase.from("events" as any) as any)
       .update({ status: data.status })
