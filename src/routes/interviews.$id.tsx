@@ -157,8 +157,7 @@ function LiveView({ interview }: { interview: any }) {
   const streamRef = useRef<MediaStream | null>(null);
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
-  const [transcriptOpen, setTranscriptOpen] = useState(true);
-  const [uploadedAt, setUploadedAt] = useState<Date | null>(null);
+  const [openSessions, setOpenSessions] = useState<string[]>([]);
 
   // Elapsed timer
   useEffect(() => {
