@@ -167,23 +167,25 @@ function SubCalendarsList({ email }: { email: string }) {
     mut.mutate(next);
   };
   return (
-    <div className="mt-2 ml-6 space-y-1">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sub-calendars — untick to keep private</div>
-      {cals.map((c) => (
-        <label key={c.id} className="flex items-center gap-2 text-[11px] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!c.hidden}
-            onChange={(e) => toggle(c.id, !e.target.checked)}
-            disabled={mut.isPending}
-          />
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
-          <span className="truncate">{c.summary}</span>
-          {c.primary && <Badge variant="outline" className="text-[9px] px-1 py-0">Primary</Badge>}
-          <span className="text-muted-foreground">· {c.accessRole}</span>
-          {c.hidden && <Badge variant="outline" className="text-[9px] px-1 py-0 border-red-500 text-red-600">Hidden</Badge>}
-        </label>
-      ))}
+    <div className="mt-3 ml-6 space-y-1.5">
+      <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Sub-calendars — untick to keep private</div>
+      <div className="divide-y divide-border/40 rounded-md border border-border/40 bg-background/50">
+        {cals.map((c) => (
+          <label key={c.id} className="flex items-center gap-2 text-[13px] cursor-pointer px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={!c.hidden}
+              onChange={(e) => toggle(c.id, !e.target.checked)}
+              disabled={mut.isPending}
+            />
+            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
+            <span className="truncate flex-1">{c.summary}</span>
+            {c.primary && <Badge variant="outline" className="text-[10px] px-1 py-0">Primary</Badge>}
+            <span className="text-muted-foreground text-[11px]">· {c.accessRole}</span>
+            {c.hidden && <Badge variant="outline" className="text-[10px] px-1 py-0 border-crimson text-crimson bg-crimson-50">Hidden</Badge>}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
