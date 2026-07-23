@@ -142,7 +142,7 @@ function ContactsIndex() {
             <SelectItem value="company">Group by Company</SelectItem>
           </SelectContent>
         </Select>
-        {groupBy === "none" && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} /></div>}
+        {groupBy === "none" && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} allowSheet /></div>}
       </div>
 
       <div className="mb-6">
