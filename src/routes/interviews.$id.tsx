@@ -267,11 +267,60 @@ function LiveView({ interview }: { interview: any }) {
   }
 
   const analyses: any[] = ana.data ?? [];
-  const risks = analyses.filter(a => a.kind === "risk").slice(0, 8);
-  const contradictions = analyses.filter(a => a.kind === "contradiction").slice(0, 6);
-  const missing = analyses.filter(a => a.kind === "missing_evidence").slice(0, 6);
-  const followUps = analyses.filter(a => a.kind === "follow_up").slice(0, 6);
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
+
+  // ---- Dedup + cross-frame precedence (see plan §7) ----
+  const rawRisks = analyses.filter(a => a.kind === "risk");
+  const rawContradictions = analyses.filter(a => a.kind === "contradiction");
+  const rawMissing = analyses.filter(a => a.kind === "missing_evidence");
+  const rawFollowUps = analyses.filter(a => a.kind === "follow_up");
+  const rawDocs = (docs.data ?? []) as any[];
+
+  const contradictions = dedupList(rawContradictions, (a) => {
+    const p = a.payload ?? {};
+    const pair = [norm(p.statement_a), norm(p.statement_b)].sort().join("|");
+    return `${pair}|${norm(p.reason)}`;
+  }, (a) => `${a.payload?.statement_a ?? ""} ${a.payload?.statement_b ?? ""} ${a.payload?.reason ?? ""}`);
+
+  const contradictionSigs = new Set(contradictions.flatMap((a: any) => [norm(a.payload?.statement_a), norm(a.payload?.statement_b), norm(a.payload?.reason)]).filter(Boolean));
+
+  const risks = dedupList(rawRisks, (a) => {
+    const p = a.payload ?? {};
+    return `${norm(p.category)}|${norm(p.reason)}`;
+  }, (a) => `${a.payload?.category ?? ""} ${a.payload?.reason ?? ""}`).filter((a: any) => {
+    const sig = norm(a.payload?.reason);
+    // drop risk if its reason is already told by a contradiction
+    return !anyJaccard(sig, [...contradictionSigs], 0.8);
+  }).slice(0, 24);
+
+  const riskSigs = new Set(risks.flatMap((a: any) => [norm(a.payload?.category), norm(a.payload?.reason)]).filter(Boolean));
+
+  const missing = dedupList(rawMissing, (a) => norm(a.payload?.topic || a.payload?.why), (a) => `${a.payload?.topic ?? ""} ${a.payload?.why ?? ""}`)
+    .filter((a: any) => {
+      const sig = norm(a.payload?.topic || a.payload?.why);
+      return !anyJaccard(sig, [...riskSigs], 0.8);
+    }).slice(0, 20);
+
+  const missingSigs = new Set(missing.map((a: any) => norm(a.payload?.topic || a.payload?.why)).filter(Boolean));
+
+  const followUps = dedupList(rawFollowUps, (a) => norm(a.payload?.question), (a) => `${a.payload?.question ?? ""} ${a.payload?.reason ?? ""} ${a.payload?.alternative ?? ""}`)
+    .filter((a: any) => {
+      const sig = norm(a.payload?.question);
+      // remove follow-up if it token-contains a missing-evidence topic
+      const toks = new Set(sig.split(" ").filter(Boolean));
+      for (const m of missingSigs) {
+        const mt = m.split(" ").filter(Boolean);
+        if (mt.length && mt.every((t) => toks.has(t))) return false;
+      }
+      return true;
+    }).slice(0, 20);
+
+  const documentRequests = dedupList(rawDocs, (d) => norm(d.doc_type), (d) => `${d.doc_type ?? ""} ${d.reason ?? ""}`)
+    .filter((d: any) => !missingSigs.has(norm(d.doc_type))).slice(0, 20);
+
+  // Group risks by category for accordion
+  const risksByCategory = groupRisks(risks);
+
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
@@ -295,7 +344,7 @@ function LiveView({ interview }: { interview: any }) {
       </div>
 
       <div className="grid grid-cols-12 gap-4">
-        {/* Left rail — interview guide */}
+        {/* Col 1 — interview guide */}
         <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Interview guide</div>
@@ -315,24 +364,10 @@ function LiveView({ interview }: { interview: any }) {
               {(INTERVIEW_STAGES.find(s => s.name === stagePointer)?.topics ?? []).map(t => <li key={t}>· {t}</li>)}
             </ul>
           </CardContent></Card>
-          <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Suggested follow-ups</div>
-            {followUps.length === 0 ? <div className="text-xs text-muted-foreground italic">Waiting for signal…</div> :
-              followUps.map((a: any, i: number) => {
-                const p: any = a.payload ?? {};
-                return (
-                  <div key={i} className="border-b border-border last:border-0 py-2">
-                    <div className="text-sm font-medium">{p.question}</div>
-                    {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
-                    {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
-                  </div>
-                );
-              })}
-          </CardContent></Card>
         </aside>
 
-        {/* Center — transcript */}
-        <section className="col-span-6">
+        {/* Cols 2–3 — transcript on top, live scoring below */}
+        <section className="col-span-6 space-y-3">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
@@ -379,11 +414,7 @@ function LiveView({ interview }: { interview: any }) {
               </Accordion>
             </CardContent>
           </Card>
-        </section>
 
-
-        {/* Right — AI analysis */}
-        <aside className="col-span-3 space-y-3">
           {scores && (
             <Card><CardContent className="p-4">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Live scoring</div>
@@ -400,41 +431,94 @@ function LiveView({ interview }: { interview: any }) {
               </div>
             </CardContent></Card>
           )}
-          <RailList title="Risk alerts" items={risks} render={(p) => (
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="font-medium text-sm">{p.category}</div>
-                <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">{p.reason}</div>
-              {p.mitigation && <div className="text-[11px] mt-1"><span className="font-medium">Mitigation:</span> {p.mitigation}</div>}
-            </div>
-          )} />
-          <RailList title="Contradictions" items={contradictions} render={(p) => (
-            <div>
-              <div className="text-xs italic">"{p.statement_a}"</div>
-              <div className="text-xs italic text-muted-foreground mt-1">vs "{p.statement_b}"</div>
-              <div className="text-[11px] mt-1">{p.reason}</div>
-            </div>
-          )} />
-          <RailList title="Missing evidence" items={missing} render={(p) => (
-            <div>
-              <div className="text-sm font-medium">{p.topic}</div>
-              <div className="text-[11px] text-muted-foreground">{p.why}</div>
-            </div>
-          )} />
+        </section>
+
+        {/* Col 4 — Risk alerts (top), then rest */}
+        <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document requests</div>
-            {(docs.data ?? []).length === 0 ? <div className="text-xs text-muted-foreground italic">Auto-generated as gaps appear.</div> :
-              (docs.data ?? []).slice(0, 8).map((d: any) => (
-                <div key={d.id} className="border-b border-border last:border-0 py-1.5">
-                  <div className="text-sm">{d.doc_type}</div>
-                  {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
-                </div>
-              ))}
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Risk alerts</div>
+            {risks.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> : (
+              <Accordion type="multiple" defaultValue={[]}>
+                {risksByCategory.map((grp) => (
+                  <AccordionItem key={grp.category} value={grp.category} className="border-b border-border last:border-0">
+                    <AccordionTrigger className="hover:no-underline py-2">
+                      <div className="flex items-center justify-between w-full pr-2 gap-2">
+                        <span className="text-sm font-medium text-left">{grp.category} <span className="text-muted-foreground">({grp.items.length})</span></span>
+                        {grp.avgLabel && <Badge className={ratingColor(grp.avgLabel)}>{grp.avgLabel}</Badge>}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-1">
+                        {grp.items.map((a: any) => {
+                          const p = a.payload ?? {};
+                          return (
+                            <div key={a.id} className="border-b border-border last:border-0 pb-2">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm">{p.category}</div>
+                                {p.rating && <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">{p.reason}</div>
+                              {p.mitigation && <div className="text-[11px] mt-1"><span className="font-medium">Mitigation:</span> {p.mitigation}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
           </CardContent></Card>
+
+          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…">
+            {followUps.map((a: any, i: number) => {
+              const p: any = a.payload ?? {};
+              return (
+                <div key={a.id ?? i} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.question}</div>
+                  {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
+                  {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet.">
+            {missing.map((a: any) => {
+              const p = a.payload ?? {};
+              return (
+                <div key={a.id} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.topic}</div>
+                  <div className="text-[11px] text-muted-foreground">{p.why}</div>
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet.">
+            {contradictions.map((a: any) => {
+              const p = a.payload ?? {};
+              return (
+                <div key={a.id} className="border-b border-border last:border-0 py-2">
+                  <div className="text-xs italic">"{p.statement_a}"</div>
+                  <div className="text-xs italic text-muted-foreground mt-1">vs "{p.statement_b}"</div>
+                  <div className="text-[11px] mt-1">{p.reason}</div>
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear.">
+            {documentRequests.map((d: any) => (
+              <div key={d.id} className="border-b border-border last:border-0 py-1.5">
+                <div className="text-sm">{d.doc_type}</div>
+                {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
+              </div>
+            ))}
+          </CollapsedListCard>
         </aside>
       </div>
+
 
       {/* Manual assessment */}
       <div className="grid grid-cols-12 gap-4 mt-4">
@@ -522,15 +606,109 @@ function ratingColor(r: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-function RailList({ title, items, render }: { title: string; items: any[]; render: (payload: any) => React.ReactNode }) {
+function CollapsedListCard({ title, count, emptyText, children }: { title: string; count: number; emptyText: string; children: React.ReactNode }) {
   return (
     <Card><CardContent className="p-4">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{title}</div>
-      {items.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> :
-        <div className="space-y-3">{items.map((a: any) => <div key={a.id} className="border-b border-border last:border-0 pb-2">{render(a.payload)}</div>)}</div>}
+      {count === 0 ? (
+        <>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{title}</div>
+          <div className="text-xs text-muted-foreground italic">{emptyText}</div>
+        </>
+      ) : (
+        <Accordion type="multiple" defaultValue={[]}>
+          <AccordionItem value="x" className="border-0">
+            <AccordionTrigger className="hover:no-underline py-1">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{title} <span className="text-foreground/70 normal-case tracking-normal">({count})</span></span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="pt-1">{children}</div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </CardContent></Card>
   );
 }
+
+/* ---- Dedup + grouping helpers ---- */
+function norm(s: any): string {
+  return String(s ?? "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function jaccard(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const A = new Set(a.split(" ").filter(Boolean));
+  const B = new Set(b.split(" ").filter(Boolean));
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0;
+  A.forEach((t) => { if (B.has(t)) inter++; });
+  const union = A.size + B.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+function anyJaccard(sig: string, others: string[], threshold: number): boolean {
+  if (!sig) return false;
+  return others.some((o) => o && jaccard(sig, o) >= threshold);
+}
+function dedupList<T>(items: T[], sigOf: (item: T) => string, textOf: (item: T) => string): T[] {
+  const seen = new Map<string, { item: T; text: string }>();
+  const order: string[] = [];
+  for (const it of items) {
+    const sig = sigOf(it);
+    if (!sig) { order.push(`__k${order.length}`); seen.set(order[order.length - 1], { item: it, text: textOf(it) }); continue; }
+    // exact hit
+    if (seen.has(sig)) {
+      const prev = seen.get(sig)!;
+      const t = textOf(it);
+      if (t.length > prev.text.length) seen.set(sig, { item: it, text: t });
+      continue;
+    }
+    // near-dupe against existing sigs
+    let matched: string | null = null;
+    for (const k of order) {
+      if (k.startsWith("__k")) continue;
+      if (jaccard(sig, k) >= 0.8) { matched = k; break; }
+    }
+    if (matched) {
+      const prev = seen.get(matched)!;
+      const t = textOf(it);
+      if (t.length > prev.text.length) seen.set(matched, { item: it, text: t });
+      continue;
+    }
+    seen.set(sig, { item: it, text: textOf(it) });
+    order.push(sig);
+  }
+  return order.map((k) => seen.get(k)!.item);
+}
+function ratingScore(r: any): number | null {
+  if (r == null) return null;
+  if (typeof r === "number") return r;
+  const s = String(r).toLowerCase();
+  if (s.startsWith("crit")) return 4;
+  if (s.startsWith("high")) return 3;
+  if (s.startsWith("med") || s.includes("moderate")) return 2;
+  if (s.startsWith("low") || s === "minor") return 1;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+function scoreToLabel(n: number): string {
+  if (n >= 3.5) return "Critical";
+  if (n >= 2.5) return "High";
+  if (n >= 1.5) return "Medium";
+  return "Low";
+}
+function groupRisks(items: any[]): Array<{ category: string; items: any[]; avgLabel: string | null }> {
+  const map = new Map<string, any[]>();
+  for (const a of items) {
+    const cat = a.payload?.category?.trim() || "Uncategorised";
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push(a);
+  }
+  return Array.from(map.entries()).map(([category, list]) => {
+    const scores = list.map((a) => ratingScore(a.payload?.rating)).filter((n): n is number => n != null);
+    const avg = scores.length ? scores.reduce((s, x) => s + x, 0) / scores.length : null;
+    return { category, items: list, avgLabel: avg != null ? scoreToLabel(avg) : null };
+  });
+}
+
 
 function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
