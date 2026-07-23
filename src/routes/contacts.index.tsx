@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchContacts, createContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
+import { fetchContacts, createContact, updateContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
 import { generateCompanyDescription, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
 import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
