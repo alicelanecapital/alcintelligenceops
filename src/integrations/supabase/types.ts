@@ -1515,6 +1515,7 @@ export type Database = {
           location: string | null
           meeting_link: string | null
           start_time: string | null
+          status: string | null
           title: string | null
           updated_at: string
           user_email: string
@@ -1532,6 +1533,7 @@ export type Database = {
           location?: string | null
           meeting_link?: string | null
           start_time?: string | null
+          status?: string | null
           title?: string | null
           updated_at?: string
           user_email: string
@@ -1549,6 +1551,7 @@ export type Database = {
           location?: string | null
           meeting_link?: string | null
           start_time?: string | null
+          status?: string | null
           title?: string | null
           updated_at?: string
           user_email?: string
