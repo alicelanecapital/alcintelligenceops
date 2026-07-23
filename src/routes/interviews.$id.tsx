@@ -364,11 +364,13 @@ function LiveView({ interview }: { interview: any }) {
                   </div>
                 </div>
                 <AccordionContent>
-                  <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 pt-2">
+                  <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
                     {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
-                    {(utt.data ?? []).map((u: any) => (
-                      <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
-                    ))}
+                    <Accordion type="multiple" className="space-y-2">
+                      {(utt.data ?? []).map((u: any) => (
+                        <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                      ))}
+                    </Accordion>
                   </div>
                 </AccordionContent>
               </AccordionItem>
