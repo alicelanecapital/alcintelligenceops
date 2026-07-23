@@ -14,9 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, ChevronRight, Circle, FileText, Mic, Sparkles, StopCircle } from "lucide-react";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/$id")({ component: () => <AppShell><InterviewWorkspace /></AppShell> });
 
