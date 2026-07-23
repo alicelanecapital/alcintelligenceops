@@ -476,6 +476,24 @@ function Strip({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 function fmt(ms: number) { const s = Math.floor(ms/1000); const m = Math.floor(s/60); return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
+function transcriptTitle(recording: boolean, uploadedAt: Date | null, interview: any, utterances: any[] | undefined) {
+  if (recording) return "Live transcript";
+  const items = utterances ?? [];
+  if (items.length === 0 && !uploadedAt) return "Live transcript";
+  const d =
+    uploadedAt ??
+    (interview?.started_at ? new Date(interview.started_at) : null) ??
+    (interview?.ended_at ? new Date(interview.ended_at) : null) ??
+    (items[0]?.created_at ? new Date(items[0].created_at) : new Date());
+  return `Transcript · ${format(d, "MMM d, yyyy · HH:mm")}`;
+}
+function scoreTone(value: any) {
+  const n = typeof value === "number" ? value : parseFloat(String(value));
+  if (!isFinite(n)) return "bg-secondary text-secondary-foreground border-border";
+  if (n >= 8) return "bg-green-100 text-green-800 border-green-200";
+  if (n >= 5) return "bg-amber-100 text-amber-800 border-amber-200";
+  return "bg-red-100 text-red-800 border-red-200";
+}
 function ratingColor(r: string) {
   const s = (r ?? "").toLowerCase();
   if (s.startsWith("crit")) return "bg-red-700 text-white";
