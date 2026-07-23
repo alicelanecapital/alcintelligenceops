@@ -98,7 +98,7 @@ export function SyncGoogleButton({ mode = "self", className }: { mode?: "self" |
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={syncMut.isPending}>
+    <Button variant="outline" size="sm" onClick={onClick} disabled={syncMut.isPending} className={className}>
       <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
       {syncMut.isPending ? "Syncing…" : label}
     </Button>
