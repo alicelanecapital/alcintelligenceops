@@ -280,6 +280,8 @@ function CalendarScreen() {
   const createFn = useServerFn(createGoogleCalendarEvent);
   const updateFn = useServerFn(updateGoogleCalendarEvent);
   const deleteFn = useServerFn(deleteGoogleCalendarEvent);
+  const deleteInterviewFn = useServerFn(deleteInterviewRow);
+  const deleteEventFn = useServerFn(deleteEventRow);
   const setGoogleStatusFn = useServerFn(setGoogleEventStatus);
   const setInterviewStatusFn = useServerFn(setInterviewStatus);
   const setEventStatusFn = useServerFn(setEventStatus);
@@ -311,10 +313,17 @@ function CalendarScreen() {
 
   const deleteMut = useMutation({
     mutationFn: async (it: CalItem) => {
-      if (!it.googleEventId || !it.calendarId) throw new Error("Not a Google event");
-      await deleteFn({ data: { googleEventId: it.googleEventId, calendarId: it.calendarId } });
+      if (it.sourceTable === "google_calendar_events" && it.googleEventId && it.calendarId) {
+        await deleteFn({ data: { googleEventId: it.googleEventId, calendarId: it.calendarId } });
+      } else if (it.sourceTable === "interviews" && it.sourceId) {
+        await deleteInterviewFn({ data: { interviewId: it.sourceId } });
+      } else if (it.sourceTable === "events" && it.sourceId) {
+        await deleteEventFn({ data: { eventId: it.sourceId } });
+      } else {
+        throw new Error("Cannot delete this item");
+      }
     },
-    onSuccess: () => { toast.success("Event deleted"); invalidateAll(); },
+    onSuccess: () => { toast.success("Deleted"); invalidateAll(); },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
 
