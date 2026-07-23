@@ -63,6 +63,8 @@ type CalItem = {
   description?: string | null;
   sourceTable?: "google_calendar_events" | "interviews" | "events";
   sourceId?: string;
+  organizerEmail?: string;
+  attendees?: { email?: string; name?: string | null }[];
 };
 
 const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
@@ -78,9 +80,22 @@ function isBusy(title: string | null | undefined): boolean {
   return BUSY_TOKENS.some((tok) => t.includes(tok));
 }
 
+const BUSY_EMAILS = new Set([
+  "georgia.adams@smartify.co.za",
+  "info@georgiaadams.co.za",
+  "nonastasia@gmail.com",
+]);
+function isBusyEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return BUSY_EMAILS.has(email.toLowerCase());
+}
+
 /** Per-teammate override for the busy-chip initials. */
 const BUSY_INITIALS: Record<string, string> = {
   "georgia@alicelanecapital.co.za": "GA",
+  "georgia.adams@smartify.co.za": "GA",
+  "info@georgiaadams.co.za": "GA",
+  "nonastasia@gmail.com": "GA",
 };
 function initialsFromEmail(email?: string): string {
   if (!email) return "??";
@@ -99,6 +114,20 @@ function timeRange(it: CalItem): string {
     return `${start}–${format(it.endDate, "HH:mm")}`;
   }
   return start;
+}
+
+function organizerAttendeesText(it: CalItem): string | null {
+  if (it.busy || it.sourceTable !== "google_calendar_events") return null;
+  const org = it.organizerEmail;
+  const list = (it.attendees ?? [])
+    .map((a) => (a.name ? a.name.trim() : (a.email ? a.email.trim() : null)))
+    .filter(Boolean) as string[];
+  const shown = list.slice(0, 2);
+  const extra = list.length - shown.length;
+  const withPart = shown.length ? `With: ${shown.join(", ")}${extra > 0 ? ` +${extra}` : ""}` : "";
+  const orgPart = org ? `Org: ${org}` : "";
+  if (!orgPart && !withPart) return null;
+  return [orgPart, withPart].filter(Boolean).join(" · ");
 }
 
 function CalendarScreen() {
@@ -214,7 +243,9 @@ function CalendarScreen() {
       const dedupeKey = `${owner}::${g.start_time}::${String(g.title ?? "").trim().toLowerCase()}`;
       if (seenGcal.has(dedupeKey)) return;
       seenGcal.add(dedupeKey);
-      const busy = isBusy(g.title);
+      const organizerEmail = g.organizer_email ?? null;
+      const busyByEmail = isBusyEmail(organizerEmail) || attendees.some((a) => isBusyEmail(a?.email));
+      const busy = isBusy(g.title) || busyByEmail;
       out.push({
         id: `gcal-${owner}-${g.google_event_id ?? g.title}-${g.start_time}`,
         date: new Date(g.start_time),
@@ -231,6 +262,10 @@ function CalendarScreen() {
         location: g.location,
         description: g.description,
         sourceTable: "google_calendar_events",
+        organizerEmail: organizerEmail ?? undefined,
+        attendees: attendees
+          .map((a) => ({ email: a?.email ?? undefined, name: a?.name ?? null }))
+          .filter((a) => a.email && !isBusyEmail(a.email)),
       });
     });
 
@@ -430,9 +465,13 @@ function CalendarScreen() {
                       {it.type}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium">
+                      <div className="font-medium truncate">
                         {it.hasTime && <span className="mr-2 text-muted-foreground tabular-nums">{timeRange(it)}</span>}
                         {it.busy ? `${initialsFromEmail(it.owner)} · Busy` : it.label}
+                        {(() => {
+                          const meta = organizerAttendeesText(it);
+                          return meta ? <span className="text-[8px] text-muted-foreground font-normal ml-2">{meta}</span> : null;
+                        })()}
                       </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
