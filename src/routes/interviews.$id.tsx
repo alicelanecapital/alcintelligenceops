@@ -344,7 +344,7 @@ function LiveView({ interview }: { interview: any }) {
       </div>
 
       <div className="grid grid-cols-12 gap-4">
-        {/* Left rail — interview guide */}
+        {/* Col 1 — interview guide */}
         <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Interview guide</div>
@@ -364,24 +364,10 @@ function LiveView({ interview }: { interview: any }) {
               {(INTERVIEW_STAGES.find(s => s.name === stagePointer)?.topics ?? []).map(t => <li key={t}>· {t}</li>)}
             </ul>
           </CardContent></Card>
-          <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Suggested follow-ups</div>
-            {followUps.length === 0 ? <div className="text-xs text-muted-foreground italic">Waiting for signal…</div> :
-              followUps.map((a: any, i: number) => {
-                const p: any = a.payload ?? {};
-                return (
-                  <div key={i} className="border-b border-border last:border-0 py-2">
-                    <div className="text-sm font-medium">{p.question}</div>
-                    {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
-                    {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
-                  </div>
-                );
-              })}
-          </CardContent></Card>
         </aside>
 
-        {/* Center — transcript */}
-        <section className="col-span-6">
+        {/* Cols 2–3 — transcript on top, live scoring below */}
+        <section className="col-span-6 space-y-3">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
@@ -428,11 +414,7 @@ function LiveView({ interview }: { interview: any }) {
               </Accordion>
             </CardContent>
           </Card>
-        </section>
 
-
-        {/* Right — AI analysis */}
-        <aside className="col-span-3 space-y-3">
           {scores && (
             <Card><CardContent className="p-4">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Live scoring</div>
@@ -449,41 +431,94 @@ function LiveView({ interview }: { interview: any }) {
               </div>
             </CardContent></Card>
           )}
-          <RailList title="Risk alerts" items={risks} render={(p) => (
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="font-medium text-sm">{p.category}</div>
-                <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">{p.reason}</div>
-              {p.mitigation && <div className="text-[11px] mt-1"><span className="font-medium">Mitigation:</span> {p.mitigation}</div>}
-            </div>
-          )} />
-          <RailList title="Contradictions" items={contradictions} render={(p) => (
-            <div>
-              <div className="text-xs italic">"{p.statement_a}"</div>
-              <div className="text-xs italic text-muted-foreground mt-1">vs "{p.statement_b}"</div>
-              <div className="text-[11px] mt-1">{p.reason}</div>
-            </div>
-          )} />
-          <RailList title="Missing evidence" items={missing} render={(p) => (
-            <div>
-              <div className="text-sm font-medium">{p.topic}</div>
-              <div className="text-[11px] text-muted-foreground">{p.why}</div>
-            </div>
-          )} />
+        </section>
+
+        {/* Col 4 — Risk alerts (top), then rest */}
+        <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document requests</div>
-            {(docs.data ?? []).length === 0 ? <div className="text-xs text-muted-foreground italic">Auto-generated as gaps appear.</div> :
-              (docs.data ?? []).slice(0, 8).map((d: any) => (
-                <div key={d.id} className="border-b border-border last:border-0 py-1.5">
-                  <div className="text-sm">{d.doc_type}</div>
-                  {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
-                </div>
-              ))}
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Risk alerts</div>
+            {risks.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> : (
+              <Accordion type="multiple" defaultValue={[]}>
+                {risksByCategory.map((grp) => (
+                  <AccordionItem key={grp.category} value={grp.category} className="border-b border-border last:border-0">
+                    <AccordionTrigger className="hover:no-underline py-2">
+                      <div className="flex items-center justify-between w-full pr-2 gap-2">
+                        <span className="text-sm font-medium text-left">{grp.category} <span className="text-muted-foreground">({grp.items.length})</span></span>
+                        {grp.avgLabel && <Badge className={ratingColor(grp.avgLabel)}>{grp.avgLabel}</Badge>}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-1">
+                        {grp.items.map((a: any) => {
+                          const p = a.payload ?? {};
+                          return (
+                            <div key={a.id} className="border-b border-border last:border-0 pb-2">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm">{p.category}</div>
+                                {p.rating && <Badge className={ratingColor(p.rating)}>{p.rating}</Badge>}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">{p.reason}</div>
+                              {p.mitigation && <div className="text-[11px] mt-1"><span className="font-medium">Mitigation:</span> {p.mitigation}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
           </CardContent></Card>
+
+          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…">
+            {followUps.map((a: any, i: number) => {
+              const p: any = a.payload ?? {};
+              return (
+                <div key={a.id ?? i} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.question}</div>
+                  {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
+                  {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet.">
+            {missing.map((a: any) => {
+              const p = a.payload ?? {};
+              return (
+                <div key={a.id} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.topic}</div>
+                  <div className="text-[11px] text-muted-foreground">{p.why}</div>
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet.">
+            {contradictions.map((a: any) => {
+              const p = a.payload ?? {};
+              return (
+                <div key={a.id} className="border-b border-border last:border-0 py-2">
+                  <div className="text-xs italic">"{p.statement_a}"</div>
+                  <div className="text-xs italic text-muted-foreground mt-1">vs "{p.statement_b}"</div>
+                  <div className="text-[11px] mt-1">{p.reason}</div>
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear.">
+            {documentRequests.map((d: any) => (
+              <div key={d.id} className="border-b border-border last:border-0 py-1.5">
+                <div className="text-sm">{d.doc_type}</div>
+                {d.reason && <div className="text-[11px] text-muted-foreground">{d.reason}</div>}
+              </div>
+            ))}
+          </CollapsedListCard>
         </aside>
       </div>
+
 
       {/* Manual assessment */}
       <div className="grid grid-cols-12 gap-4 mt-4">
