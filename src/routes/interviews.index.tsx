@@ -10,7 +10,7 @@ import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Play, CalendarClock, MapPin, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import {
