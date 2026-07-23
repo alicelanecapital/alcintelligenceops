@@ -101,6 +101,11 @@ function Events() {
       // On create, default start_date to today so a saved event is visible in
       // the upcoming list instead of silently filtered out.
       const payload = data.id ? data : { ...data, start_date: data.start_date || format(new Date(), "yyyy-MM-dd") };
+      // Derive region from country if the user hasn't set one, so it shows in the right tab.
+      if (!payload.region && payload.country) {
+        payload.region = String(payload.country).toLowerCase().includes("south africa") ? "SA" : "Global";
+      }
+      if (!payload.region) payload.region = "SA";
       return payload.id ? updateEvent(payload.id, payload) : createEvent(payload);
     },
     onSuccess: () => {
@@ -109,6 +114,7 @@ function Events() {
       setEditingEvent(null);
       toast.success("Event saved");
     },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save event"),
   });
 
   const rejectMut = useMutation({
