@@ -47,7 +47,7 @@ type CalItem = {
   date: Date;
   endDate?: Date;
   label: string;
-  type: "event" | "meeting" | "task" | "holiday";
+  type: "event" | "meeting" | "holiday";
   sub?: string;
   category?: ContactCategory;
   owner?: string;
@@ -59,7 +59,7 @@ type CalItem = {
   calendarId?: string;
   location?: string | null;
   description?: string | null;
-  sourceTable?: "google_calendar_events" | "interviews" | "events" | "tasks";
+  sourceTable?: "google_calendar_events" | "interviews" | "events";
   sourceId?: string;
 };
 
@@ -115,7 +115,7 @@ function CalendarScreen() {
 
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const meetings = useQuery({ queryKey: ["all-meetings"], queryFn: fetchAllMeetings });
-  const tasks = useQuery({ queryKey: ["all-tasks"], queryFn: fetchAllTasks });
+  // Tasks intentionally not shown on the calendar.
 
   const interviews = useQuery({
     queryKey: ["cal-interviews"],
@@ -197,6 +197,18 @@ function CalendarScreen() {
       if (!g.start_time || isHolidayRow(g)) return;
       const owner = String(g.user_email ?? "").toLowerCase();
       if (activeEmails.size > 0 && !activeEmails.has(owner)) return;
+      // A calendar entry with no external (non-alicelanecapital) attendee is
+      // treated as an event/personal block, not a meeting — hide it from the grid.
+      const attendees: any[] = Array.isArray(g.attendees) ? g.attendees : [];
+      const externals = attendees
+        .map((a) => String(a?.email ?? "").toLowerCase())
+        .filter((e) =>
+          e &&
+          !e.endsWith("@alicelanecapital.co.za") &&
+          !e.endsWith("@alicelanecapital.com") &&
+          !e.includes("resource.calendar.google.com"),
+        );
+      if (externals.length === 0) return;
       const dedupeKey = `${owner}::${g.start_time}::${String(g.title ?? "").trim().toLowerCase()}`;
       if (seenGcal.has(dedupeKey)) return;
       seenGcal.add(dedupeKey);
@@ -220,12 +232,8 @@ function CalendarScreen() {
       });
     });
 
-    (tasks.data ?? []).forEach((t: any) => {
-      if (!t.due_date || t.status === "Done") return;
-      out.push({ id: `task-${t.id}`, date: parseISO(t.due_date), label: t.title, type: "task", sub: t.assignee, sourceTable: "tasks", sourceId: t.id });
-    });
     return out;
-  }, [events.data, meetings.data, tasks.data, interviews.data, teamEvents.data, team.data]);
+  }, [events.data, meetings.data, interviews.data, teamEvents.data, team.data]);
 
   const holidayByDay = useMemo(() => {
     const m = new Map<string, string>();
@@ -243,7 +251,6 @@ function CalendarScreen() {
 
   const itemStyle = (it: CalItem): string => {
     if (it.type === "event") return "bg-teal-600 text-white rounded";
-    if (it.type === "task") return "text-orange-600";
     if (it.type === "meeting" && it.owner) {
       const c = COLOR_CLASSES[resolveColor(it.owner)] ?? DEFAULT_COLOR_CLASSES;
       return c.badge;
@@ -332,8 +339,7 @@ function CalendarScreen() {
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 mt-6 text-xs items-center">
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-50 border border-rose-200" /> Public holiday</span>
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-teal-600" /> Event</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> Task due</span>
-        <span className="inline-flex items-center gap-1"><Ban className="h-3 w-3 text-muted-foreground" /> Busy</span>
+        <span className="inline-flex items-center gap-1"><Ban className="h-3 w-3 text-red-600" /> Busy</span>
         <span className="inline-flex items-center gap-1 line-through opacity-60">Cancelled</span>
         <span className="inline-flex items-center gap-1 opacity-40">Done</span>
         <span className="inline-flex items-center gap-1 italic">Postponed</span>
@@ -381,7 +387,7 @@ function CalendarScreen() {
                     title={(it.busy ? `${it.owner} · Busy` : (it.sub ? `${it.label} — ${it.sub}` : it.label)) + (it.status ? ` · ${it.status}` : "")}
                     className={cn("text-[10px] px-0.5 py-0.5 truncate flex items-center gap-1", itemStyle(it), statusClasses(it.status ?? null), i > 0 && "border-t border-border/40")}
                   >
-                    {it.busy && <Ban className="h-2.5 w-2.5 shrink-0" />}
+                    {it.busy && <Ban className="h-2.5 w-2.5 shrink-0 text-red-600" />}
                     {it.hasTime && <span className="font-medium tabular-nums">{timeRange(it)}</span>}
                     <span className="truncate">{it.label}</span>
                   </div>
@@ -409,7 +415,7 @@ function CalendarScreen() {
                 {selectedItems.map((it) => (
                   <div key={it.id} className={cn("flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0", statusClasses(it.status ?? null))}>
                     <span className={cn("text-[10px] px-2 py-0.5 rounded uppercase tracking-wide inline-flex items-center gap-1", itemStyle(it))}>
-                      {it.busy && <Ban className="h-2.5 w-2.5" />}
+                      {it.busy && <Ban className="h-2.5 w-2.5 text-red-600" />}
                       {it.type}
                     </span>
                     <div className="flex-1 min-w-0">
