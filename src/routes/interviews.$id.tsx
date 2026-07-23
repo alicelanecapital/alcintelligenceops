@@ -6,7 +6,6 @@ import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
   saveNote, setInterviewStatus, insertUtterance, editUtterance,
-  INTERVIEW_STAGES,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
@@ -19,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ChevronRight, Circle, FileText, Mic, Sparkles, StopCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/interviews/$id")({ component: () => <AppShell><InterviewWorkspace /></AppShell> });
