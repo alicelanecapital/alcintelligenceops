@@ -335,13 +335,8 @@ function LiveView({ interview }: { interview: any }) {
           </select>
         } />
         <Strip label="Elapsed" value={fmt(elapsed)} />
-        <Strip label="Recording" value={
-          <span className="inline-flex items-center gap-2">
-            <Circle className={`h-2.5 w-2.5 ${recording ? "fill-red-600 text-red-600 animate-pulse" : "fill-muted-foreground text-muted-foreground"}`} />
-            {recording ? "Live" : "Idle"}
-          </span>
-        } />
       </div>
+
 
       <div className="grid grid-cols-12 gap-4">
         {/* Col 1 — interview guide */}
