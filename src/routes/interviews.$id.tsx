@@ -49,7 +49,7 @@ function InterviewWorkspace() {
           <div className="flex items-center gap-4 min-w-0">
             <button onClick={() => nav({ to: "/interviews" })} className="text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /></button>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Diagnostic Engine</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live Workspace</div>
               <div className="font-serif text-2xl truncate">{iv.founder_name} <span className="text-muted-foreground">·</span> <span className="text-foreground/70">{iv.business_name}</span></div>
             </div>
           </div>
