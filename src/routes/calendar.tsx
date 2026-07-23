@@ -63,6 +63,8 @@ type CalItem = {
   description?: string | null;
   sourceTable?: "google_calendar_events" | "interviews" | "events";
   sourceId?: string;
+  organizerEmail?: string;
+  attendees?: { email?: string; name?: string | null }[];
 };
 
 const FALLBACK_COLORS: TeamMemberColor[] = TEAM_MEMBER_COLORS;
