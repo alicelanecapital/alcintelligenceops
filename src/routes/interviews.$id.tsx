@@ -606,15 +606,109 @@ function ratingColor(r: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-function RailList({ title, items, render }: { title: string; items: any[]; render: (payload: any) => React.ReactNode }) {
+function CollapsedListCard({ title, count, emptyText, children }: { title: string; count: number; emptyText: string; children: React.ReactNode }) {
   return (
     <Card><CardContent className="p-4">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{title}</div>
-      {items.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> :
-        <div className="space-y-3">{items.map((a: any) => <div key={a.id} className="border-b border-border last:border-0 pb-2">{render(a.payload)}</div>)}</div>}
+      {count === 0 ? (
+        <>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{title}</div>
+          <div className="text-xs text-muted-foreground italic">{emptyText}</div>
+        </>
+      ) : (
+        <Accordion type="multiple" defaultValue={[]}>
+          <AccordionItem value="x" className="border-0">
+            <AccordionTrigger className="hover:no-underline py-1">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{title} <span className="text-foreground/70 normal-case tracking-normal">({count})</span></span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="pt-1">{children}</div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </CardContent></Card>
   );
 }
+
+/* ---- Dedup + grouping helpers ---- */
+function norm(s: any): string {
+  return String(s ?? "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function jaccard(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const A = new Set(a.split(" ").filter(Boolean));
+  const B = new Set(b.split(" ").filter(Boolean));
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0;
+  A.forEach((t) => { if (B.has(t)) inter++; });
+  const union = A.size + B.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+function anyJaccard(sig: string, others: string[], threshold: number): boolean {
+  if (!sig) return false;
+  return others.some((o) => o && jaccard(sig, o) >= threshold);
+}
+function dedupList<T>(items: T[], sigOf: (item: T) => string, textOf: (item: T) => string): T[] {
+  const seen = new Map<string, { item: T; text: string }>();
+  const order: string[] = [];
+  for (const it of items) {
+    const sig = sigOf(it);
+    if (!sig) { order.push(`__k${order.length}`); seen.set(order[order.length - 1], { item: it, text: textOf(it) }); continue; }
+    // exact hit
+    if (seen.has(sig)) {
+      const prev = seen.get(sig)!;
+      const t = textOf(it);
+      if (t.length > prev.text.length) seen.set(sig, { item: it, text: t });
+      continue;
+    }
+    // near-dupe against existing sigs
+    let matched: string | null = null;
+    for (const k of order) {
+      if (k.startsWith("__k")) continue;
+      if (jaccard(sig, k) >= 0.8) { matched = k; break; }
+    }
+    if (matched) {
+      const prev = seen.get(matched)!;
+      const t = textOf(it);
+      if (t.length > prev.text.length) seen.set(matched, { item: it, text: t });
+      continue;
+    }
+    seen.set(sig, { item: it, text: textOf(it) });
+    order.push(sig);
+  }
+  return order.map((k) => seen.get(k)!.item);
+}
+function ratingScore(r: any): number | null {
+  if (r == null) return null;
+  if (typeof r === "number") return r;
+  const s = String(r).toLowerCase();
+  if (s.startsWith("crit")) return 4;
+  if (s.startsWith("high")) return 3;
+  if (s.startsWith("med") || s.includes("moderate")) return 2;
+  if (s.startsWith("low") || s === "minor") return 1;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+function scoreToLabel(n: number): string {
+  if (n >= 3.5) return "Critical";
+  if (n >= 2.5) return "High";
+  if (n >= 1.5) return "Medium";
+  return "Low";
+}
+function groupRisks(items: any[]): Array<{ category: string; items: any[]; avgLabel: string | null }> {
+  const map = new Map<string, any[]>();
+  for (const a of items) {
+    const cat = a.payload?.category?.trim() || "Uncategorised";
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push(a);
+  }
+  return Array.from(map.entries()).map(([category, list]) => {
+    const scores = list.map((a) => ratingScore(a.payload?.rating)).filter((n): n is number => n != null);
+    const avg = scores.length ? scores.reduce((s, x) => s + x, 0) / scores.length : null;
+    return { category, items: list, avgLabel: avg != null ? scoreToLabel(avg) : null };
+  });
+}
+
 
 function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
