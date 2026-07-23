@@ -166,6 +166,24 @@ function LiveView({ interview }: { interview: any }) {
     return () => clearInterval(t);
   }, [recording]);
 
+  // Auto-stop when the tab is hidden, the page unloads, or the workspace
+  // unmounts — otherwise leaving the screen keeps the recorder running silently.
+  const recordingRef = useRef(false);
+  useEffect(() => { recordingRef.current = recording; }, [recording]);
+  useEffect(() => {
+    const onHide = () => { if (recordingRef.current && document.visibilityState === "hidden") stopRec(); };
+    const onUnload = () => { if (recordingRef.current) stopRec(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("beforeunload", onUnload);
+      if (recordingRef.current) stopRec();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   // Auto-run analysis every ~30s of new utterances
   const lastAnalyzedCount = useRef(0);
   useEffect(() => {
