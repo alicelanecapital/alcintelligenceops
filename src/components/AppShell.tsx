@@ -14,9 +14,9 @@ const navGroups = [
   {
     label: "Operations",
     items: [
+      { to: "/calendar", label: "Calendar", icon: CalendarDays },
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/contacts", label: "Contacts", icon: Users },
-      { to: "/calendar", label: "Calendar", icon: CalendarDays },
       { to: "/interviews", label: "Engagements", icon: MessagesSquare },
       { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
     ],
