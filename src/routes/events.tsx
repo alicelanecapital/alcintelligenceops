@@ -304,7 +304,7 @@ function Events() {
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
       <PageHeader
-        eyebrow="Discovery"
+        eyebrow="Network"
         title="Current Events"
         description={
           <>

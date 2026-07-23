@@ -49,7 +49,7 @@ function InterviewWorkspace() {
           <div className="flex items-center gap-4 min-w-0">
             <button onClick={() => nav({ to: "/interviews" })} className="text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /></button>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Diagnostic Engine</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live Workspace</div>
               <div className="font-serif text-2xl truncate">{iv.founder_name} <span className="text-muted-foreground">·</span> <span className="text-foreground/70">{iv.business_name}</span></div>
             </div>
           </div>
@@ -533,29 +533,46 @@ function LiveView({ interview }: { interview: any }) {
       </div>
 
 
-      {/* Manual assessment */}
+      {/* Manual assessment forms -- orange border marks them as human-supplied,
+       * collapsed by default so AI panels dominate the workspace. */}
       <div className="grid grid-cols-12 gap-4 mt-4">
         <div className="col-span-8">
-          <Card><CardContent className="p-6">
-            <div className="mb-3">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
-              <div className="font-serif text-lg">Private notes · never shown externally</div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (
-                <NoteBox key={section} interviewId={id} section={section} initial={(notes.data ?? []).find((n: any) => n.section === section)?.body ?? ""} />
-              ))}
-            </div>
-          </CardContent></Card>
+          <Accordion type="single" collapsible className="rounded-md border border-amber-300 bg-white overflow-hidden">
+            <AccordionItem value="manual" className="border-0">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-amber-50">
+                <div className="text-left">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Manual assessment</div>
+                  <div className="font-serif text-lg text-amber-900">Private notes · never shown externally</div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <div className="grid md:grid-cols-2 gap-4 pt-2">
+                  {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (
+                    <NoteBox key={section} interviewId={id} section={section} initial={(notes.data ?? []).find((n: any) => n.section === section)?.body ?? ""} />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
         <div className="col-span-4">
-          <Card><CardContent className="p-6">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Observations · body language</div>
-            <div className="text-xs text-muted-foreground italic mb-3">Interviewer-supplied. Never used as sole basis for a decision.</div>
-            {["Eye contact","Energy","Defensiveness","Confidence"].map(s => (
-              <NoteBox key={s} interviewId={id} section={s} initial={(notes.data ?? []).find((n: any) => n.section === s)?.body ?? ""} compact />
-            ))}
-          </CardContent></Card>
+          <Accordion type="single" collapsible className="rounded-md border border-amber-300 bg-white overflow-hidden">
+            <AccordionItem value="body" className="border-0">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-amber-50">
+                <div className="text-left">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Observations · body language</div>
+                  <div className="text-xs text-amber-900/80 italic">Interviewer-supplied. Never used as sole basis for a decision.</div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <div className="pt-2">
+                  {["Eye contact","Energy","Defensiveness","Confidence"].map(s => (
+                    <NoteBox key={s} interviewId={id} section={s} initial={(notes.data ?? []).find((n: any) => n.section === s)?.body ?? ""} compact />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
     </div>

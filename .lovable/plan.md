@@ -1,44 +1,67 @@
-# Fixes & Restructure
+## Scope
 
-## 1. Events — "Create" doesn't persist
-Root cause: `createEvent` in `src/lib/db.ts` only sends `name` and `start_date`, silently dropping venue/city/country/times/website/etc. The row is inserted but has no `region`, so the SA / Global tabs filter it out — the toast says "saved" but the event is nowhere.
+Multiple UI/nav/label refinements plus a new admin "Intelligent Toolkits" abstraction that generalises the current DD Intelligence Engine.
 
-- Widen `createEvent` (and add `updateEvent` if needed) to accept the full payload used by the Add Event modal (venue, city, country, start_time, end_time, website, cost, description, who_you_meet, status, region).
-- Derive `region` on create from country (SA vs Global) when the user hasn't picked one, so it shows up in the correct tab.
-- Show `toast.error` on mutation failure so silent drops can't happen again.
+---
 
-## 2. Duplicated events
-Investigate `events` rows to explain what the user sees — likely a mix of AI-discovery re-runs and manual entries with the same `name` + `start_date`. Add a background dedupe on load (same-name + same-date collapse to the earliest row, preferring rows with `booked = true`).
+### 1. Global font size — 12px on framed content
 
-## 3. Calendar
-- **"+3 more" not clickable**: turn the overflow chip into a popover listing every item for that day (private meeting / event / task), same styling as the inline chips.
-- **Source-of-account dot on meeting labels**: prepend a small colored dot matching the `team_members.color` for the calendar owner (info@, georgia@, ga@firstserve, etc.), reusing the existing legend colors.
-- **Remove cached / ghost events**: purge `google_calendar_events` rows whose `user_email` is not in `team_members` (or whose owning calendar has been unsubscribed / hidden), and re-run this cleanup at the end of every sync so unsubscribed sub-calendars and deleted-in-Google items disappear immediately instead of lingering as "ghost" chips on the calendar and Engagements screen.
+- Add a utility class `.frame-12` (or reuse Tailwind `text-[12px]`) applied to every card/frame body across the app. To keep scope tight and avoid touching every component, set a base rule in `src/styles.css` targeting the frame wrappers we already use (Card, accordion content, dialog content, list items in Deal Pipeline / Meetings / Contacts / Live Workspace / Synopsis).
+- Headings/eyebrows/badges retain their current sizes; only body/text-in-frame moves to 12px.
 
-## 4. Engagements screen (`src/routes/interviews.index.tsx`)
-- Rename page heading **Founder Interviews → Meetings**; remove the "Diagnostic Engine" eyebrow.
-- Remove the **Events** list section and the **Private Meetings** list section entirely.
-- Group meetings into accordions: **Next week**, **Today**, **Last week**, **This month** (each with count badge). Only **Today** expanded by default and highlighted in forest green; others collapsed.
-- Move the **Start meeting** control inline on each row (remove the top-right one).
-- Restyle **Sync Calendars** button forest green, keep it top-right.
-- **Auto-stop recording**: in `src/routes/interviews.$id.tsx` add a `visibilitychange` + `beforeunload` + route-unmount effect that, if a session is live, stops recording and persists the transcript before teardown.
+### 2. Eyebrow / section-heading renames
 
-## 5. Live workspace
-- Remove the "LIVE" pill/icon from the transcript header (Start/Stop already convey state).
+- `src/routes/events.tsx` — eyebrow above "Current Events": `DISCOVERY` → `NETWORK`.
+- `src/routes/interviews.index.tsx` — page eyebrow: `Diagnostic Engine` → `DISCOVERY`. Heading stays "Meetings".
+- `src/routes/dd-engine.tsx` — eyebrow: `Diligence` → `DUE DILIGENCE`.
 
-## 6. Contacts
-- Remove the **Deduplicate** button. Replace with a passive detector that runs on list load (same normalized name OR same email) and shows a single dismissible banner: "N possible duplicates — Review". Clicking opens the existing merge dialog prefilled.
-- Add a **Datasheet view** toggle next to the existing view switch. Datasheet renders contacts as an editable grid (name, category, company, position, email, phone, source event) with inline editing that saves on blur, SharePoint-list style. Reuses `updateContact` from `src/lib/contacts.ts`.
+### 3. Meetings accordion grouping
 
-## 7. Nav order
-In `src/components/AppShell.tsx`, resequence the top of the CRM section to: **Calendar → Events → Contacts** (rest unchanged).
+- `src/routes/interviews.index.tsx`: remove the `"Last week"` bucket. Anything older than "Today" / "Next week" falls into its month bucket (e.g. `June 2026`) via the existing month key. `bucketOf` becomes: Today → Next week → `<MonthName YYYY>`.
 
-## Technical notes
-- `createEvent`/`updateEvent` widen: keep types loose (`Partial<EventRow>`) and rely on RLS + column defaults. No migration needed — all target columns already exist.
-- Datasheet view: plain `<table>` with `<input>`/`<select>` per cell, optimistic update via a single `useMutation` keyed by `{id, field}`. Avoid pulling in a grid library.
-- Auto-stop: guard with a ref so it only fires when `isRecording === true`; call the same stop handler already used by the Stop button so memo generation still runs.
-- Duplicate detector: pure client-side over the already-fetched contacts list; no new queries.
-- Ghost-event cleanup: single SQL delete against `google_calendar_events` filtered by team roster + hidden_calendar_ids, invoked from the sync server fn and once on Calendar mount.
+### 4. Live Workspace frame changes (`src/routes/interviews.$id.tsx`)
 
-## Out of scope
-Any redesign of the DD Engine, Synopsis, or Admin screens. No schema/migration changes.
+- Remove the `LIVE` badge on the meeting record header and remove the standalone Stop button in the header area (Stop remains inside the Live Transcript frame per prior plan).
+- Manual Assessment and Body Language frames:
+  - Default collapsed (accordion `defaultValue` no longer includes them).
+  - Border + header tinted the same pastel orange used for the `Medium` score badge (amber-200 border, amber-50 background on header) to signal "manual input".
+
+### 5. Nav rename + new admin section
+
+- `src/components/AppShell.tsx` admin nav: rename "DD Intelligence Engine" to **"Intelligent Toolkits"**, positioned just above Accounts.
+- Route move: `/admin/dd-framework` becomes one record within the new toolkits area.
+
+New data model (migration):
+
+```text
+toolkits             (id, name, description, kind, sort_order, created_at)
+toolkit_rounds       (id, toolkit_id, round, sort_order, title, subtitle, purpose, duration)
+toolkit_questions    (id, toolkit_id, round, sort_order, question_text, why_text, internal_steps, red_flags)
+toolkit_documents    (id, toolkit_id, round, sort_order, name, purpose)
+```
+
+- Seed a single toolkit row `DD Intelligence Engine` (kind=`due_diligence`) and copy the existing `dd_framework_rounds/questions/documents` rows into `toolkit_*` linked to that toolkit id. Legacy tables stay untouched so the live DD flow keeps working; the admin UI reads/writes via the new tables against the DD toolkit's id.
+- GRANTs + RLS: same pattern as existing framework tables (`authenticated` read/write via team-membership check; `service_role` all).
+
+New routes:
+
+- `src/routes/admin.toolkits.index.tsx` — list of toolkits with CRUD (create / rename / delete / reorder). "DD Intelligence Engine" appears as a row here.
+- `src/routes/admin.toolkits.$id.tsx` — the existing round/question/document designer (reuse the current `admin.dd-framework.tsx` UI, parametrised by `toolkit_id`).
+- Keep `/admin/dd-framework` as a redirect to the DD toolkit's detail page so existing links don't break.
+
+Data-access layer:
+
+- New `src/lib/toolkits-admin.ts` mirroring `src/lib/dd-framework-admin.ts` but scoped by `toolkit_id`. The DD interview runtime (`src/routes/dd-interview.*`, `src/components/DDInterviewEnhanced.tsx`, `src/lib/dd-framework-data.ts`) is unchanged in this pass — it keeps reading `dd_framework_*`. A follow-up can migrate the runtime to read from `toolkit_*` once the admin UI is stable.
+
+---
+
+### Technical notes
+
+- 12px is applied via a scoped CSS rule so we don't have to edit dozens of components; verify with the running preview after the change.
+- Toolkits migration keeps `dd_framework_*` intact to avoid regressions in the live DD interview.
+- Amber tint uses existing token pattern (`border-amber-200`, `bg-amber-50/50`) to match the `Medium` badge already in use.
+
+### Out of scope
+
+- Rewiring the live DD interview to read from `toolkit_*` (done later once toolkits UI is proven).
+- Any changes to Contacts, Calendar, or Deal Pipeline lists beyond the eyebrow rename.

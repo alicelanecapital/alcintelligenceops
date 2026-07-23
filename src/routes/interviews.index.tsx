@@ -3,19 +3,18 @@ import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, dismissInterview, stopInterview } from "@/lib/interviews";
+import { listInterviews, dismissInterview } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { useState, useMemo } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, StopCircle } from "lucide-react";
+import { useMemo } from "react";
+import { Play, CalendarClock, MapPin, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks,
-  startOfMonth, endOfMonth,
+  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks,
 } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
@@ -78,23 +77,20 @@ function classifyCalendarEvent(ev: any): "private" | "client" {
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
 
-function bucketOf(when: Date): "Today" | "Next week" | "Last week" | "Month" | null {
+function bucketOf(when: Date): "Today" | "Next week" | string {
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const nextWkStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
   const nextWkEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
-  const lastWkStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-  const lastWkEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-  const mStart = startOfMonth(now);
-  const mEnd = endOfMonth(now);
   const t = when.getTime();
   if (t >= todayStart.getTime() && t <= todayEnd.getTime()) return "Today";
   if (t >= nextWkStart.getTime() && t <= nextWkEnd.getTime()) return "Next week";
-  if (t >= lastWkStart.getTime() && t <= lastWkEnd.getTime()) return "Last week";
-  if (t >= mStart.getTime() && t <= mEnd.getTime()) return "Month";
-  return null;
+  // Everything else -- past or future -- falls into its own month bucket
+  // (e.g. "June 2026"). "Last week" is no longer a separate group.
+  return format(when, "MMMM yyyy");
 }
+
 
 function InterviewsIndex() {
   const qc = useQueryClient();
@@ -108,28 +104,35 @@ function InterviewsIndex() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Removed from view"); },
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
   });
-  const stopMut = useMutation({
-    mutationFn: (id: string) => stopInterview(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Meeting stopped"); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to stop"),
-  });
 
   const grouped = useMemo(() => {
     const items: Item[] = [];
     for (const i of q.data ?? []) items.push({ kind: "interview", when: new Date(i.created_at), data: i });
     for (const ev of dedupeEvents(upcoming.data ?? [])) items.push({ kind: "calendar", when: new Date(ev.start_time), data: ev });
-    const buckets: Record<string, Item[]> = { "Today": [], "Next week": [], "Last week": [], "Month": [] };
+    const buckets = new Map<string, Item[]>();
     for (const it of items) {
       const b = bucketOf(it.when);
-      if (b) buckets[b].push(it);
+      if (!buckets.has(b)) buckets.set(b, []);
+      buckets.get(b)!.push(it);
     }
-    for (const k of Object.keys(buckets)) buckets[k].sort((a, b) => a.when.getTime() - b.when.getTime());
-    return buckets;
+    for (const arr of buckets.values()) arr.sort((a, b) => a.when.getTime() - b.when.getTime());
+    // Order: Today, Next week, then months by chronological proximity to today.
+    const now = Date.now();
+    const keys = Array.from(buckets.keys()).sort((a, b) => {
+      if (a === "Today") return -1;
+      if (b === "Today") return 1;
+      if (a === "Next week") return -1;
+      if (b === "Next week") return 1;
+      const ta = Math.abs((buckets.get(a)![0]?.when.getTime() ?? 0) - now);
+      const tb = Math.abs((buckets.get(b)![0]?.when.getTime() ?? 0) - now);
+      return ta - tb;
+    });
+    return keys.map((k) => [k, buckets.get(k)!] as const);
   }, [q.data, upcoming.data]);
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Diagnostic Engine</div>
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Discovery</div>
       <PageHeader
         title="Meetings"
         description="Founder engagements recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
@@ -137,8 +140,7 @@ function InterviewsIndex() {
       />
 
       <Accordion type="multiple" defaultValue={["Today"]}>
-        {(["Today", "Next week", "Last week", "Month"] as const).map((bucket) => {
-          const items = grouped[bucket];
+        {grouped.map(([bucket, items]) => {
           const isToday = bucket === "Today";
           return (
             <AccordionItem key={bucket} value={bucket} className="border-b border-border/40">
@@ -152,7 +154,7 @@ function InterviewsIndex() {
                   <div className="divide-y divide-border/40">
                     {items.map((it) =>
                       it.kind === "interview"
-                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} onStop={() => stopMut.mutate(it.data.id)} onDismiss={() => dismissMut.mutate(it.data.id)} />
+                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} onDismiss={() => dismissMut.mutate(it.data.id)} />
                         : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
                     )}
                   </div>
@@ -166,7 +168,8 @@ function InterviewsIndex() {
   );
 }
 
-function InterviewRow({ i, onStop, onDismiss }: { i: any; onStop: () => void; onDismiss: () => void }) {
+
+function InterviewRow({ i, onDismiss }: { i: any; onDismiss: () => void }) {
   return (
     <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
       <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
@@ -174,15 +177,9 @@ function InterviewRow({ i, onStop, onDismiss }: { i: any; onStop: () => void; on
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
       </Link>
       <StatusBadge status={i.status} />
-      {i.status === "live" ? (
-        <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={onStop}>
-          <StopCircle className="h-3 w-3" /> Stop
-        </Button>
-      ) : (
-        <Link to="/interviews/$id" params={{ id: i.id }}>
-          <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start meeting</Button>
-        </Link>
-      )}
+      <Link to="/interviews/$id" params={{ id: i.id }}>
+        <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start meeting</Button>
+      </Link>
       <button
         onClick={onDismiss}
         title="Dismiss from view"
@@ -220,7 +217,9 @@ function CalendarEventRow({ ev, memberByEmail }: { ev: any; memberByEmail: Map<s
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "live") return <Badge className="bg-red-600 text-white gap-1"><Radio className="h-3 w-3" /> Live</Badge>;
+  // "Live" is not surfaced on the meeting-record list any more -- Live-status
+  // meetings appear identically to drafts here; the live workspace itself
+  // shows recording state.
   if (status === "completed") return <Badge variant="outline">Completed</Badge>;
   return <Badge variant="secondary" className="gap-1"><Play className="h-3 w-3" /> Draft</Badge>;
 }

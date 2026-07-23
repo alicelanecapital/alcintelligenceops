@@ -24,7 +24,7 @@ const navGroups = [
   {
     label: "Admin",
     items: [
-      { to: "/admin/dd-framework", label: "DD Intelligence Engine", icon: ShieldCheck },
+      { to: "/admin/toolkits", label: "Intelligence Toolkits", icon: ShieldCheck },
       { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },

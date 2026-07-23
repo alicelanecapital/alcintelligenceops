@@ -114,3 +114,15 @@
   }
   h1,h2,h3,h4,.serif { font-family: var(--font-serif); letter-spacing: -0.01em; font-weight: 500; }
 }
+
+/* Framed content bodies render at 12px per product spec. Headings, eyebrows,
+ * badges, buttons and inputs keep their own sizing. */
+@layer utilities {
+  [data-slot="card-content"],
+  [data-slot="accordion-content"],
+  [data-slot="dialog-content"] .space-y-4,
+  [data-slot="dialog-content"] .space-y-3 {
+    font-size: 12px;
+  }
+}
+
