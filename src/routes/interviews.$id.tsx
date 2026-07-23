@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
-  saveNote, setInterviewStatus, insertUtterance, editUtterance, stopInterview,
+  saveNote, setInterviewStatus, insertUtterance, editUtterance,
   INTERVIEW_STAGES,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
@@ -55,14 +55,7 @@ function InterviewWorkspace() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
-            <Badge className={iv.status === "live" ? "bg-red-600 text-white" : iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status}</Badge>
-            {iv.status === "live" && (
-              <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={async () => {
-                await stopInterview(id);
-                toast.success("Meeting stopped");
-                qc.invalidateQueries({ queryKey: ["iv", id] });
-              }}><StopCircle className="h-3 w-3" /> Stop</Button>
-            )}
+            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "draft" : iv.status}</Badge>
           </div>
         </div>
       </div>
@@ -371,11 +364,13 @@ function LiveView({ interview }: { interview: any }) {
                   </div>
                 </div>
                 <AccordionContent>
-                  <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 pt-2">
+                  <div className="max-h-[65vh] overflow-y-auto pr-2 pt-2">
                     {(utt.data ?? []).length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
-                    {(utt.data ?? []).map((u: any) => (
-                      <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
-                    ))}
+                    <Accordion type="multiple" className="space-y-2">
+                      {(utt.data ?? []).map((u: any) => (
+                        <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                      ))}
+                    </Accordion>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -516,23 +511,31 @@ function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(u.text);
   useEffect(() => setVal(u.text), [u.text]);
+  const preview = (u.text ?? "").replace(/\s+/g, " ").trim();
   return (
-    <div className="text-sm">
-      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1">
-        <span className="font-mono">{fmt(u.ts_ms)}</span>
-        <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
-        {u.confidence != null && <span className="ml-auto">conf {(u.confidence * 100).toFixed(0)}%</span>}
-        <button onClick={() => setEditing(!editing)} className="ml-auto hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
-      </div>
-      {editing ? (
-        <div>
-          <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
-          <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
+    <AccordionItem value={u.id} className="border border-green-900/20 rounded-md overflow-hidden">
+      <AccordionTrigger className="hover:no-underline py-2 px-3 bg-green-800 text-white hover:bg-green-800/90 data-[state=open]:bg-green-800 gap-3 [&>svg]:text-white">
+        <div className="flex items-center gap-2 text-xs min-w-0 flex-1 text-left">
+          <span className="font-mono opacity-80">{fmt(u.ts_ms)}</span>
+          <Badge className="text-[10px] py-0 bg-white/20 text-white border-white/30 hover:bg-white/20">{u.speaker}</Badge>
+          <span className="truncate opacity-95">{preview}</span>
         </div>
-      ) : (
-        <p className="text-foreground/85 leading-relaxed">{u.text}</p>
-      )}
-    </div>
+      </AccordionTrigger>
+      <AccordionContent className="bg-white px-3 pb-3 pt-2">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
+          {u.confidence != null && <span>conf {(u.confidence * 100).toFixed(0)}%</span>}
+          <button onClick={() => setEditing(!editing)} className="ml-auto hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
+        </div>
+        {editing ? (
+          <div>
+            <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
+            <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
+        )}
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
