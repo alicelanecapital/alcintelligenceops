@@ -424,12 +424,9 @@ function LiveView({ interview }: { interview: any }) {
       <div className="grid grid-cols-12 gap-4 mt-4">
         <div className="col-span-8">
           <Card><CardContent className="p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
-                <div className="font-serif text-lg">Private notes · never shown externally</div>
-              </div>
-              <Button onClick={endInterview} disabled={finalizing}>{finalizing ? "Generating memo…" : "End interview & generate memo"}</Button>
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
+              <div className="font-serif text-lg">Private notes · never shown externally</div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (
