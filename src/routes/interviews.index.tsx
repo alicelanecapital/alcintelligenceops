@@ -3,21 +3,20 @@ import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, setInterviewPrivate, dismissInterview, stopInterview } from "@/lib/interviews";
-import { fetchEvents } from "@/lib/db";
+import { listInterviews, dismissInterview, stopInterview } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, Lock, Unlock, StopCircle, UserPlus } from "lucide-react";
-import { NewMeetingDialog } from "@/components/NewMeetingDialog";
-import { AddContactDialog } from "@/routes/contacts.index";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { useState, useMemo } from "react";
+import { Radio, Play, CalendarClock, MapPin, Video, X, StopCircle } from "lucide-react";
 import { toast } from "sonner";
-import { ViewToggle, useViewMode } from "@/components/ViewToggle";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import {
+  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks,
+  startOfMonth, endOfMonth,
+} from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
 
