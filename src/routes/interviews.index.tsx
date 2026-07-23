@@ -152,7 +152,7 @@ function InterviewsIndex() {
                   <div className="divide-y divide-border/40">
                     {items.map((it) =>
                       it.kind === "interview"
-                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} onDismiss={() => dismissMut.mutate(it.data.id)} />
+                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} />
                         : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
                     )}
                   </div>
@@ -167,7 +167,7 @@ function InterviewsIndex() {
 }
 
 
-function InterviewRow({ i, onDismiss }: { i: any; onDismiss: () => void }) {
+function InterviewRow({ i }: { i: any }) {
   return (
     <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
       <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
@@ -178,13 +178,6 @@ function InterviewRow({ i, onDismiss }: { i: any; onDismiss: () => void }) {
       <Link to="/interviews/$id" params={{ id: i.id }}>
         <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start meeting</Button>
       </Link>
-      <button
-        onClick={onDismiss}
-        title="Dismiss from view"
-        className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }
