@@ -231,19 +231,41 @@ function LiveView({ interview }: { interview: any }) {
     streamRef.current = null;
     recorderRef.current?.stop();
     setRecording(false);
+    // Auto-finalise: the memo is generated the moment recording stops,
+    // no separate "End interview" button needed.
+    void finalizeNow();
   }
 
-  async function endInterview() {
-    stopRec();
+  async function finalizeNow() {
     setFinalizing(true);
     try {
       await finalizeInterview({ data: { interviewId: id } });
       toast.success("Investment memo generated");
       qc.invalidateQueries({ queryKey: ["iv", id] });
       qc.invalidateQueries({ queryKey: ["iv-report", id] });
-      nav({ to: "/interviews/$id", params: { id } });
-    } catch (e: any) { toast.error(e.message ?? "Failed"); }
+    } catch (e: any) { toast.error(e.message ?? "Failed to finalise"); }
     finally { setFinalizing(false); }
+  }
+
+  async function uploadTranscript(file: File) {
+    try {
+      const text = await file.text();
+      // Try to detect "Speaker: text" lines; fall back to one utterance per non-empty line.
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      let ts = 0;
+      for (const line of lines) {
+        const m = line.match(/^(Founder|Interviewer|F|I|Q|A)\s*[:\-]\s*(.+)$/i);
+        const speaker = m ? (m[1].toLowerCase().startsWith("i") || m[1].toLowerCase() === "q" ? "Interviewer" : "Founder") : "Founder";
+        const body = m ? m[2] : line;
+        await insertUtterance(id, { ts_ms: ts, speaker, text: body });
+        ts += 5000;
+      }
+      qc.invalidateQueries({ queryKey: ["iv-utt", id] });
+      toast.success(`Uploaded ${lines.length} lines — generating memo…`);
+      await finalizeNow();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to upload transcript");
+    }
   }
 
   const analyses: any[] = ana.data ?? [];
