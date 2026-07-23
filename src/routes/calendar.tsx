@@ -19,6 +19,8 @@ import {
   setGoogleEventStatus,
   setInterviewStatus,
   setEventStatus,
+  deleteInterviewRow,
+  deleteEventRow,
   listWritableCalendars,
 } from "@/lib/google-calendar-crud.functions";
 import { Card, CardContent } from "@/components/ui/card";

@@ -190,6 +190,28 @@ export const setEventStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteInterviewRow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { interviewId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await (context.supabase.from("interviews" as any) as any)
+      .delete()
+      .eq("id", data.interviewId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const deleteEventRow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { eventId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await (context.supabase.from("events" as any) as any)
+      .delete()
+      .eq("id", data.eventId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
 /** Lists the current user's Google calendars where they have write access,
  *  used to populate the "Calendar" dropdown in the new-event dialog. */
 export const listWritableCalendars = createServerFn({ method: "POST" })
