@@ -605,42 +605,6 @@ function DocumentsTab({ opportunities }: { opportunities: any[] }) {
   );
 }
 
-/* ============ Meeting history tab ============ */
-
-function MeetingHistoryTab({ contactId, meetings }: { contactId: string; meetings: any[] }) {
-  const qc = useQueryClient();
-  const dismissMut = useMutation({
-    mutationFn: (meetingId: string) => dismissInterview(meetingId),
-    onSuccess: () => { toast.success("Removed from view"); qc.invalidateQueries({ queryKey: ["contact-meetings", contactId] }); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
-  });
-
-  if (!meetings.length) return <p className="text-sm text-muted-foreground">No meetings yet.</p>;
-
-  return (
-    <div>
-      {meetings.map((m: any) => (
-        <div key={m.id} className="relative group border-b border-border last:border-0">
-          <button
-            onClick={(e) => { e.preventDefault(); dismissMut.mutate(m.id); }}
-            title="Dismiss from view"
-            className="absolute top-3 right-3 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground z-10"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <Link to="/interviews/$id" params={{ id: m.id }} className="block py-3 pr-10 hover:bg-muted/30 transition-colors">
-            <div className="flex justify-between items-center">
-              <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
-              <Badge variant="outline" className="mr-8">{m.status}</Badge>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
-          </Link>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ============ Notes tab (editable) ============ */
 
 function NotesTab({ contactId, initial }: { contactId: string; initial: string }) {
@@ -667,38 +631,63 @@ function NotesTab({ contactId, initial }: { contactId: string; initial: string }
   );
 }
 
-/* ============ Red Flags tab ============ */
+/* ============ Red Flags (aggregated from DD rounds + Live Workspace sessions) ============ */
 
-function RedFlagsTab({ opportunities }: { opportunities: any[] }) {
+function RedFlagsInline({ contactId, opportunities }: { contactId: string; opportunities: any[] }) {
   const oppIds = opportunities.map((o) => o.id);
   const q = useQuery({
-    queryKey: ["contact-flags", oppIds.join(",")],
-    enabled: oppIds.length > 0,
+    queryKey: ["contact-flags", contactId, oppIds.join(",")],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dd_interviews") as any)
-        .select("round, red_flags, opportunity_id")
-        .in("opportunity_id", oppIds);
-      if (error) throw error;
-      return data ?? [];
+      const results: { source: string; round?: number | null; when?: string | null; flags: any[] }[] = [];
+      if (oppIds.length) {
+        const { data, error } = await (supabase.from("dd_interviews") as any)
+          .select("round, red_flags, opportunity_id")
+          .in("opportunity_id", oppIds);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          if (Array.isArray(r.red_flags) && r.red_flags.length) {
+            results.push({ source: "DD", round: r.round, when: null, flags: r.red_flags });
+          }
+        }
+      }
+      // Live Workspace sessions — red_flags surfaced from interview_analyses risk rows.
+      const { data: ivs, error: ivErr } = await (supabase.from("interviews") as any)
+        .select("id, created_at, red_flags")
+        .eq("contact_id", contactId);
+      if (ivErr) throw ivErr;
+      for (const r of ivs ?? []) {
+        if (Array.isArray(r.red_flags) && r.red_flags.length) {
+          results.push({ source: "Meeting", round: null, when: r.created_at, flags: r.red_flags });
+        }
+      }
+      return results;
     },
   });
-  if (!oppIds.length) return <p className="text-sm text-muted-foreground">No red flags — flags surface once DD rounds are recorded.</p>;
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  const flags = (q.data ?? []).flatMap((i: any) =>
-    (Array.isArray(i.red_flags) ? i.red_flags : []).map((f: any) => ({ ...(typeof f === "object" ? f : { text: String(f) }), round: i.round })),
+  const groups = q.data ?? [];
+  const flat = groups.flatMap((g) =>
+    g.flags.map((f: any) => ({
+      ...(typeof f === "object" ? f : { text: String(f) }),
+      source: g.source,
+      round: g.round,
+      when: g.when,
+    })),
   );
-  if (!flags.length) return (
+  if (!flat.length) return (
     <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 inline-flex items-center gap-2">
-      <CheckCircle2 className="h-4 w-4" /> No red flags detected — continue to verify claims in later rounds.
+      <CheckCircle2 className="h-4 w-4" /> No red flags detected — flags from DD rounds and Live Workspace meetings will surface here.
     </div>
   );
   return (
     <ul className="space-y-2">
-      {flags.map((f: any, i: number) => (
+      {flat.map((f: any, i: number) => (
         <li key={i} className="border-b border-border py-2 text-sm">
           <span className="inline-flex items-center gap-2">
             <Flag className="h-3.5 w-3.5 text-rose-600" />
-            <span className="font-medium text-rose-700">Round {f.round}{f.severity ? ` · ${f.severity}` : ""}</span>
+            <span className="font-medium text-rose-700">
+              {f.source === "DD" ? `Round ${f.round}` : `Meeting${f.when ? ` · ${new Date(f.when).toLocaleDateString()}` : ""}`}
+              {f.severity ? ` · ${f.severity}` : ""}
+            </span>
           </span>
           <div className="text-sm text-foreground/80 mt-1 ml-6">{f.text ?? f.flag_text ?? String(f)}</div>
         </li>
