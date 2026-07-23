@@ -54,6 +54,8 @@
   --color-record-surface: var(--record-surface);
   --color-record-foreground: var(--record-foreground);
   --color-calendar-grid: var(--calendar-grid);
+  --color-crimson: #DC143C;
+  --color-crimson-50: #FDECEF;
 }
 
 :root {

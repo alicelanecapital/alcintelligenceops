@@ -32,26 +32,25 @@ async function callerEmail(context: any): Promise<string> {
   return email;
 }
 
-async function mirror(email: string, calendarId: string, ev: any) {
+async function mirror(email: string, calendarId: string, ev: any, opts?: { status?: "done" | "cancelled" | "adhoc" | null }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const start_time = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
   const end_time = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null);
-  await (supabaseAdmin.from("google_calendar_events" as any) as any).upsert(
-    {
-      user_email: email,
-      google_event_id: ev.id,
-      calendar_id: calendarId,
-      title: ev.summary ?? "(no title)",
-      description: ev.description ?? null,
-      location: ev.location ?? null,
-      meeting_link: ev.hangoutLink ?? ev.conferenceData?.entryPoints?.[0]?.uri ?? null,
-      start_time,
-      end_time,
-      is_all_day: !ev.start?.dateTime,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_email,google_event_id" },
-  );
+  const row: any = {
+    user_email: email,
+    google_event_id: ev.id,
+    calendar_id: calendarId,
+    title: ev.summary ?? "(no title)",
+    description: ev.description ?? null,
+    location: ev.location ?? null,
+    meeting_link: ev.hangoutLink ?? ev.conferenceData?.entryPoints?.[0]?.uri ?? null,
+    start_time,
+    end_time,
+    is_all_day: !ev.start?.dateTime,
+    updated_at: new Date().toISOString(),
+  };
+  if (opts?.status !== undefined) row.status = opts.status;
+  await (supabaseAdmin.from("google_calendar_events" as any) as any).upsert(row, { onConflict: "user_email,google_event_id" });
 }
 
 export const createGoogleCalendarEvent = createServerFn({ method: "POST" })
@@ -78,7 +77,7 @@ export const createGoogleCalendarEvent = createServerFn({ method: "POST" })
     );
     if (!res.ok) throw new Error(`Google create failed [${res.status}]: ${(await res.text()).slice(0, 300)}`);
     const ev = await res.json();
-    await mirror(email, data.calendarId, ev);
+    await mirror(email, data.calendarId, ev, { status: "adhoc" });
     return { id: ev.id as string };
   });
 
@@ -154,7 +153,7 @@ export const deleteGoogleCalendarEvent = createServerFn({ method: "POST" })
  *  Alice Lane-side annotation used only for calendar chip rendering. */
 export const setGoogleEventStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { googleEventId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { googleEventId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const email = await callerEmail(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -169,7 +168,7 @@ export const setGoogleEventStatus = createServerFn({ method: "POST" })
 /** Same, for app-native interview/meeting rows. */
 export const setInterviewStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { interviewId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { interviewId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await (context.supabase.from("interviews" as any) as any)
       .update({ status: data.status })
@@ -181,7 +180,7 @@ export const setInterviewStatus = createServerFn({ method: "POST" })
 /** Same, for public.events rows. */
 export const setEventStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { eventId: string; status: "done" | "cancelled" | "postponed" | null }) => d)
+  .inputValidator((d: { eventId: string; status: "done" | "cancelled" | "adhoc" | null }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await (context.supabase.from("events" as any) as any)
       .update({ status: data.status })

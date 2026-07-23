@@ -167,23 +167,25 @@ function SubCalendarsList({ email }: { email: string }) {
     mut.mutate(next);
   };
   return (
-    <div className="mt-2 ml-6 space-y-1">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sub-calendars — untick to keep private</div>
-      {cals.map((c) => (
-        <label key={c.id} className="flex items-center gap-2 text-[11px] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!c.hidden}
-            onChange={(e) => toggle(c.id, !e.target.checked)}
-            disabled={mut.isPending}
-          />
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
-          <span className="truncate">{c.summary}</span>
-          {c.primary && <Badge variant="outline" className="text-[9px] px-1 py-0">Primary</Badge>}
-          <span className="text-muted-foreground">· {c.accessRole}</span>
-          {c.hidden && <Badge variant="outline" className="text-[9px] px-1 py-0 border-red-500 text-red-600">Hidden</Badge>}
-        </label>
-      ))}
+    <div className="mt-3 ml-6 space-y-1.5">
+      <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Sub-calendars — untick to keep private</div>
+      <div className="divide-y divide-border/40 rounded-md border border-border/40 bg-background/50">
+        {cals.map((c) => (
+          <label key={c.id} className="flex items-center gap-2 text-[13px] cursor-pointer px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={!c.hidden}
+              onChange={(e) => toggle(c.id, !e.target.checked)}
+              disabled={mut.isPending}
+            />
+            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.backgroundColor ?? "#94a3b8" }} />
+            <span className="truncate flex-1">{c.summary}</span>
+            {c.primary && <Badge variant="outline" className="text-[10px] px-1 py-0">Primary</Badge>}
+            <span className="text-muted-foreground text-[11px]">· {c.accessRole}</span>
+            {c.hidden && <Badge variant="outline" className="text-[10px] px-1 py-0 border-crimson text-crimson bg-crimson-50">Hidden</Badge>}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -346,14 +348,14 @@ function AccountsScreen() {
             <div className="font-serif text-lg">Accounts</div>
           </div>
 
-          <div className="bg-card space-y-2">
+          <div className="bg-card divide-y divide-border/40">
             {(members.data ?? []).map((m) => {
               const conn = connectionByEmail.get(m.email);
               const classes = COLOR_CLASSES[m.color];
               const isMe = m.email.toLowerCase() === myEmail;
               return (
                 <div key={m.id} className="px-5 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="grid grid-cols-[minmax(0,1fr)_120px_150px_32px_32px] items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
                       <div className="min-w-0">
@@ -369,39 +371,38 @@ function AccountsScreen() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        value={m.color}
-                        onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
-                        className="h-8 text-xs border border-input rounded-md bg-background px-2 capitalize"
-                      >
-                        {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
 
-                      {conn ? (
-                        <Button size="sm" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
-                          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
-                          {syncMut.isPending ? "Syncing…" : "Sync now"}
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => connect(m.email)}>
-                          <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect Google
-                        </Button>
-                      )}
+                    <select
+                      value={m.color}
+                      onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
+                      className="h-8 w-full text-xs border border-input rounded-md bg-background px-2 capitalize"
+                    >
+                      {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
 
-                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
-                        <Pencil className="h-3.5 w-3.5" />
+                    {conn ? (
+                      <Button size="sm" className="w-full" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />
+                        {syncMut.isPending ? "Syncing…" : "Sync now"}
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive"
-                        title={conn ? "Remove and disconnect account" : "Remove account"}
-                        onClick={() => deleteMemberMut.mutate(m)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Button size="sm" className="w-full" onClick={() => connect(m.email)}>
+                        <LinkIcon className="h-3.5 w-3.5 mr-1" /> Connect
                       </Button>
-                    </div>
+                    )}
+
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit account" onClick={() => setDialogState({ open: true, member: m })}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive"
+                      title={conn ? "Remove and disconnect account" : "Remove account"}
+                      onClick={() => deleteMemberMut.mutate(m)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                   {conn && <SubCalendarsList email={m.email} />}
                 </div>
