@@ -24,7 +24,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X, CalendarPlus } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X, CalendarPlus, AlertCircle } from "lucide-react";
 import { ScheduleMeetingDialog } from "@/components/ScheduleMeetingDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
