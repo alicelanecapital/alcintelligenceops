@@ -20,10 +20,19 @@ export function EventSelect({
 }) {
   const qc = useQueryClient();
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
-  const sorted = useMemo(
-    () => [...(events.data ?? [])].sort((a: any, b: any) => (a.name ?? "").localeCompare(b.name ?? "")),
-    [events.data],
-  );
+  const sorted = useMemo(() => {
+    // Dedupe events with the same name + start_date (repeated discovery runs can
+    // produce identical rows), then alphabetise.
+    const seen = new Set<string>();
+    const uniq: any[] = [];
+    for (const ev of (events.data ?? []) as any[]) {
+      const key = `${(ev.name ?? "").trim().toLowerCase()}|${ev.start_date ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(ev);
+    }
+    return uniq.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  }, [events.data]);
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");

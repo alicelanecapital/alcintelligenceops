@@ -147,7 +147,7 @@ function BriefList({ title, items, icon, numbered }: { title: string; items?: st
 function LiveView({ interview }: { interview: any }) {
   const id = interview.id;
   const qc = useQueryClient();
-  const nav = useNavigate();
+  // (nav removed — finalise auto-runs on Stop and refreshes queries in place)
   const utt = useQuery({ queryKey: ["iv-utt", id], queryFn: () => getUtterances(id), refetchInterval: 4000 });
   const ana = useQuery({ queryKey: ["iv-ana", id], queryFn: () => getAnalyses(id), refetchInterval: 6000 });
   const docs = useQuery({ queryKey: ["iv-docs", id], queryFn: () => getDocRequests(id), refetchInterval: 8000 });
@@ -231,19 +231,41 @@ function LiveView({ interview }: { interview: any }) {
     streamRef.current = null;
     recorderRef.current?.stop();
     setRecording(false);
+    // Auto-finalise: the memo is generated the moment recording stops,
+    // no separate "End interview" button needed.
+    void finalizeNow();
   }
 
-  async function endInterview() {
-    stopRec();
+  async function finalizeNow() {
     setFinalizing(true);
     try {
       await finalizeInterview({ data: { interviewId: id } });
       toast.success("Investment memo generated");
       qc.invalidateQueries({ queryKey: ["iv", id] });
       qc.invalidateQueries({ queryKey: ["iv-report", id] });
-      nav({ to: "/interviews/$id", params: { id } });
-    } catch (e: any) { toast.error(e.message ?? "Failed"); }
+    } catch (e: any) { toast.error(e.message ?? "Failed to finalise"); }
     finally { setFinalizing(false); }
+  }
+
+  async function uploadTranscript(file: File) {
+    try {
+      const text = await file.text();
+      // Try to detect "Speaker: text" lines; fall back to one utterance per non-empty line.
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      let ts = 0;
+      for (const line of lines) {
+        const m = line.match(/^(Founder|Interviewer|F|I|Q|A)\s*[:\-]\s*(.+)$/i);
+        const speaker = m ? (m[1].toLowerCase().startsWith("i") || m[1].toLowerCase() === "q" ? "Interviewer" : "Founder") : "Founder";
+        const body = m ? m[2] : line;
+        await insertUtterance(id, { ts_ms: ts, speaker, text: body });
+        ts += 5000;
+      }
+      qc.invalidateQueries({ queryKey: ["iv-utt", id] });
+      toast.success(`Uploaded ${lines.length} lines — generating memo…`);
+      await finalizeNow();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to upload transcript");
+    }
   }
 
   const analyses: any[] = ana.data ?? [];
@@ -256,7 +278,7 @@ function LiveView({ interview }: { interview: any }) {
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
       {/* Header strip */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
         <Strip label="Founder" value={interview.founder_name} />
         <Strip label="Business" value={interview.business_name} />
         <Strip label="Stage" value={
@@ -272,11 +294,6 @@ function LiveView({ interview }: { interview: any }) {
             {recording ? "Live" : "Idle"}
           </span>
         } />
-        <div className="bg-card px-4 py-3 flex items-center gap-2">
-          {!recording
-            ? <Button onClick={startRec} size="sm" className="w-full"><Mic className="h-4 w-4 mr-2" />Start</Button>
-            : <Button onClick={stopRec} size="sm" variant="destructive" className="w-full"><StopCircle className="h-4 w-4 mr-2" />Stop</Button>}
-        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4">
@@ -319,14 +336,25 @@ function LiveView({ interview }: { interview: any }) {
         {/* Center — transcript */}
         <section className="col-span-6">
           <Card className="h-full"><CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
-              <div className="flex items-center gap-1 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="text-muted-foreground">Speaker:</span>
                 {(["Founder", "Interviewer"] as const).map(s => (
                   <button key={s} onClick={() => setCurrentSpeaker(s)}
                     className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
                 ))}
+                <span className="mx-1 text-muted-foreground">·</span>
+                {!recording
+                  ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                  : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
+                  <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
+                    disabled={finalizing} />
+                </label>
               </div>
             </div>
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
@@ -396,12 +424,9 @@ function LiveView({ interview }: { interview: any }) {
       <div className="grid grid-cols-12 gap-4 mt-4">
         <div className="col-span-8">
           <Card><CardContent className="p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
-                <div className="font-serif text-lg">Private notes · never shown externally</div>
-              </div>
-              <Button onClick={endInterview} disabled={finalizing}>{finalizing ? "Generating memo…" : "End interview & generate memo"}</Button>
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Manual assessment</div>
+              <div className="font-serif text-lg">Private notes · never shown externally</div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {["What impressed you?","What concerned you?","Founder credibility","Coachability","Gut feel","Would you invest?"].map(section => (

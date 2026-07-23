@@ -97,7 +97,12 @@ function Events() {
   const discover = useServerFn(discoverEvents);
 
   const updateMut = useMutation({
-    mutationFn: (data: any) => (data.id ? updateEvent(data.id, data) : createEvent(data)),
+    mutationFn: (data: any) => {
+      // On create, default start_date to today so a saved event is visible in
+      // the upcoming list instead of silently filtered out.
+      const payload = data.id ? data : { ...data, start_date: data.start_date || format(new Date(), "yyyy-MM-dd") };
+      return payload.id ? updateEvent(payload.id, payload) : createEvent(payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
       setShowEditModal(false);
