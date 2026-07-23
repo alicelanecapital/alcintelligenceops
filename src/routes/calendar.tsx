@@ -116,6 +116,20 @@ function timeRange(it: CalItem): string {
   return start;
 }
 
+function organizerAttendeesText(it: CalItem): string | null {
+  if (it.busy || it.sourceTable !== "google_calendar_events") return null;
+  const org = it.organizerEmail;
+  const list = (it.attendees ?? [])
+    .map((a) => (a.name ? a.name.trim() : (a.email ? a.email.trim() : null)))
+    .filter(Boolean) as string[];
+  const shown = list.slice(0, 2);
+  const extra = list.length - shown.length;
+  const withPart = shown.length ? `With: ${shown.join(", ")}${extra > 0 ? ` +${extra}` : ""}` : "";
+  const orgPart = org ? `Org: ${org}` : "";
+  if (!orgPart && !withPart) return null;
+  return [orgPart, withPart].filter(Boolean).join(" · ");
+}
+
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
