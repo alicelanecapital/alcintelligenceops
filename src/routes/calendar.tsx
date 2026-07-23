@@ -450,16 +450,18 @@ function CalendarScreen() {
                         </SelectContent>
                       </Select>
                     )}
-                    {canEdit(it) && (
-                      <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1">
+                      {canEdit(it) && (
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditItem(it); setDialogOpen(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm("Delete this event?")) deleteMut.mutate(it); }}>
+                      )}
+                      {(it.sourceTable === "google_calendar_events" || it.sourceTable === "interviews" || it.sourceTable === "events") && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm("Delete this?")) deleteMut.mutate(it); }}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
