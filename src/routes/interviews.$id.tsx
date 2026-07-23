@@ -361,42 +361,77 @@ function LiveView({ interview }: { interview: any }) {
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
-      {/* Header strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border rounded-md overflow-hidden border border-border mb-4">
-        <Strip label="Founder" value={interview.founder_name} />
-        <Strip label="Business" value={interview.business_name} />
-        <Strip label="Stage" value={
-          <select value={stagePointer} onChange={(e) => { setStagePointer(e.target.value); setInterviewStatus(id, { current_stage: e.target.value }); }}
-            className="bg-transparent border-none outline-none font-serif text-lg p-0">
-            {INTERVIEW_STAGES.map(s => <option key={s.name}>{s.name}</option>)}
-          </select>
-        } />
-        <Strip label="Elapsed" value={fmt(elapsed)} />
-      </div>
-
+      {/* Playbook stepper — replaces the old header strip. Renders horizontally at the
+       * top of the workspace and drives which questions appear in the left column. */}
+      {steps.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
+              <div className="font-serif text-lg text-green-800">{playbook.data?.playbookName ?? "Meeting"}</div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {interview.founder_name}
+              <span className="mx-2">·</span>
+              {interview.business_name}
+              <span className="mx-2">·</span>
+              Elapsed {fmt(elapsed)}
+            </div>
+          </div>
+          <RoundStepper
+            rounds={steps.map((s) => ({ round: s.key, title: s.title, subtitle: s.subtitle }))}
+            current={currentStep}
+            onSelect={(k) => setCurrentStep(k)}
+            orientation="horizontal"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-12 gap-4">
-        {/* Col 1 — interview guide */}
+        {/* Col 1 — playbook questions for the current step */}
         <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Interview guide</div>
-            <div className="space-y-1.5">
-              {INTERVIEW_STAGES.map(s => (
-                <button key={s.name}
-                  onClick={() => { setStagePointer(s.name); setInterviewStatus(id, { current_stage: s.name }); }}
-                  className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between ${stagePointer === s.name ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}>
-                  <span>{s.name}</span><ChevronRight className="h-3 w-3 opacity-50" />
-                </button>
-              ))}
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
+              {stepDetail.data?.step.title ?? "Questions"}
             </div>
+            {stepDetail.isLoading ? (
+              <div className="text-xs text-muted-foreground italic">Loading questions…</div>
+            ) : (stepDetail.data?.questions.length ?? 0) === 0 ? (
+              <div className="text-xs text-muted-foreground italic">
+                {playbook.data?.kind === "custom"
+                  ? "This playbook has no questions configured yet."
+                  : "No questions for this step."}
+              </div>
+            ) : (
+              <ol className="space-y-2 list-decimal list-inside">
+                {(stepDetail.data?.questions ?? []).map((q) => (
+                  <li key={q.id} className="text-sm rounded-md bg-teal-50 border border-teal-100 px-2 py-1.5 leading-snug">
+                    <span className="font-medium text-foreground/90">{q.question_text}</span>
+                    {q.why_text && <div className="text-[11px] text-muted-foreground mt-1 not-italic">{q.why_text}</div>}
+                  </li>
+                ))}
+              </ol>
+            )}
           </CardContent></Card>
-          <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Sub-topics · {stagePointer}</div>
-            <ul className="text-xs space-y-1 text-foreground/75">
-              {(INTERVIEW_STAGES.find(s => s.name === stagePointer)?.topics ?? []).map(t => <li key={t}>· {t}</li>)}
-            </ul>
-          </CardContent></Card>
+
+          {(stepDetail.data?.documents.length ?? 0) > 0 && (
+            <Card><CardContent className="p-4">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Required documents</div>
+              <ul className="space-y-1">
+                {(stepDetail.data?.documents ?? []).map((d) => (
+                  <li key={d.id} className="text-xs flex items-start gap-2">
+                    <FileText className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                    <span>
+                      <span className="text-foreground/90">{d.name}</span>
+                      {d.purpose && <div className="text-[11px] text-muted-foreground">{d.purpose}</div>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent></Card>
+          )}
         </aside>
+
 
         {/* Cols 2–3 — transcript on top, live scoring below */}
         <section className="col-span-6 space-y-3">
