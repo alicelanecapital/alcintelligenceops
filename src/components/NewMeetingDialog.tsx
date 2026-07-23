@@ -84,7 +84,7 @@ export function NewMeetingDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!founderId && !founderName)}>
+          <Button onClick={submit} disabled={busy || !founderName}>
             {busy ? "Generating brief…" : "Create & open"}
           </Button>
         </DialogFooter>
