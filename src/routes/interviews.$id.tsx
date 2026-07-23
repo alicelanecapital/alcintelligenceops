@@ -336,14 +336,25 @@ function LiveView({ interview }: { interview: any }) {
         {/* Center — transcript */}
         <section className="col-span-6">
           <Card className="h-full"><CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live transcript</div>
-              <div className="flex items-center gap-1 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="text-muted-foreground">Speaker:</span>
                 {(["Founder", "Interviewer"] as const).map(s => (
                   <button key={s} onClick={() => setCurrentSpeaker(s)}
                     className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
                 ))}
+                <span className="mx-1 text-muted-foreground">·</span>
+                {!recording
+                  ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                  : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>
+                  <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
+                    disabled={finalizing} />
+                </label>
               </div>
             </div>
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
