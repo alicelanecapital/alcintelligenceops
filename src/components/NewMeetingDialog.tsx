@@ -76,29 +76,6 @@ export function NewMeetingDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label>Existing founder (optional)</Label>
-            <select
-              value={founderId}
-              onChange={(e) => {
-                setFounderId(e.target.value);
-                const f = (founders.data ?? []).find((x: any) => x.id === e.target.value);
-                if (f) {
-                  setFounderName(f.name);
-                  setBusinessName(f.startup_name ?? "");
-                  setIndustry(f.sector ?? "");
-                }
-              }}
-              className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">— Start blank —</option>
-              {(founders.data ?? []).map((f: any) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} · {f.startup_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
             <Label>Founder name</Label>
             <Input value={founderName} onChange={(e) => setFounderName(e.target.value)} className="mt-1" />
           </div>
