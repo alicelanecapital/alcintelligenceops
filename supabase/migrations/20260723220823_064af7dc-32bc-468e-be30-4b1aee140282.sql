@@ -1,0 +1,2 @@
+ALTER TABLE public.google_calendar_events DROP CONSTRAINT IF EXISTS google_calendar_events_status_check;
+ALTER TABLE public.google_calendar_events ADD CONSTRAINT google_calendar_events_status_check CHECK (status = ANY (ARRAY['done'::text, 'cancelled'::text, 'postponed'::text, 'adhoc'::text]));
