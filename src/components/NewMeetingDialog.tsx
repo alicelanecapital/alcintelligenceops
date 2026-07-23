@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchFounders } from "@/lib/db";
 import { startInterview } from "@/lib/interviews.functions";
 import { startMeetingForContact } from "@/lib/contacts.functions";
 
@@ -28,16 +26,13 @@ export function NewMeetingDialog({
   defaults?: NewMeetingDefaults;
 }) {
   const nav = useNavigate();
-  const [founderId, setFounderId] = useState<string>("");
   const [founderName, setFounderName] = useState(defaults?.founderName ?? "");
   const [businessName, setBusinessName] = useState(defaults?.businessName ?? "");
   const [industry, setIndustry] = useState(defaults?.industry ?? "");
   const [busy, setBusy] = useState(false);
-  const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders, enabled: open });
 
   useEffect(() => {
     if (open) {
-      setFounderId("");
       setFounderName(defaults?.founderName ?? "");
       setBusinessName(defaults?.businessName ?? "");
       setIndustry(defaults?.industry ?? "");
@@ -51,7 +46,6 @@ export function NewMeetingDialog({
         ? await startMeetingForContact({ data: { contactId: defaults.contactId } })
         : await startInterview({
             data: {
-              founderId: founderId || undefined,
               founderName: founderName || undefined,
               businessName: businessName || undefined,
               industry: industry || undefined,
