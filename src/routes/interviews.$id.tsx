@@ -55,14 +55,7 @@ function InterviewWorkspace() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
-            <Badge className={iv.status === "live" ? "bg-red-600 text-white" : iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status}</Badge>
-            {iv.status === "live" && (
-              <Button size="sm" variant="destructive" className="h-7 px-2 gap-1" onClick={async () => {
-                await stopInterview(id);
-                toast.success("Meeting stopped");
-                qc.invalidateQueries({ queryKey: ["iv", id] });
-              }}><StopCircle className="h-3 w-3" /> Stop</Button>
-            )}
+            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "draft" : iv.status}</Badge>
           </div>
         </div>
       </div>
