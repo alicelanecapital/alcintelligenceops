@@ -465,9 +465,13 @@ function CalendarScreen() {
                       {it.type}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium">
+                      <div className="font-medium truncate">
                         {it.hasTime && <span className="mr-2 text-muted-foreground tabular-nums">{timeRange(it)}</span>}
                         {it.busy ? `${initialsFromEmail(it.owner)} · Busy` : it.label}
+                        {(() => {
+                          const meta = organizerAttendeesText(it);
+                          return meta ? <span className="text-[8px] text-muted-foreground font-normal ml-2">{meta}</span> : null;
+                        })()}
                       </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
