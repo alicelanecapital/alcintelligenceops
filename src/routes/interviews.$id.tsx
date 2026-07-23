@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
-  saveNote, setInterviewStatus, insertUtterance, editUtterance, stopInterview,
+  saveNote, setInterviewStatus, insertUtterance, editUtterance,
   INTERVIEW_STAGES,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
