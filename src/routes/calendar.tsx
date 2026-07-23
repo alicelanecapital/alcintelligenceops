@@ -62,6 +62,12 @@ function maskUnavailable(title: string | null | undefined): string {
 function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const selectedDayRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedDay && selectedDayRef.current) {
+      selectedDayRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedDay]);
 
   const events = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const meetings = useQuery({ queryKey: ["all-meetings"], queryFn: fetchAllMeetings });
