@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
-import { fetchAllMeetings, fetchAllTasks } from "@/lib/founders-data";
+import { fetchAllMeetings } from "@/lib/founders-data";
 import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
