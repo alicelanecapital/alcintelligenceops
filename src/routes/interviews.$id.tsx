@@ -235,6 +235,7 @@ function LiveView({ interview }: { interview: any }) {
     streamRef.current = null;
     recorderRef.current?.stop();
     setRecording(false);
+    setTranscriptOpen(false);
     // Auto-finalise: the memo is generated the moment recording stops,
     // no separate "End interview" button needed.
     void finalizeNow();
