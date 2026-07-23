@@ -147,7 +147,7 @@ function BriefList({ title, items, icon, numbered }: { title: string; items?: st
 function LiveView({ interview }: { interview: any }) {
   const id = interview.id;
   const qc = useQueryClient();
-  const nav = useNavigate();
+  // (nav removed — finalise auto-runs on Stop and refreshes queries in place)
   const utt = useQuery({ queryKey: ["iv-utt", id], queryFn: () => getUtterances(id), refetchInterval: 4000 });
   const ana = useQuery({ queryKey: ["iv-ana", id], queryFn: () => getAnalyses(id), refetchInterval: 6000 });
   const docs = useQuery({ queryKey: ["iv-docs", id], queryFn: () => getDocRequests(id), refetchInterval: 8000 });
