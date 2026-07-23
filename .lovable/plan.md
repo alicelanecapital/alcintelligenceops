@@ -1,67 +1,59 @@
-## Scope
+## Changes
 
-Multiple UI/nav/label refinements plus a new admin "Intelligent Toolkits" abstraction that generalises the current DD Intelligence Engine.
+### 1. Replace "Busy" label with owner initials + no-entry icon
 
----
+In `src/routes/calendar.tsx`:
+- Remove `maskUnavailable()` returning `"Busy"`. Instead, treat matches as a flag: `isBusy(title)`.
+- Extend `CalItem` with `busy?: boolean` and `endDate?: Date`.
+- Busy chips render: small `Ban` icon (lucide-react, 10px) + owner initials (e.g. `GA`, `TS`) derived from the teammate's email local-part, with per-email overrides in a `BUSY_INITIALS` map.
+- Show `HH:mm–HH:mm` using `start_time` and `end_time`; fall back to `HH:mm` when only start is a datetime.
+- `src/lib/google-calendar.ts`: include `end_time`, `google_event_id`, `calendar_id` in `fetchAllTeamCalendarEvents`.
 
-### 1. Global font size — 12px on framed content
+### 2. CRUD panel below the calendar with bidirectional Google sync
 
-- Add a utility class `.frame-12` (or reuse Tailwind `text-[12px]`) applied to every card/frame body across the app. To keep scope tight and avoid touching every component, set a base rule in `src/styles.css` targeting the frame wrappers we already use (Card, accordion content, dialog content, list items in Deal Pipeline / Meetings / Contacts / Live Workspace / Synopsis).
-- Headings/eyebrows/badges retain their current sizes; only body/text-in-frame moves to 12px.
+Selected-day card becomes editable:
+- Header gets a "+ New event" button opening a dialog with Title, Start (date+time), End (date+time), Location, Description, Calendar (dropdown from `listGoogleSubCalendars` for the signed-in user).
+- Each row (for events the signed-in user owns) gets Edit and Delete buttons. App-entity rows (meetings/events/tasks) remain read-only.
 
-### 2. Eyebrow / section-heading renames
+Server functions (`src/lib/google-calendar-crud.functions.ts`, new), all `requireSupabaseAuth` and using `getValidGoogleAccessToken(context.claims.email)`:
+- `createGoogleCalendarEvent` — POST to `.../calendars/{calId}/events`, mirror into `google_calendar_events`.
+- `updateGoogleCalendarEvent` — PATCH `.../events/{googleEventId}`, mirror.
+- `deleteGoogleCalendarEvent` — DELETE `.../events/{googleEventId}`, delete local row.
+- Refuse when target row's `user_email` ≠ caller email.
 
-- `src/routes/events.tsx` — eyebrow above "Current Events": `DISCOVERY` → `NETWORK`.
-- `src/routes/interviews.index.tsx` — page eyebrow: `Diagnostic Engine` → `DISCOVERY`. Heading stays "Meetings".
-- `src/routes/dd-engine.tsx` — eyebrow: `Diligence` → `DUE DILIGENCE`.
+Bidirectionality: writes go to Google first then mirrored; the existing 15-min cron pulls in third-party changes. Each mutation invalidates `["team-calendar-events"]`.
 
-### 3. Meetings accordion grouping
+### 3. Event status: Done · Cancelled · Postponed
 
-- `src/routes/interviews.index.tsx`: remove the `"Last week"` bucket. Anything older than "Today" / "Next week" falls into its month bucket (e.g. `June 2026`) via the existing month key. `bucketOf` becomes: Today → Next week → `<MonthName YYYY>`.
+Migration — add a nullable `status` column to mirror per-event lifecycle without breaking existing rows:
 
-### 4. Live Workspace frame changes (`src/routes/interviews.$id.tsx`)
-
-- Remove the `LIVE` badge on the meeting record header and remove the standalone Stop button in the header area (Stop remains inside the Live Transcript frame per prior plan).
-- Manual Assessment and Body Language frames:
-  - Default collapsed (accordion `defaultValue` no longer includes them).
-  - Border + header tinted the same pastel orange used for the `Medium` score badge (amber-200 border, amber-50 background on header) to signal "manual input".
-
-### 5. Nav rename + new admin section
-
-- `src/components/AppShell.tsx` admin nav: rename "DD Intelligence Engine" to **"Intelligent Toolkits"**, positioned just above Accounts.
-- Route move: `/admin/dd-framework` becomes one record within the new toolkits area.
-
-New data model (migration):
-
-```text
-toolkits             (id, name, description, kind, sort_order, created_at)
-toolkit_rounds       (id, toolkit_id, round, sort_order, title, subtitle, purpose, duration)
-toolkit_questions    (id, toolkit_id, round, sort_order, question_text, why_text, internal_steps, red_flags)
-toolkit_documents    (id, toolkit_id, round, sort_order, name, purpose)
+```sql
+ALTER TABLE public.google_calendar_events
+  ADD COLUMN IF NOT EXISTS status text
+  CHECK (status IN ('done','cancelled','postponed'));
 ```
 
-- Seed a single toolkit row `DD Intelligence Engine` (kind=`due_diligence`) and copy the existing `dd_framework_rounds/questions/documents` rows into `toolkit_*` linked to that toolkit id. Legacy tables stay untouched so the live DD flow keeps working; the admin UI reads/writes via the new tables against the DD toolkit's id.
-- GRANTs + RLS: same pattern as existing framework tables (`authenticated` read/write via team-membership check; `service_role` all).
+No GRANT changes needed (existing grants cover the new column). Also add the same column to `public.interviews` and `public.events` so app-native meetings and events can carry a status too.
 
-New routes:
+Selected-day panel:
+- Each row gets a `Select` (Open · Done · Cancelled · Postponed) that writes through a small `setStatus` server fn per source table (`google_calendar_events` for owner-matching Google rows via a new `setGoogleEventStatus` fn; direct Supabase update for `interviews` / `events` / `tasks`).
+- On change, invalidate the matching queries.
 
-- `src/routes/admin.toolkits.index.tsx` — list of toolkits with CRUD (create / rename / delete / reorder). "DD Intelligence Engine" appears as a row here.
-- `src/routes/admin.toolkits.$id.tsx` — the existing round/question/document designer (reuse the current `admin.dd-framework.tsx` UI, parametrised by `toolkit_id`).
-- Keep `/admin/dd-framework` as a redirect to the DD toolkit's detail page so existing links don't break.
+Calendar grid + panel rendering:
+- `status = 'cancelled'` → `line-through` and reduced opacity on the chip label; the small icon (Ban / clock / dot) becomes grey.
+- `status = 'done'` → `opacity-40 text-muted-foreground` (visibly greyed out but still legible).
+- `status = 'postponed'` → append " · Postponed" to the tooltip and italicise; keeps its normal colour so it's still visible for rescheduling.
+- Task rows use the same rules (`tasks.status = 'Done'` already exists — reuse it for the greyed-out treatment).
 
-Data-access layer:
+Legend gets three tiny swatches: strikethrough, greyed, italic.
 
-- New `src/lib/toolkits-admin.ts` mirroring `src/lib/dd-framework-admin.ts` but scoped by `toolkit_id`. The DD interview runtime (`src/routes/dd-interview.*`, `src/components/DDInterviewEnhanced.tsx`, `src/lib/dd-framework-data.ts`) is unchanged in this pass — it keeps reading `dd_framework_*`. A follow-up can migrate the runtime to read from `toolkit_*` once the admin UI is stable.
+### 4. Type/data plumbing
 
----
+- `CalItem` extended with `status?: 'done'|'cancelled'|'postponed'`.
+- `itemStyle(it)` composes existing colour classes with the new status classes.
+- No schema changes to `tasks` (already has textual status).
 
-### Technical notes
+## Not in scope
 
-- 12px is applied via a scoped CSS rule so we don't have to edit dozens of components; verify with the running preview after the change.
-- Toolkits migration keeps `dd_framework_*` intact to avoid regressions in the live DD interview.
-- Amber tint uses existing token pattern (`border-amber-200`, `bg-amber-50/50`) to match the `Medium` badge already in use.
-
-### Out of scope
-
-- Rewiring the live DD interview to read from `toolkit_*` (done later once toolkits UI is proven).
-- Any changes to Contacts, Calendar, or Deal Pipeline lists beyond the eyebrow rename.
+- Editing Google events owned by another teammate from the current session (Google rejects without delegated access) — those rows render without Edit/Delete/Status controls.
+- Recurring-event editing (single-occurrence writes only; dialog notes this).
