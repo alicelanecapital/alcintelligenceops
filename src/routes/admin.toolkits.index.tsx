@@ -7,35 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, ArrowRight, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/toolkits/")({
-  component: () => (
-    <AppShell>
-      <ToolkitsAdmin />
-    </AppShell>
-  ),
+  component: () => <AppShell><ToolkitsAdmin /></AppShell>,
   head: () => ({
     meta: [
-      { title: "Playbooks · Alice Lane" },
-      {
-        name: "description",
-        content: "Design and manage step-wizard playbooks for interviews, meetings and any Alice Lane process.",
-      },
+      { title: "Intelligence Toolkits · Alice Lane" },
+      { name: "description", content: "Design and manage step-wizard playbooks for interviews, meetings and any Alice Lane process." },
     ],
   }),
 });
@@ -48,7 +36,7 @@ function ToolkitsAdmin() {
     <div className="max-w-5xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Admin"
-        title="Playbooks"
+        title="Intelligence Toolkits"
         description="Create step-wizard playbooks for interviews, meetings or any repeatable process. Each toolkit becomes a guided workflow with rounds, questions and required documents."
         actions={<NewToolkitButton />}
       />
@@ -59,31 +47,19 @@ function ToolkitsAdmin() {
             key={t.id}
             t={t}
             onDelete={async () => {
-              try {
-                await deleteToolkit(t.id);
-                toast.success("Toolkit deleted");
-                qc.invalidateQueries({ queryKey: ["toolkits"] });
-              } catch (e: any) {
-                toast.error(e.message ?? "Failed to delete");
-              }
+              try { await deleteToolkit(t.id); toast.success("Toolkit deleted"); qc.invalidateQueries({ queryKey: ["toolkits"] }); }
+              catch (e: any) { toast.error(e.message ?? "Failed to delete"); }
             }}
             onRename={async (name, description) => {
-              try {
-                await updateToolkit(t.id, { name, description });
-                toast.success("Toolkit updated");
-                qc.invalidateQueries({ queryKey: ["toolkits"] });
-              } catch (e: any) {
-                toast.error(e.message ?? "Failed to update");
-              }
+              try { await updateToolkit(t.id, { name, description }); toast.success("Toolkit updated"); qc.invalidateQueries({ queryKey: ["toolkits"] }); }
+              catch (e: any) { toast.error(e.message ?? "Failed to update"); }
             }}
           />
         ))}
         {q.isSuccess && !(q.data ?? []).length && (
           <div className="p-12 text-center">
             <div className="font-serif text-xl">No toolkits yet</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Create your first toolkit to start building a guided workflow.
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">Create your first toolkit to start building a guided workflow.</p>
           </div>
         )}
       </div>
@@ -91,15 +67,7 @@ function ToolkitsAdmin() {
   );
 }
 
-function ToolkitRow({
-  t,
-  onDelete,
-  onRename,
-}: {
-  t: Toolkit;
-  onDelete: () => void;
-  onRename: (name: string, description: string) => void;
-}) {
+function ToolkitRow({ t, onDelete, onRename }: { t: Toolkit; onDelete: () => void; onRename: (name: string, description: string) => void }) {
   const isDD = t.kind === "due_diligence";
   const designHref = isDD ? "/admin/dd-framework" : `/admin/toolkits/${t.id}`;
   return (
@@ -110,11 +78,7 @@ function ToolkitRow({
       <div className="min-w-0 flex-1">
         <div className="font-serif text-base leading-tight truncate">
           {t.name}
-          {isDD && (
-            <Badge variant="outline" className="ml-2 text-[10px] border-green-700 text-green-800">
-              Core
-            </Badge>
-          )}
+          {isDD && <Badge variant="outline" className="ml-2 text-[10px] border-green-700 text-green-800">Core</Badge>}
         </div>
         {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
       </div>
@@ -175,33 +139,19 @@ function NewToolkitButton() {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">New toolkit</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">New toolkit</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
             <Label>Name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1"
-              placeholder="e.g. Founder discovery interview"
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Founder discovery interview" />
           </div>
           <div>
             <Label>Description</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1"
-              placeholder="What is this playbook for?"
-            />
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" placeholder="What is this playbook for?" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={() => mut.mutate()} disabled={mut.isPending || !name.trim()}>
             {mut.isPending ? "Creating…" : "Create toolkit"}
           </Button>
@@ -216,25 +166,14 @@ function EditToolkitButton({ t, onRename }: { t: Toolkit; onRename: (name: strin
   const [name, setName] = useState(t.name);
   const [description, setDescription] = useState(t.description ?? "");
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (v) {
-          setName(t.name);
-          setDescription(t.description ?? "");
-        }
-      }}
-    >
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) { setName(t.name); setDescription(t.description ?? ""); } }}>
       <DialogTrigger asChild>
         <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit toolkit">
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">Edit toolkit</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">Edit toolkit</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
             <Label>Name</Label>
@@ -246,16 +185,8 @@ function EditToolkitButton({ t, onRename }: { t: Toolkit; onRename: (name: strin
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              onRename(name.trim(), description.trim());
-              setOpen(false);
-            }}
-            disabled={!name.trim()}
-          >
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => { onRename(name.trim(), description.trim()); setOpen(false); }} disabled={!name.trim()}>
             Save changes
           </Button>
         </DialogFooter>
