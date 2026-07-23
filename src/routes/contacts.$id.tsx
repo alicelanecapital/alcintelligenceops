@@ -216,18 +216,69 @@ function ContactProfile() {
 
 /* ============ Overview tab ============ */
 
-function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
+function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contactId, meetings, briefPending, onGenerateBrief }: {
   contact: any; opportunity: any; openOpps: any[]; opportunities: any[];
+  contactId: string; meetings: any[];
+  briefPending: boolean; onGenerateBrief: (force: boolean) => void;
 }) {
   const detectedCode = opportunity?.dd_detected_sector;
   const detectedConf = opportunity?.dd_sector_confidence ?? 0;
   const sector = detectedCode && detectedConf >= 50 ? (SECTOR_MODULES as any)[detectedCode]?.name : null;
   const disc = opportunity?.disc_profile as any;
 
+  // Auto-generate the stakeholder brief on first Overview view if none exists.
+  const triggeredRef = useRef(false);
+  useEffect(() => {
+    if (triggeredRef.current) return;
+    if (!c.stakeholder_brief && !briefPending) {
+      triggeredRef.current = true;
+      onGenerateBrief(false);
+    }
+  }, [c.stakeholder_brief, briefPending, onGenerateBrief]);
+
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <Accordion type="multiple" defaultValue={["company", "disc", "flags"]} className="w-full">
+        <Accordion type="multiple" defaultValue={["brief", "company", "disc", "flags", "history"]} className="w-full">
+          <AccordionItem value="brief">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-sky-700" /> Stakeholder Brief</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold text-sky-900">Summary & talking points</div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
+                    <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
+                  </Button>
+                </div>
+                {c.stakeholder_brief ? (
+                  <div className="space-y-2 text-sm text-sky-900">
+                    {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
+                    {c.stakeholder_brief.talking_points?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Talking points</div>
+                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                          {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {c.stakeholder_brief.watch_outs?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Watch-outs</div>
+                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                          {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
+                )}
+              </section>
+            </AccordionContent>
+          </AccordionItem>
+
           {c.company_description && (
             <AccordionItem value="company">
               <AccordionTrigger className="text-sm">
@@ -282,7 +333,16 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
               <span className="inline-flex items-center gap-2"><Flag className="h-4 w-4 text-rose-600" /> Red Flags</span>
             </AccordionTrigger>
             <AccordionContent>
-              <RedFlagsTab opportunities={opportunities} />
+              <RedFlagsInline contactId={contactId} opportunities={opportunities} />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="history">
+            <AccordionTrigger className="text-sm">
+              <span className="inline-flex items-center gap-2"><History className="h-4 w-4" /> Meeting History</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <MeetingHistoryInline contactId={contactId} meetings={meetings} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -355,81 +415,120 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities }: {
   );
 }
 
-/* ============ Stakeholder Brief tab (auto-generates on first view) ============ */
+/* ============ Meeting history inline (used inside AI Overview) ============ */
 
-function StakeholderBriefTab({ contact: c, briefPending, onGenerateBrief }: {
-  contact: any; briefPending: boolean; onGenerateBrief: (force: boolean) => void;
-}) {
-  const triggeredRef = useRef(false);
-  useEffect(() => {
-    if (triggeredRef.current) return;
-    if (!c.stakeholder_brief && !briefPending) {
-      triggeredRef.current = true;
-      onGenerateBrief(false);
-    }
-  }, [c.stakeholder_brief, briefPending, onGenerateBrief]);
-
+function MeetingHistoryInline({ contactId, meetings }: { contactId: string; meetings: any[] }) {
+  if (!meetings.length) return <p className="text-sm text-muted-foreground">No meetings yet.</p>;
   return (
-    <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold text-sky-900 inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Stakeholder Brief</div>
-        <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
-          <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
-        </Button>
-      </div>
-      {c.stakeholder_brief ? (
-        <div className="space-y-2 text-sm text-sky-900">
-          {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
-          {c.stakeholder_brief.talking_points?.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">Talking points</div>
-              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
-              </ul>
-            </div>
-          )}
-          {c.stakeholder_brief.watch_outs?.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">Watch-outs</div>
-              <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
-      )}
-    </section>
+    <div>
+      {meetings.map((m: any) => (
+        <Link key={m.id} to="/interviews/$id" params={{ id: m.id }} className="block py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+          <div className="flex justify-between items-center">
+            <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
+            <Badge variant="outline">{m.status}</Badge>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</div>
+        </Link>
+      ))}
+    </div>
   );
 }
 
-/* ============ Live Workspace tab ============ */
+/* ============ Live Workspace tab (playbook-driven start + records list) ============ */
 
-function LiveWorkspaceTab({ liveMeeting, onStartMeeting }: { liveMeeting: any; onStartMeeting: () => void }) {
-  if (!liveMeeting) {
-    return (
-      <div className="rounded-lg border border-dashed border-border p-10 text-center">
-        <PlaySquare className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground mb-4">No live or recent meeting for this contact.</p>
-        <Button onClick={onStartMeeting}><Mic className="h-4 w-4 mr-1" /> Start meeting</Button>
-      </div>
-    );
-  }
+function LiveWorkspaceTab({ contact, meetings }: { contact: any; meetings: any[] }) {
+  const navigate = useNavigate();
+  const startMeeting = useServerFn(startMeetingForContact);
+  const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
+
+  // Default to the DD Intelligence Engine template if present.
+  const ddTemplate = (toolkits.data ?? []).find((t) => (t as any).kind === "due_diligence");
+  const [playbookId, setPlaybookId] = useState<string>("");
+  useEffect(() => {
+    if (!playbookId && ddTemplate) setPlaybookId(ddTemplate.id);
+  }, [ddTemplate, playbookId]);
+  const [industry, setIndustry] = useState<string>(contact.industry ?? "");
+
+  const startMut = useMutation({
+    mutationFn: () => startMeeting({ data: { contactId: contact.id, playbookId: playbookId || undefined, industry: industry || undefined } }),
+    onSuccess: (row: any) => {
+      toast.success("Meeting started");
+      navigate({ to: "/interviews/$id", params: { id: row.id } });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to start meeting"),
+  });
+
+  const live = meetings.find((m: any) => m.status === "live");
+  const past = meetings.filter((m: any) => m.status !== "live");
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <div className="text-sm font-medium">{liveMeeting.title ?? liveMeeting.meeting_type ?? "Meeting"}</div>
-          <div className="text-xs text-muted-foreground">{new Date(liveMeeting.created_at).toLocaleString()} · {liveMeeting.status}</div>
+    <div className="space-y-8">
+      {live && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-emerald-800 uppercase tracking-widest">Live session</div>
+            <div className="text-sm font-medium">{live.title ?? "Meeting"}</div>
+            <div className="text-xs text-muted-foreground">Started {new Date(live.started_at ?? live.created_at).toLocaleString()}</div>
+          </div>
+          <Link to="/interviews/$id" params={{ id: live.id }}>
+            <Button size="sm"><PlaySquare className="h-4 w-4 mr-1" /> Resume</Button>
+          </Link>
         </div>
-        <Link to="/interviews/$id" params={{ id: liveMeeting.id }}>
-          <Button size="sm"><PlaySquare className="h-4 w-4 mr-1" /> Open workspace</Button>
-        </Link>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        The full live workspace (interview guide, transcript, risk alerts, contradictions, missing evidence, document requests and manual assessment) opens in a dedicated screen so you have full width for recording.
-      </p>
+      )}
+
+      <section className="space-y-4">
+        <div>
+          <div className="text-sm font-semibold text-green-800">Start a meeting</div>
+          <p className="text-xs text-muted-foreground mt-1">Pick a playbook to run the meeting against — the workspace stepper and questions come from the playbook.</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
+          <div>
+            <Label>Playbook</Label>
+            <Select value={playbookId} onValueChange={setPlaybookId}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={toolkits.isLoading ? "Loading playbooks…" : "Select a playbook"} /></SelectTrigger>
+              <SelectContent>
+                {(toolkits.data ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {(t as any).kind === "due_diligence" ? `${t.name} (Template)` : t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Industry</Label>
+            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" placeholder="e.g. Aesthetics & dentistry" />
+          </div>
+        </div>
+        <div>
+          <Button onClick={() => startMut.mutate()} disabled={startMut.isPending || !playbookId}>
+            <Mic className="h-4 w-4 mr-1" /> {startMut.isPending ? "Starting…" : "Start Meeting"}
+          </Button>
+        </div>
+      </section>
+
+      <section>
+        <div className="text-sm font-semibold text-green-800 mb-2">Live Workspace records</div>
+        {past.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No previous sessions yet.</p>
+        ) : (
+          <div>
+            {past.map((m: any) => (
+              <Link key={m.id} to="/interviews/$id" params={{ id: m.id }} className="block py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">{m.title ?? m.meeting_type ?? "Meeting"}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(m.started_at ?? m.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <Badge variant="outline">{m.status}</Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
