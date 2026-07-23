@@ -13,7 +13,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { useMemo } from "react";
 import { Play, CalendarClock, MapPin, Video } from "lucide-react";
 import {
-  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks,
+  format, startOfDay, subYears,
 } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
@@ -82,20 +82,6 @@ function hasExternalAttendees(ev: any): boolean {
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
 
-function bucketOf(when: Date): "Today" | "Next week" | string {
-  const now = new Date();
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const nextWkStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
-  const nextWkEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
-  const t = when.getTime();
-  if (t >= todayStart.getTime() && t <= todayEnd.getTime()) return "Today";
-  if (t >= nextWkStart.getTime() && t <= nextWkEnd.getTime()) return "Next week";
-  // Everything else -- past or future -- falls into its own month bucket
-  // (e.g. "June 2026"). "Last week" is no longer a separate group.
-  return format(when, "MMMM yyyy");
-}
-
 
 function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
@@ -103,30 +89,36 @@ function InterviewsIndex() {
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
 
-  const grouped = useMemo(() => {
+  const { planned, past } = useMemo(() => {
     const items: Item[] = [];
     for (const i of q.data ?? []) items.push({ kind: "interview", when: new Date(i.created_at), data: i });
     for (const ev of dedupeEvents(upcoming.data ?? [])) items.push({ kind: "calendar", when: new Date(ev.start_time), data: ev });
-    const buckets = new Map<string, Item[]>();
+    const todayStart = startOfDay(new Date()).getTime();
+    const oneYearAgo = subYears(new Date(), 1).getTime();
+    const planned: Item[] = [];
+    const past: Item[] = [];
     for (const it of items) {
-      const b = bucketOf(it.when);
-      if (!buckets.has(b)) buckets.set(b, []);
-      buckets.get(b)!.push(it);
+      const t = it.when.getTime();
+      if (t >= todayStart) planned.push(it);
+      else if (t >= oneYearAgo) past.push(it);
     }
-    for (const arr of buckets.values()) arr.sort((a, b) => a.when.getTime() - b.when.getTime());
-    // Order: Today, Next week, then months by chronological proximity to today.
-    const now = Date.now();
-    const keys = Array.from(buckets.keys()).sort((a, b) => {
-      if (a === "Today") return -1;
-      if (b === "Today") return 1;
-      if (a === "Next week") return -1;
-      if (b === "Next week") return 1;
-      const ta = Math.abs((buckets.get(a)![0]?.when.getTime() ?? 0) - now);
-      const tb = Math.abs((buckets.get(b)![0]?.when.getTime() ?? 0) - now);
-      return ta - tb;
-    });
-    return keys.map((k) => [k, buckets.get(k)!] as const);
+    planned.sort((a, b) => a.when.getTime() - b.when.getTime());
+    past.sort((a, b) => b.when.getTime() - a.when.getTime());
+    return { planned, past };
   }, [q.data, upcoming.data]);
+
+  const renderRows = (items: Item[]) =>
+    items.length === 0 ? (
+      <div className="text-sm text-muted-foreground italic px-2 py-4">Nothing scheduled.</div>
+    ) : (
+      <div className="divide-y divide-border/40">
+        {items.map((it) =>
+          it.kind === "interview"
+            ? <InterviewRow key={`i-${it.data.id}`} i={it.data} />
+            : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
+        )}
+      </div>
+    );
 
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
@@ -137,30 +129,19 @@ function InterviewsIndex() {
         actions={<SyncGoogleButton mode="team" className="bg-green-700 hover:bg-green-800 text-white border-green-700 hover:border-green-800" />}
       />
 
-      <Accordion type="multiple" defaultValue={["Today"]}>
-        {grouped.map(([bucket, items]) => {
-          const isToday = bucket === "Today";
-          return (
-            <AccordionItem key={bucket} value={bucket} className="border-b border-border/40">
-              <AccordionTrigger className={`hover:no-underline py-3 ${isToday ? "text-green-800 font-semibold" : ""}`}>
-                <span>{bucket} <span className="text-muted-foreground text-xs ml-2">({items.length})</span></span>
-              </AccordionTrigger>
-              <AccordionContent>
-                {items.length === 0 ? (
-                  <div className="text-sm text-muted-foreground italic px-2 py-4">Nothing scheduled.</div>
-                ) : (
-                  <div className="divide-y divide-border/40">
-                    {items.map((it) =>
-                      it.kind === "interview"
-                        ? <InterviewRow key={`i-${it.data.id}`} i={it.data} />
-                        : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
-                    )}
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
+      <Accordion type="multiple" defaultValue={["planned"]}>
+        <AccordionItem value="planned" className="border-b border-border/40">
+          <AccordionTrigger className="hover:no-underline py-3 text-green-800 font-semibold">
+            <span>Planned Meetings <span className="text-muted-foreground text-xs ml-2 font-normal">({planned.length})</span></span>
+          </AccordionTrigger>
+          <AccordionContent>{renderRows(planned)}</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="past" className="border-b border-border/40">
+          <AccordionTrigger className="hover:no-underline py-3 text-green-800 font-semibold">
+            <span>Past Meetings <span className="text-muted-foreground text-xs ml-2 font-normal">({past.length})</span> <span className="text-muted-foreground text-[11px] ml-1 font-normal">— last 12 months</span></span>
+          </AccordionTrigger>
+          <AccordionContent>{renderRows(past)}</AccordionContent>
+        </AccordionItem>
       </Accordion>
     </div>
   );
