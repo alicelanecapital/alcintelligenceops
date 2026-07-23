@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listInterviews, dismissInterview, stopInterview } from "@/lib/interviews";
+import { listInterviews, dismissInterview } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
@@ -11,11 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useState, useMemo } from "react";
-import { Radio, Play, CalendarClock, MapPin, Video, X, StopCircle } from "lucide-react";
+import { Play, CalendarClock, MapPin, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks,
-  startOfMonth, endOfMonth,
+  format, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks,
 } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
@@ -104,11 +103,6 @@ function InterviewsIndex() {
     mutationFn: (id: string) => dismissInterview(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Removed from view"); },
     onError: (e: any) => toast.error(e.message ?? "Failed to dismiss"),
-  });
-  const stopMut = useMutation({
-    mutationFn: (id: string) => stopInterview(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["interviews"] }); toast.success("Meeting stopped"); },
-    onError: (e: any) => toast.error(e.message ?? "Failed to stop"),
   });
 
   const grouped = useMemo(() => {
