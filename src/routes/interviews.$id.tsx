@@ -144,7 +144,7 @@ function BriefList({ title, items, icon, numbered }: { title: string; items?: st
 
 /* ---------------- Live workspace ---------------- */
 
-function LiveView({ interview }: { interview: any }) {
+function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any; reportAvailable: boolean; onOpenReport: () => void }) {
   const id = interview.id;
   const qc = useQueryClient();
   // (nav removed — finalise auto-runs on Stop and refreshes queries in place)
