@@ -373,13 +373,9 @@ function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
               <div className="font-serif text-lg text-green-800">{playbook.data?.playbookName ?? "Meeting"}</div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {interview.founder_name}
-              <span className="mx-2">·</span>
-              {interview.business_name}
-              <span className="mx-2">·</span>
-              Elapsed {fmt(elapsed)}
-            </div>
+            <Button size="sm" variant="outline" onClick={onOpenReport} disabled={!reportAvailable}>
+              <FileText className="h-3.5 w-3.5 mr-1" /> IC Report
+            </Button>
           </div>
           <RoundStepper
             rounds={steps.map((s) => ({ round: s.key, title: s.title, subtitle: s.subtitle }))}
