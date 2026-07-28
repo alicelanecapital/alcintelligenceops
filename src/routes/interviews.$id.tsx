@@ -56,7 +56,7 @@ function InterviewWorkspace() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
-            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "draft" : iv.status}</Badge>
+            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "Paused" : iv.status}</Badge>
           </div>
         </div>
       </div>
@@ -72,15 +72,19 @@ function InterviewWorkspace() {
         <div className="border-b border-border bg-white">
           <div className="max-w-[1600px] mx-auto px-8">
             <TabsList className="bg-transparent h-12">
-              <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
+              {iv.status !== "live" && iv.status !== "completed" && (
+                <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
+              )}
               <TabsTrigger value="live">Live workspace</TabsTrigger>
               <TabsTrigger value="report" disabled={iv.status !== "completed" && !report.data}>IC report</TabsTrigger>
             </TabsList>
           </div>
         </div>
 
-        <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
-        <TabsContent value="live"><LiveView interview={iv} /></TabsContent>
+        {iv.status !== "live" && iv.status !== "completed" && (
+          <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
+        )}
+        <TabsContent value="live"><LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} onOpenReport={() => setTab("report")} /></TabsContent>
         <TabsContent value="report"><ReportView interviewId={id} /></TabsContent>
       </Tabs>
     </div>
@@ -140,7 +144,7 @@ function BriefList({ title, items, icon, numbered }: { title: string; items?: st
 
 /* ---------------- Live workspace ---------------- */
 
-function LiveView({ interview }: { interview: any }) {
+function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any; reportAvailable: boolean; onOpenReport: () => void }) {
   const id = interview.id;
   const qc = useQueryClient();
   // (nav removed — finalise auto-runs on Stop and refreshes queries in place)
@@ -369,13 +373,9 @@ function LiveView({ interview }: { interview: any }) {
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
               <div className="font-serif text-lg text-green-800">{playbook.data?.playbookName ?? "Meeting"}</div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {interview.founder_name}
-              <span className="mx-2">·</span>
-              {interview.business_name}
-              <span className="mx-2">·</span>
-              Elapsed {fmt(elapsed)}
-            </div>
+            <Button size="sm" variant="outline" onClick={onOpenReport} disabled={!reportAvailable}>
+              <FileText className="h-3.5 w-3.5 mr-1" /> IC Report
+            </Button>
           </div>
           <RoundStepper
             rounds={steps.map((s) => ({ round: s.key, title: s.title, subtitle: s.subtitle }))}

@@ -55,6 +55,16 @@ function ContactProfile() {
   useEffect(() => { if (tabParam) setActiveTab(tabParam); }, [tabParam]);
 
   const briefFn = useServerFn(generateContactStakeholderBrief);
+  const startMeetingFn = useServerFn(startMeetingForContact);
+
+  const startMeetingMut = useMutation({
+    mutationFn: () => startMeetingFn({ data: { contactId: id } }),
+    onSuccess: (row: any) => {
+      toast.success("Meeting started");
+      navigate({ to: "/interviews/$id", params: { id: row.id } });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to start meeting"),
+  });
 
   const delMut = useMutation({
     mutationFn: () => deleteContact(id),
@@ -125,8 +135,8 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => setActiveTab("live")}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> Start Meeting
+            <Button size="sm" onClick={() => startMeetingMut.mutate()} disabled={startMeetingMut.isPending}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> {startMeetingMut.isPending ? "Starting…" : "Start Meeting"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
@@ -238,46 +248,7 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <Accordion type="multiple" defaultValue={["brief", "company", "disc", "flags", "history"]} className="w-full">
-          <AccordionItem value="brief">
-            <AccordionTrigger className="text-sm">
-              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-sky-700" /> Stakeholder Brief</span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-semibold text-sky-900">Summary & talking points</div>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
-                    <RefreshCw className={cn("h-3.5 w-3.5", briefPending && "animate-spin")} />
-                  </Button>
-                </div>
-                {c.stakeholder_brief ? (
-                  <div className="space-y-2 text-sm text-sky-900">
-                    {c.stakeholder_brief.summary && <p>{c.stakeholder_brief.summary}</p>}
-                    {c.stakeholder_brief.talking_points?.length > 0 && (
-                      <div>
-                        <div className="text-xs font-medium mb-1">Talking points</div>
-                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                          {c.stakeholder_brief.talking_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {c.stakeholder_brief.watch_outs?.length > 0 && (
-                      <div>
-                        <div className="text-xs font-medium mb-1">Watch-outs</div>
-                        <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
-                          {c.stakeholder_brief.watch_outs.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
-                )}
-              </section>
-            </AccordionContent>
-          </AccordionItem>
-
+        <Accordion type="multiple" defaultValue={["company", "disc", "flags", "history"]} className="w-full">
           {c.company_description && (
             <AccordionItem value="company">
               <AccordionTrigger className="text-sm">
@@ -396,6 +367,29 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
             </div>
           </section>
         )}
+
+        <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs uppercase tracking-widest text-sky-900 inline-flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Stakeholder Brief
+            </div>
+            <Button size="icon" variant="ghost" className="h-6 w-6" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
+              <RefreshCw className={cn("h-3 w-3", briefPending && "animate-spin")} />
+            </Button>
+          </div>
+          {c.stakeholder_brief ? (
+            <div className="space-y-2 text-sm text-sky-900">
+              {c.stakeholder_brief.summary && <p className="leading-relaxed">{c.stakeholder_brief.summary}</p>}
+              {c.stakeholder_brief.background_points?.length > 0 && (
+                <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                  {c.stakeholder_brief.background_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
+          )}
+        </section>
 
         {c.ai_summary && (
           <section>
