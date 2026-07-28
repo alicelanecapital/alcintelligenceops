@@ -725,3 +725,13 @@ function ApprovedDealsTab({ approvedOpps }: { approvedOpps: any[] }) {
     </div>
   );
 }
+
+function ContactPhotoImg({ photo_url, name }: { photo_url: string; name: string }) {
+  const q = useQuery({
+    queryKey: ["contact-photo-signed", photo_url],
+    queryFn: () => resolveContactPhotoUrl(photo_url),
+    staleTime: 50 * 60 * 1000,
+  });
+  if (!q.data) return <div className="h-full w-full bg-muted" />;
+  return <img src={q.data} alt={name} className="h-full w-full object-cover" />;
+}
