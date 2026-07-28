@@ -116,7 +116,7 @@ function ContactProfile() {
           className="relative h-16 w-16 rounded-full overflow-hidden border border-border bg-muted shrink-0 group"
         >
           {c.photo_url ? (
-            <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover" />
+            <ContactPhotoImg photo_url={c.photo_url} name={c.name} />
           ) : (
             <div className="h-full w-full flex items-center justify-center text-muted-foreground"><User className="h-7 w-7" /></div>
           )}
