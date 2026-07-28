@@ -46,7 +46,7 @@ function ContactsIndex() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
-  const [groupBy, setGroupBy] = useState<"none" | "event" | "category" | "company">("event");
+  const [groupBy, setGroupBy] = useState<"none" | "event" | "category" | "company">("none");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
 
   const primaryLabel = (c: ContactRow) => c.company || c.name;
