@@ -135,8 +135,8 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => setActiveTab("live")}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> Start Meeting
+            <Button size="sm" onClick={() => startMeetingMut.mutate()} disabled={startMeetingMut.isPending}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> {startMeetingMut.isPending ? "Starting…" : "Start Meeting"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info
