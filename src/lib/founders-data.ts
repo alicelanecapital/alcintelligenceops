@@ -187,12 +187,25 @@ export async function fetchOpportunitiesWithDDStatus() {
         .select("id, photo_url")
         .in("id", [...contactIds]);
       if (photosError) throw photosError;
+      const { contactPhotoPath } = await import("@/lib/contacts");
+      const paths: { id: string; path: string }[] = [];
       for (const c of (contactPhotos ?? []) as any[]) {
-        if (c.photo_url) photoByContactId.set(c.id, c.photo_url);
+        const p = contactPhotoPath(c.photo_url);
+        if (p) paths.push({ id: c.id, path: p });
+      }
+      if (paths.length) {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("contact-photos")
+          .createSignedUrls(paths.map((p) => p.path), 60 * 60);
+        if (!signErr && signed) {
+          signed.forEach((s: any, i: number) => {
+            if (s.signedUrl) photoByContactId.set(paths[i].id, s.signedUrl);
+          });
+        }
       }
     }
   } catch (error) {
-    console.error("Failed to load contact photos (contacts.photo_url may not be migrated yet):", error);
+    console.error("Failed to load contact photos:", error);
   }
 
   return (opps ?? []).map((opp: any) => {
