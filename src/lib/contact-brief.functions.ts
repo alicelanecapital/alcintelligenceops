@@ -34,12 +34,11 @@ Source event: ${c.source_event?.name ?? "n/a"}${c.source_event?.city ? ` (${c.so
 Notes: ${c.notes ?? "n/a"}
 Company description: ${c.company_description ?? "n/a"}
 
-Write a concise stakeholder brief for an Alice Lane Capital partner walking into a meeting with this person.
+Write a concise background-intelligence brief on this person for an Alice Lane Capital partner. This is BACKGROUND ONLY — who they are, their career trajectory, reputation, network, communication style. Do NOT include anything about the upcoming meeting, deal, talking points, watch-outs, or engagement strategy.
 Return STRICT JSON:
 {
-  "summary": "2-3 sentences on who they are and why they matter.",
-  "talking_points": ["3 short, specific talking points"],
-  "watch_outs": ["1-2 things to be aware of, or empty array"]
+  "summary": "2-3 sentences on their background: career arc, expertise, reputation.",
+  "background_points": ["3-5 short factual background points: prior roles, notable achievements, network, communication style"]
 }`;
 
     const res = await fetch(GATEWAY_URL, {
@@ -64,8 +63,7 @@ Return STRICT JSON:
     }
     brief = {
       summary: String(brief.summary ?? ""),
-      talking_points: Array.isArray(brief.talking_points) ? brief.talking_points.map(String) : [],
-      watch_outs: Array.isArray(brief.watch_outs) ? brief.watch_outs.map(String) : [],
+      background_points: Array.isArray(brief.background_points) ? brief.background_points.map(String) : [],
       generated_at: new Date().toISOString(),
     };
     await s.from("contacts").update({ stakeholder_brief: brief } as any).eq("id", data.contactId);
