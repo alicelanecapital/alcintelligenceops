@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, updateContact, CATEGORY_LABELS } from "@/lib/contacts";
+import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, updateContact, resolveContactPhotoUrl, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact } from "@/lib/contacts.functions";
 import { generateContactStakeholderBrief } from "@/lib/contact-brief.functions";
 import { listToolkits } from "@/lib/toolkits";
@@ -116,7 +116,7 @@ function ContactProfile() {
           className="relative h-16 w-16 rounded-full overflow-hidden border border-border bg-muted shrink-0 group"
         >
           {c.photo_url ? (
-            <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover" />
+            <ContactPhotoImg photo_url={c.photo_url} name={c.name} />
           ) : (
             <div className="h-full w-full flex items-center justify-center text-muted-foreground"><User className="h-7 w-7" /></div>
           )}
@@ -724,4 +724,14 @@ function ApprovedDealsTab({ approvedOpps }: { approvedOpps: any[] }) {
       ))}
     </div>
   );
+}
+
+function ContactPhotoImg({ photo_url, name }: { photo_url: string; name: string }) {
+  const q = useQuery({
+    queryKey: ["contact-photo-signed", photo_url],
+    queryFn: () => resolveContactPhotoUrl(photo_url),
+    staleTime: 50 * 60 * 1000,
+  });
+  if (!q.data) return <div className="h-full w-full bg-muted" />;
+  return <img src={q.data} alt={name} className="h-full w-full object-cover" />;
 }

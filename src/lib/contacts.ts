@@ -86,17 +86,37 @@ export async function deleteContact(id: string) {
   if (error) throw error;
 }
 
-/** Uploads a profile photo to the public contact-photos bucket and saves its URL on the
- * contact, so it can render as a plain <img> everywhere the contact shows up (Deal Pipeline
- * cards especially -- makes it easier to remember who's who). */
-export async function uploadContactPhoto(contactId: string, file: File): Promise<string> {
+/** Extracts the object path from a stored photo_url value, which may be either a
+ * raw storage path (new format) or a legacy public URL from when the bucket was public. */
+export function contactPhotoPath(photo_url: string | null | undefined): string | null {
+  if (!photo_url) return null;
+  const marker = "/contact-photos/";
+  const idx = photo_url.indexOf(marker);
+  if (idx >= 0) return photo_url.slice(idx + marker.length).split("?")[0];
+  // Not a URL — assume it's already a bucket-relative path.
+  if (!/^https?:\/\//i.test(photo_url)) return photo_url;
+  return null;
+}
+
+/** Resolve a stored contact photo reference to a signed URL for rendering. */
+export async function resolveContactPhotoUrl(photo_url: string | null | undefined): Promise<string | null> {
+  const path = contactPhotoPath(photo_url);
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from("contact-photos").createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+/** Uploads a profile photo to the private contact-photos bucket. The bucket-relative
+ * path is stored on the contact and resolved to a short-lived signed URL at render time. */
+export async function uploadContactPhoto(contactId: string, file: File): Promise<string | null> {
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `${contactId}/${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage.from("contact-photos").upload(path, file, { upsert: true });
   if (uploadError) throw uploadError;
-  const { data } = supabase.storage.from("contact-photos").getPublicUrl(path);
-  await updateContact(contactId, { photo_url: data.publicUrl });
-  return data.publicUrl;
+  await updateContact(contactId, { photo_url: path });
+  const { data } = await supabase.storage.from("contact-photos").createSignedUrl(path, 60 * 60);
+  return data?.signedUrl ?? null;
 }
 
 export async function fetchContactMeetings(contactId: string) {
