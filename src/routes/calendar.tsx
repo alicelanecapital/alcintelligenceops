@@ -434,7 +434,7 @@ function CalendarScreen() {
                       </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
-                    {(it.sourceTable === "google_calendar_events" || it.sourceTable === "interviews" || it.sourceTable === "events") && (
+                    {it.sourceTable === "google_calendar_events" && (
                       <Select
                         value={it.status ?? "open"}
                         onValueChange={(v) => statusMut.mutate({ it, status: v === "open" ? null : (v as Status) })}
