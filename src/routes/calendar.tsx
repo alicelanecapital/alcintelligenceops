@@ -17,8 +17,6 @@ import {
   updateGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
   setGoogleEventStatus,
-  setInterviewStatus,
-  setEventStatus,
   deleteInterviewRow,
   deleteEventRow,
   listWritableCalendars,
@@ -282,8 +280,6 @@ function CalendarScreen() {
   const deleteInterviewFn = useServerFn(deleteInterviewRow);
   const deleteEventFn = useServerFn(deleteEventRow);
   const setGoogleStatusFn = useServerFn(setGoogleEventStatus);
-  const setInterviewStatusFn = useServerFn(setInterviewStatus);
-  const setEventStatusFn = useServerFn(setEventStatus);
   const listCalsFn = useServerFn(listWritableCalendars);
 
   const writableCals = useQuery({ queryKey: ["writable-calendars"], queryFn: () => listCalsFn(), staleTime: 5 * 60 * 1000 });
@@ -296,14 +292,14 @@ function CalendarScreen() {
 
   const statusMut = useMutation({
     mutationFn: async ({ it, status }: { it: CalItem; status: Status }) => {
+      // Calendar-annotation status ("adhoc"/"done"/"cancelled"/null) is only
+      // safe to write against google_calendar_events — public.interviews and
+      // public.events use `status` for their own lifecycle (draft/live/
+      // completed, discovered/booked/…) and would be corrupted otherwise.
       if (it.sourceTable === "google_calendar_events" && it.googleEventId) {
         await setGoogleStatusFn({ data: { googleEventId: it.googleEventId, status } });
-      } else if (it.sourceTable === "interviews" && it.sourceId) {
-        await setInterviewStatusFn({ data: { interviewId: it.sourceId, status } });
-      } else if (it.sourceTable === "events" && it.sourceId) {
-        await setEventStatusFn({ data: { eventId: it.sourceId, status } });
       } else {
-        throw new Error("Status not editable for this item");
+        throw new Error("Status is only editable for synced Google events");
       }
     },
     onSuccess: () => { toast.success("Status updated"); invalidateAll(); },
@@ -434,7 +430,7 @@ function CalendarScreen() {
                       </div>
                       {it.sub && <div className="text-xs text-muted-foreground">{it.sub}</div>}
                     </div>
-                    {(it.sourceTable === "google_calendar_events" || it.sourceTable === "interviews" || it.sourceTable === "events") && (
+                    {it.sourceTable === "google_calendar_events" && (
                       <Select
                         value={it.status ?? "open"}
                         onValueChange={(v) => statusMut.mutate({ it, status: v === "open" ? null : (v as Status) })}

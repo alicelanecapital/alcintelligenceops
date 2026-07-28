@@ -643,14 +643,31 @@ function RedFlagsInline({ contactId, opportunities }: { contactId: string; oppor
           }
         }
       }
-      // Live Workspace sessions — red_flags surfaced from interview_analyses risk rows.
+      // Live Workspace sessions — red flags come from interview_analyses rows
+      // (kind='risk'); the interviews table itself has no red_flags column.
       const { data: ivs, error: ivErr } = await (supabase.from("interviews") as any)
-        .select("id, created_at, red_flags")
+        .select("id, created_at")
         .eq("contact_id", contactId);
       if (ivErr) throw ivErr;
-      for (const r of ivs ?? []) {
-        if (Array.isArray(r.red_flags) && r.red_flags.length) {
-          results.push({ source: "Meeting", round: null, when: r.created_at, flags: r.red_flags });
+      const ivMap = new Map<string, string>((ivs ?? []).map((r: any) => [r.id, r.created_at]));
+      const ivIds = Array.from(ivMap.keys());
+      if (ivIds.length) {
+        const { data: risks, error: raErr } = await (supabase.from("interview_analyses") as any)
+          .select("interview_id, payload")
+          .in("interview_id", ivIds)
+          .eq("kind", "risk");
+        if (raErr) throw raErr;
+        const byIv = new Map<string, any[]>();
+        for (const r of risks ?? []) {
+          const p = r.payload ?? {};
+          const arr = byIv.get(r.interview_id) ?? [];
+          arr.push({ text: p.reason ?? p.text ?? p.category ?? "Risk", severity: p.severity });
+          byIv.set(r.interview_id, arr);
+        }
+        for (const [ivId, flags] of byIv) {
+          if (flags.length) {
+            results.push({ source: "Meeting", round: null, when: ivMap.get(ivId) ?? null, flags });
+          }
         }
       }
       return results;

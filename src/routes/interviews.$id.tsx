@@ -192,13 +192,14 @@ function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any
   // unmounts — otherwise leaving the screen keeps the recorder running silently.
   const recordingRef = useRef(false);
   useEffect(() => { recordingRef.current = recording; }, [recording]);
+  // Stop the recorder cleanly if the tab actually unloads or the workspace
+  // unmounts. Do NOT tie this to `visibilitychange` — a routine tab switch
+  // (checking notes, opening a document) would otherwise silently stop
+  // recording and auto-finalise the memo mid-meeting with no way to resume.
   useEffect(() => {
-    const onHide = () => { if (recordingRef.current && document.visibilityState === "hidden") stopRec(); };
     const onUnload = () => { if (recordingRef.current) stopRec(); };
-    document.addEventListener("visibilitychange", onHide);
     window.addEventListener("beforeunload", onUnload);
     return () => {
-      document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("beforeunload", onUnload);
       if (recordingRef.current) stopRec();
     };
