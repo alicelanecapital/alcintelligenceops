@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, updateContact, CATEGORY_LABELS } from "@/lib/contacts";
+import { fetchContact, fetchContactMeetings, fetchContactOpportunities, deleteContact, uploadContactPhoto, updateContact, resolveContactPhotoUrl, CATEGORY_LABELS } from "@/lib/contacts";
 import { startMeetingForContact } from "@/lib/contacts.functions";
 import { generateContactStakeholderBrief } from "@/lib/contact-brief.functions";
 import { listToolkits } from "@/lib/toolkits";
