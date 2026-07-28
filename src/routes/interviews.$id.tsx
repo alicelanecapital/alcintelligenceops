@@ -56,7 +56,7 @@ function InterviewWorkspace() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
-            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "draft" : iv.status}</Badge>
+            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "Paused" : iv.status}</Badge>
           </div>
         </div>
       </div>
