@@ -72,15 +72,19 @@ function InterviewWorkspace() {
         <div className="border-b border-border bg-white">
           <div className="max-w-[1600px] mx-auto px-8">
             <TabsList className="bg-transparent h-12">
-              <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
+              {iv.status !== "live" && iv.status !== "completed" && (
+                <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
+              )}
               <TabsTrigger value="live">Live workspace</TabsTrigger>
               <TabsTrigger value="report" disabled={iv.status !== "completed" && !report.data}>IC report</TabsTrigger>
             </TabsList>
           </div>
         </div>
 
-        <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
-        <TabsContent value="live"><LiveView interview={iv} /></TabsContent>
+        {iv.status !== "live" && iv.status !== "completed" && (
+          <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
+        )}
+        <TabsContent value="live"><LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} onOpenReport={() => setTab("report")} /></TabsContent>
         <TabsContent value="report"><ReportView interviewId={id} /></TabsContent>
       </Tabs>
     </div>
