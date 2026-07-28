@@ -17,8 +17,6 @@ import {
   updateGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
   setGoogleEventStatus,
-  setInterviewStatus,
-  setEventStatus,
   deleteInterviewRow,
   deleteEventRow,
   listWritableCalendars,
