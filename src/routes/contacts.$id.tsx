@@ -368,6 +368,29 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
           </section>
         )}
 
+        <section className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs uppercase tracking-widest text-sky-900 inline-flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Stakeholder Brief
+            </div>
+            <Button size="icon" variant="ghost" className="h-6 w-6" title="Regenerate" onClick={() => onGenerateBrief(true)} disabled={briefPending}>
+              <RefreshCw className={cn("h-3 w-3", briefPending && "animate-spin")} />
+            </Button>
+          </div>
+          {c.stakeholder_brief ? (
+            <div className="space-y-2 text-sm text-sky-900">
+              {c.stakeholder_brief.summary && <p className="leading-relaxed">{c.stakeholder_brief.summary}</p>}
+              {c.stakeholder_brief.background_points?.length > 0 && (
+                <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                  {c.stakeholder_brief.background_points.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-sky-700">{briefPending ? "Generating brief…" : "No brief yet — generating…"}</p>
+          )}
+        </section>
+
         {c.ai_summary && (
           <section>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">AI summary</div>
