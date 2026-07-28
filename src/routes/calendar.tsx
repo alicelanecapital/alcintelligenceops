@@ -282,8 +282,6 @@ function CalendarScreen() {
   const deleteInterviewFn = useServerFn(deleteInterviewRow);
   const deleteEventFn = useServerFn(deleteEventRow);
   const setGoogleStatusFn = useServerFn(setGoogleEventStatus);
-  const setInterviewStatusFn = useServerFn(setInterviewStatus);
-  const setEventStatusFn = useServerFn(setEventStatus);
   const listCalsFn = useServerFn(listWritableCalendars);
 
   const writableCals = useQuery({ queryKey: ["writable-calendars"], queryFn: () => listCalsFn(), staleTime: 5 * 60 * 1000 });
