@@ -659,8 +659,9 @@ function RedFlagsInline({ contactId, opportunities }: { contactId: string; oppor
         if (raErr) throw raErr;
         const byIv = new Map<string, any[]>();
         for (const r of risks ?? []) {
+          const p = r.payload ?? {};
           const arr = byIv.get(r.interview_id) ?? [];
-          arr.push(r.payload);
+          arr.push({ text: p.reason ?? p.text ?? p.category ?? "Risk", severity: p.severity });
           byIv.set(r.interview_id, arr);
         }
         for (const [ivId, flags] of byIv) {
