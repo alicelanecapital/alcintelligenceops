@@ -38,7 +38,15 @@ export async function syncCalendarForUser(email: string): Promise<CalendarSyncRe
   const hidden: string[] = connRow?.hidden_calendar_ids ?? [];
   if (hidden.length) calendars = calendars.filter((c: any) => !hidden.includes(c.id));
 
-  if (!calendars.length) return { synced: 0, reason: "no_calendars", calendars: [] };
+  if (!calendars.length) {
+    // Report what Google actually returned so an empty account is diagnosable
+    // (all sub-calendars hidden vs. the token seeing no calendars at all).
+    const seen = ((calListJson.items ?? []) as any[]).map((c) => ({
+      id: c.id as string, name: (c.summaryOverride ?? c.summary ?? c.id) as string,
+      fetched: 0, error: hidden.includes(c.id) ? "hidden for this account" : "excluded",
+    }));
+    return { synced: 0, reason: "no_calendars", calendars: seen };
+  }
 
   const timeMin = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const timeMax = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
