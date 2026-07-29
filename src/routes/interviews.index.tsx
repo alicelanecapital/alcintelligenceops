@@ -13,7 +13,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { useMemo } from "react";
 import { Play, CalendarClock, MapPin, Video } from "lucide-react";
 import {
-  format, startOfDay, subYears,
+  format, startOfDay, endOfDay, startOfWeek, endOfWeek, addWeeks, subYears,
 } from "date-fns";
 
 export const Route = createFileRoute("/interviews/")({ component: () => <AppShell><InterviewsIndex /></AppShell> });
@@ -81,6 +81,47 @@ function hasExternalAttendees(ev: any): boolean {
 }
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
+type Group = { key: string; label: string; items: Item[] };
+
+/** Buckets planned meetings into Today / This Week / Next Week / then one group
+ *  per calendar month ("August 2026", "September 2026", …). */
+function groupPlanned(items: Item[]): Group[] {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  // Weeks run Monday-Sunday.
+  const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
+  const nextWeekEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
+
+  const today: Item[] = [];
+  const thisWeek: Item[] = [];
+  const nextWeek: Item[] = [];
+  const byMonth = new Map<string, Item[]>();
+
+  for (const it of items) {
+    const t = it.when.getTime();
+    if (t >= todayStart.getTime() && t <= todayEnd.getTime()) today.push(it);
+    else if (t > todayEnd.getTime() && t <= thisWeekEnd.getTime()) thisWeek.push(it);
+    else if (t >= nextWeekStart.getTime() && t <= nextWeekEnd.getTime()) nextWeek.push(it);
+    else {
+      const key = format(it.when, "yyyy-MM");
+      if (!byMonth.has(key)) byMonth.set(key, []);
+      byMonth.get(key)!.push(it);
+    }
+  }
+
+  const groups: Group[] = [
+    { key: "today", label: "Today", items: today },
+    { key: "this-week", label: "This Week", items: thisWeek },
+    { key: "next-week", label: "Next Week", items: nextWeek },
+  ];
+  for (const key of Array.from(byMonth.keys()).sort()) {
+    const bucket = byMonth.get(key)!;
+    groups.push({ key, label: format(bucket[0].when, "MMMM yyyy"), items: bucket });
+  }
+  return groups;
+}
 
 
 function InterviewsIndex() {
@@ -89,7 +130,7 @@ function InterviewsIndex() {
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
 
-  const { planned, past } = useMemo(() => {
+  const { plannedGroups, past } = useMemo(() => {
     const items: Item[] = [];
     for (const i of q.data ?? []) items.push({ kind: "interview", when: new Date(i.created_at), data: i });
     for (const ev of dedupeEvents(upcoming.data ?? [])) items.push({ kind: "calendar", when: new Date(ev.start_time), data: ev });
@@ -104,7 +145,7 @@ function InterviewsIndex() {
     }
     planned.sort((a, b) => a.when.getTime() - b.when.getTime());
     past.sort((a, b) => b.when.getTime() - a.when.getTime());
-    return { planned, past };
+    return { plannedGroups: groupPlanned(planned), past };
   }, [q.data, upcoming.data]);
 
   const renderRows = (items: Item[]) =>
@@ -120,6 +161,9 @@ function InterviewsIndex() {
       </div>
     );
 
+  const triggerClass =
+    "hover:no-underline px-3 py-2.5 rounded-md bg-green-800 text-white font-semibold [&>svg]:text-white hover:bg-green-900";
+
   return (
     <div className="max-w-6xl mx-auto px-10 py-12">
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Discovery</div>
@@ -129,18 +173,31 @@ function InterviewsIndex() {
         actions={<SyncGoogleButton mode="team" className="bg-green-700 hover:bg-green-800 text-white border-green-700 hover:border-green-800" />}
       />
 
-      <Accordion type="multiple" defaultValue={["planned"]}>
-        <AccordionItem value="planned" className="border-b border-border/40">
-          <AccordionTrigger className="hover:no-underline py-3 text-green-800 font-semibold">
-            <span>Planned Meetings <span className="text-muted-foreground text-xs ml-2 font-normal">({planned.length})</span></span>
+      <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-8 mb-3">Planned Meetings</h2>
+      <Accordion type="multiple" defaultValue={["today"]} className="space-y-2">
+        {plannedGroups.map((g) => (
+          <AccordionItem key={g.key} value={g.key} className="border-none">
+            <AccordionTrigger className={triggerClass}>
+              <span>
+                {g.label}
+                <span className="text-white/70 text-xs ml-2 font-normal">({g.items.length})</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">{renderRows(g.items)}</AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+
+      <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-10 mb-3">Past Meetings</h2>
+      <Accordion type="multiple" className="space-y-2">
+        <AccordionItem value="past" className="border-none">
+          <AccordionTrigger className={triggerClass}>
+            <span>
+              Last 12 months
+              <span className="text-white/70 text-xs ml-2 font-normal">({past.length})</span>
+            </span>
           </AccordionTrigger>
-          <AccordionContent>{renderRows(planned)}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="past" className="border-b border-border/40">
-          <AccordionTrigger className="hover:no-underline py-3 text-green-800 font-semibold">
-            <span>Past Meetings <span className="text-muted-foreground text-xs ml-2 font-normal">({past.length})</span> <span className="text-muted-foreground text-[11px] ml-1 font-normal">— last 12 months</span></span>
-          </AccordionTrigger>
-          <AccordionContent>{renderRows(past)}</AccordionContent>
+          <AccordionContent className="pt-1">{renderRows(past)}</AccordionContent>
         </AccordionItem>
       </Accordion>
     </div>
