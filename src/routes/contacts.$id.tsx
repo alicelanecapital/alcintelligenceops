@@ -55,16 +55,7 @@ function ContactProfile() {
   useEffect(() => { if (tabParam) setActiveTab(tabParam); }, [tabParam]);
 
   const briefFn = useServerFn(generateContactStakeholderBrief);
-  const startMeetingFn = useServerFn(startMeetingForContact);
 
-  const startMeetingMut = useMutation({
-    mutationFn: () => startMeetingFn({ data: { contactId: id } }),
-    onSuccess: (row: any) => {
-      toast.success("Meeting started");
-      navigate({ to: "/interviews/$id", params: { id: row.id } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed to start meeting"),
-  });
 
   const delMut = useMutation({
     mutationFn: () => deleteContact(id),
