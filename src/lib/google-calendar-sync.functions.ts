@@ -157,14 +157,14 @@ export const syncAllTeamCalendars = createServerFn({ method: "POST" })
     if (error) throw error;
     const emails = ((data ?? []) as { user_email: string }[]).map((r) => r.user_email);
     let totalSynced = 0;
-    const perAccount: { email: string; synced: number; reason: string }[] = [];
+    const perAccount: { email: string; synced: number; reason: string; calendars: any[] }[] = [];
     for (const email of emails) {
       try {
         const res = await syncCalendarForUser(email);
         totalSynced += res.synced;
-        perAccount.push({ email, synced: res.synced, reason: res.reason });
+        perAccount.push({ email, synced: res.synced, reason: res.reason, calendars: res.calendars });
       } catch (e: any) {
-        perAccount.push({ email, synced: 0, reason: `error: ${e?.message ?? "unknown"}` });
+        perAccount.push({ email, synced: 0, reason: `error: ${e?.message ?? "unknown"}`, calendars: [] });
       }
     }
     return { totalSynced, accounts: perAccount };
