@@ -134,11 +134,14 @@ function CalendarScreen() {
   const holidays = useQuery({
     queryKey: ["cal-holidays"],
     queryFn: async () => {
+      // NB: google_calendar_events has no `organizer_email` column — selecting it
+      // previously made this query 4xx and silently return [], so public holidays
+      // never shaded the grid. Match on calendar id / name / title instead.
       const { data, error } = await supabase
         .from("google_calendar_events")
-        .select("id, title, start_time, calendar_id, organizer_email")
-        .or("calendar_id.ilike.%holiday%,organizer_email.ilike.%holiday@%,title.ilike.%holiday%")
-        .limit(200);
+        .select("id, title, start_time, calendar_id, calendar_name")
+        .or("calendar_id.ilike.%holiday%,calendar_name.ilike.%holiday%,title.ilike.%holiday%")
+        .limit(500);
       if (error) return [];
       return data ?? [];
     },
