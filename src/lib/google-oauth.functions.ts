@@ -55,11 +55,12 @@ export async function getValidGoogleAccessToken(userEmail: string): Promise<stri
     // blowing up the whole sync (and the page) with a 400.
     if (body.includes("invalid_grant")) {
       console.warn(`Google refresh token revoked for ${userEmail} — reconnect required`);
-      await s.from("google_oauth_connections").update({
+      await (s.from("google_oauth_connections") as any).update({
         access_token: null,
         token_expires_at: null,
         updated_at: new Date().toISOString(),
       }).eq("user_email", userEmail);
+
       return null;
     }
     throw new Error(`Google token refresh failed [${res.status}]: ${body.slice(0, 300)}`);
