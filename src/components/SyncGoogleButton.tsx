@@ -37,8 +37,24 @@ export function SyncGoogleButton({ mode = "self", className }: { mode?: "self" |
     mutationFn: async () => (mode === "team" ? await syncAllFn() : await syncFn()),
     onSuccess: (result: any) => {
       const n = mode === "team" ? result.totalSynced : result.synced;
+      // Surface accounts/calendars that came back empty or errored -- a silent
+      // "Synced 0" used to hide broken accounts entirely.
+      const accounts: any[] = mode === "team" ? (result.accounts ?? []) : [{ email: "you", ...result }];
+      const problems: string[] = [];
+      for (const a of accounts) {
+        if (a.reason !== "ok") problems.push(`${a.email}: ${a.reason}`);
+        for (const c of a.calendars ?? []) if (c.error) problems.push(`${a.email} / ${c.name}: ${c.error}`);
+      }
       // Stable sonner id so repeat syncs replace the previous toast instead of stacking.
-      toast.success(`Synced ${n} calendar event${n === 1 ? "" : "s"}`, { id: `gcal-sync-${mode}` });
+      if (problems.length) {
+        console.warn("Calendar sync issues:", problems);
+        toast.warning(`Synced ${n} event${n === 1 ? "" : "s"} — ${problems.length} calendar issue${problems.length === 1 ? "" : "s"}`, {
+          id: `gcal-sync-${mode}`,
+          description: problems.slice(0, 4).join(" · "),
+        });
+      } else {
+        toast.success(`Synced ${n} calendar event${n === 1 ? "" : "s"}`, { id: `gcal-sync-${mode}` });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e.message ?? "Sync failed", { id: `gcal-sync-${mode}` }),
