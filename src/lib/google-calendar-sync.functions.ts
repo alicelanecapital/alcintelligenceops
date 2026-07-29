@@ -2,10 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getValidGoogleAccessToken } from "@/lib/google-oauth.functions";
 
+export type CalendarSyncReport = {
+  synced: number;
+  reason: "ok" | "not_connected" | "no_calendars" | "all_calendars_failed";
+  calendars: { id: string; name: string; fetched: number; error: string | null }[];
+};
+
 /** Core sync worker, shared by the user-triggered server fn and the /api/cron/sync-google-calendars endpoint. */
-export async function syncCalendarForUser(email: string): Promise<{ synced: number; reason: "ok" | "not_connected" }> {
+export async function syncCalendarForUser(email: string): Promise<CalendarSyncReport> {
   const accessToken = await getValidGoogleAccessToken(email);
-  if (!accessToken) return { synced: 0, reason: "not_connected" };
+  if (!accessToken) return { synced: 0, reason: "not_connected", calendars: [] };
 
   // Pull from every calendar visible in the user's own Google Calendar (not just "primary") --
   // work/shared calendars and auto-generated ones (e.g. Gmail's "Flights" calendar) live under
@@ -18,16 +24,31 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
     throw new Error(`Google Calendar list fetch failed [${calListRes.status}]: ${text.slice(0, 300)}`);
   }
   const calListJson = await calListRes.json();
-  let calendars: any[] = (calListJson.items ?? []).filter((c: any) => c.selected !== false);
+  // NOTE: do NOT filter on `selected !== false`. "Selected" only means the calendar is
+  // ticked for display in the Google Calendar UI; an account whose calendars are all
+  // unticked silently synced zero events. Only explicit per-account hides apply.
+  let calendars: any[] = calListJson.items ?? [];
 
-  // Skip sub-calendars the user has marked private for this account.
+  // Skip sub-calendars the user has marked private for this account -- but never the
+  // account's own primary calendar. Hiding the primary silently zeroed out the whole
+  // account's sync (this is exactly what happened to the Alice Lane connection).
   const { supabaseAdmin: adminForHidden } = await import("@/integrations/supabase/client.server");
   const { data: connRow } = await (adminForHidden.from("google_oauth_connections") as any)
     .select("hidden_calendar_ids")
     .eq("user_email", email)
     .maybeSingle();
   const hidden: string[] = connRow?.hidden_calendar_ids ?? [];
-  if (hidden.length) calendars = calendars.filter((c: any) => !hidden.includes(c.id));
+  if (hidden.length) calendars = calendars.filter((c: any) => c.primary || !hidden.includes(c.id));
+
+  if (!calendars.length) {
+    // Report what Google actually returned so an empty account is diagnosable
+    // (all sub-calendars hidden vs. the token seeing no calendars at all).
+    const seen = ((calListJson.items ?? []) as any[]).map((c) => ({
+      id: c.id as string, name: (c.summaryOverride ?? c.summary ?? c.id) as string,
+      fetched: 0, error: hidden.includes(c.id) ? "hidden for this account" : "excluded",
+    }));
+    return { synced: 0, reason: "no_calendars", calendars: seen };
+  }
 
   const timeMin = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const timeMax = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
@@ -36,24 +57,33 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
   });
 
   const rows: any[] = [];
+  const report: CalendarSyncReport["calendars"] = [];
   for (const cal of calendars) {
+    const calName = cal.summaryOverride ?? cal.summary ?? cal.id;
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?${params}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {
-      // Don't let one inaccessible calendar (e.g. a shared calendar with restricted event access) fail the whole sync.
+      // Don't let one inaccessible calendar (e.g. a shared calendar with restricted event
+      // access) fail the whole sync -- but record why so the UI can surface it.
+      const text = await res.text().catch(() => "");
+      const err = `[${res.status}] ${text.slice(0, 200)}`;
+      console.error(`Calendar sync failed for ${email} / ${cal.id}: ${err}`);
+      report.push({ id: cal.id, name: calName, fetched: 0, error: err });
       continue;
     }
     const json = await res.json();
     const items: any[] = json.items ?? [];
+    let fetched = 0;
     for (const ev of items) {
       const start_time = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
       if (!start_time) continue;
+      fetched++;
       rows.push({
         user_email: email,
         google_event_id: ev.id,
         calendar_id: cal.id,
-        calendar_name: cal.summaryOverride ?? cal.summary ?? null,
+        calendar_name: calName,
         title: ev.summary ?? "(no title)",
         description: ev.description ?? null,
         location: ev.location ?? null,
@@ -67,6 +97,7 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
         updated_at: new Date().toISOString(),
       });
     }
+    report.push({ id: cal.id, name: calName, fetched, error: null });
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -76,13 +107,18 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
     // primary and on a shared calendar the user is an attendee of). Postgres
     // refuses to update the same conflict target twice in a single upsert
     // ("ON CONFLICT DO UPDATE command cannot affect row a second time"), so
-    // dedupe by (user_email, google_event_id), preferring the primary entry.
+    // dedupe by (user_email, google_event_id), preferring the entry that actually
+    // carries the guest list (mirrored copies arrive with attendees stripped),
+    // then the primary calendar's copy.
     const byKey = new Map<string, any>();
     for (const r of rows) {
       const key = `${r.user_email}::${r.google_event_id}`;
       const existing = byKey.get(key);
-      const isPrimary = r.calendar_id === email;
-      if (!existing || isPrimary) byKey.set(key, r);
+      if (!existing) { byKey.set(key, r); continue; }
+      const better =
+        (r.attendees?.length ?? 0) > (existing.attendees?.length ?? 0) ||
+        ((r.attendees?.length ?? 0) === (existing.attendees?.length ?? 0) && r.calendar_id === email);
+      if (better) byKey.set(key, r);
     }
     const deduped = Array.from(byKey.values());
     // google_calendar_events / last_synced_at are new (see 20260713000000_accounts_calendar_sync.sql)
@@ -92,12 +128,17 @@ export async function syncCalendarForUser(email: string): Promise<{ synced: numb
     if (error) throw error;
   }
 
-  await (supabaseAdmin.from("google_oauth_connections") as any)
-    .update({ last_synced_at: new Date().toISOString() })
-    .eq("user_email", email);
+  const anySucceeded = report.some((c) => !c.error);
+  // Only claim the account is synced when at least one calendar actually came back.
+  if (anySucceeded) {
+    await (supabaseAdmin.from("google_oauth_connections") as any)
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq("user_email", email);
+  }
 
-  return { synced: rows.length, reason: "ok" };
+  return { synced: rows.length, reason: anySucceeded ? "ok" : "all_calendars_failed", calendars: report };
 }
+
 
 /**
  * Syncs a Google account's calendars into google_calendar_events. Defaults to the caller's
@@ -126,14 +167,14 @@ export const syncAllTeamCalendars = createServerFn({ method: "POST" })
     if (error) throw error;
     const emails = ((data ?? []) as { user_email: string }[]).map((r) => r.user_email);
     let totalSynced = 0;
-    const perAccount: { email: string; synced: number; reason: string }[] = [];
+    const perAccount: { email: string; synced: number; reason: string; calendars: any[] }[] = [];
     for (const email of emails) {
       try {
         const res = await syncCalendarForUser(email);
         totalSynced += res.synced;
-        perAccount.push({ email, synced: res.synced, reason: res.reason });
+        perAccount.push({ email, synced: res.synced, reason: res.reason, calendars: res.calendars });
       } catch (e: any) {
-        perAccount.push({ email, synced: 0, reason: `error: ${e?.message ?? "unknown"}` });
+        perAccount.push({ email, synced: 0, reason: `error: ${e?.message ?? "unknown"}`, calendars: [] });
       }
     }
     return { totalSynced, accounts: perAccount };
@@ -175,7 +216,9 @@ export const listGoogleSubCalendars = createServerFn({ method: "POST" })
       primary: !!c.primary,
       backgroundColor: (c.backgroundColor ?? null) as string | null,
       accessRole: (c.accessRole ?? "reader") as string,
-      hidden: hidden.includes(c.id),
+      // The account's own primary calendar can never be hidden -- doing so used to
+      // zero out the entire account's sync.
+      hidden: !c.primary && hidden.includes(c.id),
     }));
   });
 
@@ -186,15 +229,28 @@ export const setHiddenCalendars = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Never persist the account's own primary calendar as hidden.
+    let hiddenIds = data.hiddenIds;
+    const accessToken = await getValidGoogleAccessToken(data.targetEmail);
+    if (accessToken) {
+      const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const primaryIds = ((json.items ?? []) as any[]).filter((c) => c.primary).map((c) => c.id);
+        hiddenIds = hiddenIds.filter((id) => !primaryIds.includes(id));
+      }
+    }
     const { error } = await (supabaseAdmin.from("google_oauth_connections") as any)
-      .update({ hidden_calendar_ids: data.hiddenIds })
+      .update({ hidden_calendar_ids: hiddenIds })
       .eq("user_email", data.targetEmail);
     if (error) throw error;
-    if (data.hiddenIds.length) {
+    if (hiddenIds.length) {
       await (supabaseAdmin.from("google_calendar_events" as any) as any)
         .delete()
         .eq("user_email", data.targetEmail)
-        .in("calendar_id", data.hiddenIds);
+        .in("calendar_id", hiddenIds);
     }
     return { ok: true };
   });

@@ -19,13 +19,13 @@ export const Route = createFileRoute("/api/cron/sync-google-calendars")({
           .select("user_email");
         if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
 
-        const results: Record<string, string> = {};
+        const results: Record<string, any> = {};
         for (const conn of connections ?? []) {
           try {
             const r = await syncCalendarForUser(conn.user_email);
-            results[conn.user_email] = `${r.reason}:${r.synced}`;
+            results[conn.user_email] = { reason: r.reason, synced: r.synced, calendars: r.calendars };
           } catch (e: any) {
-            results[conn.user_email] = `error:${e?.message ?? "unknown"}`;
+            results[conn.user_email] = { reason: `error:${e?.message ?? "unknown"}` };
           }
         }
 

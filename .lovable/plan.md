@@ -1,36 +1,36 @@
-# Plan
+## What I found (verified against the live data)
 
-## 1. Fix calendar not showing this week's meetings
+You're right — those events do have guests in Google. The reason they look attendee-less in the app is two separate defects:
 
-Audit the calendar pipeline:
+**1. The `georgia@alicelanecapital.com` account syncs zero events.**
+The connection exists and `last_synced_at` updated today, but `google_calendar_events` contains **no rows at all** for that user. Every row in the table belongs to `ga@firstserve.co.za` (108 rows on its primary calendar, 8 on `info@alicelanecapital.com`). So the original invites — the ones that actually carry Georgia Adams as organizer plus `thabiso@alexbiz.org.za` and Tendai Shamu — were never stored.
 
-- Confirm `fetchAllTeamCalendarEvents` returns fresh synced events.
-- Check the hidden-calendar logic in `google-calendar-sync.functions.ts` is not suppressing real meetings.
-- Verify the calendar grid renders qualifying meetings (items with at least one non-Alice-Lane attendee) for the current week.
-- If the issue is display-only (e.g. buried under "+N more", wrong month default, or styling), adjust `src/routes/calendar.tsx` accordingly.
+**2. The copies that did sync have their guest lists stripped.**
+The two events in your screenshots exist only as mirrored copies on the firstserve calendar, titled `... (alicelanecapital)`. Those copies come across from Google with an empty `attendees` array — which is why the "must have a non-Alice-Lane attendee" rule hides them.
 
-The no-attendee filter rule stays as-is per your decision.
+## Fix
 
-## 2. Restructure the Engagements / Meetings list
+### A. Make the Alice Lane account actually sync
+- Stop the sync loop from silently swallowing failures: currently any calendar that errors is skipped with a bare `continue`, and a missing/expired token returns `not_connected` quietly while still stamping `last_synced_at`.
+- Collect per-calendar outcomes (calendar name, events fetched, HTTP status on failure) and return them from the sync function so the "Sync calendars" button reports exactly which calendar failed and why.
+- Only stamp `last_synced_at` when at least one calendar succeeded.
+- Run a sync for `georgia@alicelanecapital.com` and read the per-calendar report to confirm the root cause (expired refresh token vs. calendars filtered out by `selected !== false` vs. API error), then fix that specific cause.
 
-Replace the single "Planned Meetings" accordion with grouped sections:
+### B. Stop losing real meetings to the attendee filter
+Keep your rule that attendee-less personal blocks aren't meetings, but recognise that a stripped mirror copy is not attendee-less in reality:
+- Treat an item as a meeting when it has at least one external attendee **or** it carries a conferencing link (Google Meet / phone bridge) — the screenshots show both events have Meet links, which only real invited meetings have.
+- Still exclude holidays, hidden bracketed personal calendars, and all-day blocks.
+- Cross-account de-duplication: when the original and the `(alicelanecapital)` mirror both land in the table, collapse them to one row, preferring the copy that has attendees.
 
-- **Today** — expanded by default.
-- **This Week** — collapsed by default.
-- **Next Week** — collapsed by default.
-- **By calendar month/year** — e.g. "August 2026", "September 2026", each collapsed by default.
-
-"Past Meetings" (last 12 months) remains as a single section below.
-
-Style all accordion headers with a green background and white text, as requested.
+Applies to both the Calendar grid (`src/routes/calendar.tsx`) and the Meetings list (`src/routes/interviews.index.tsx`) so the two screens stay consistent.
 
 ### Files expected to change
-- `src/routes/interviews.index.tsx` — new grouping and accordion styling.
-- `src/routes/calendar.tsx` — display/sync verification.
-- `src/lib/google-calendar-sync.functions.ts` — hidden-calendar / sync audit.
+- `src/lib/google-calendar-sync.functions.ts` — per-calendar error reporting, honest `last_synced_at`, root-cause fix.
+- `src/components/SyncGoogleButton.tsx` — surface the per-calendar sync report.
+- `src/routes/interviews.index.tsx` and `src/routes/calendar.tsx` — meeting-detection rule and cross-account de-duplication.
 
-No database changes and no data deletion.
+No schema changes, no data deletion.
 
 ### Verification
-- Preview the Meetings screen to confirm Today/This Week/Next Week/month groups render correctly with green headers.
-- Preview the Calendar to confirm this week's qualifying meetings are visible.
+- Re-sync and confirm rows appear for `georgia@alicelanecapital.com`.
+- Confirm "Alice Lane and Adaptive Leadership in Action Synergies" (Tue 28 Jul, 13:00) and "AlexBiz Meeting Placeholder" (Thu 30 Jul, 12:00) both show once — not twice — on the Calendar and under Meetings → This Week.

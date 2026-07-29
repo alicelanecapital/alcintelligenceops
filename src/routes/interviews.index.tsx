@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { listInterviews } from "@/lib/interviews";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
+import { isMeetingRow, dedupeAcrossAccounts } from "@/lib/meeting-filters";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { Badge } from "@/components/ui/badge";
@@ -50,35 +51,19 @@ function isHiddenBracketed(title: string | null | undefined): boolean {
 }
 
 function dedupeEvents(events: any[]): any[] {
-  const seen = new Set<string>();
-  const out: any[] = [];
-  for (const ev of events) {
-    if (isHoliday(ev)) continue;
-    if (isHiddenBracketed(ev.title)) continue;
-    // Meetings must have at least one non-alicelanecapital attendee. Zero-attendee
-    // entries are events/personal blocks and belong on the Events screen instead.
-    if (!hasExternalAttendees(ev)) continue;
-    const key = `${(ev.google_event_id ?? ev.id ?? "")}|${(ev.title ?? "").trim().toLowerCase()}|${ev.start_time}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(ev);
-  }
-  return out;
+  const candidates = events.filter((ev) => {
+    if (isHoliday(ev)) return false;
+    if (isHiddenBracketed(ev.title)) return false;
+    // Meetings must have a non-alicelanecapital attendee or a conferencing link.
+    // Mirrored copies of an invite land on a second account with the guest list
+    // stripped, so attendees alone would wrongly hide real meetings.
+    return isMeetingRow(ev);
+  });
+  // Collapse the same meeting synced from several teammates' accounts (and its
+  // stripped mirror copies) into one row, keeping the richest copy.
+  return dedupeAcrossAccounts(candidates);
 }
 
-const INTERNAL_DOMAINS = ["alicelanecapital.co.za", "alicelanecapital.com"];
-function isInternalEmail(e: string): boolean {
-  return INTERNAL_DOMAINS.some((d) => e.endsWith(`@${d}`));
-}
-function externalAttendees(ev: any): string[] {
-  const attendees: any[] = ev.attendees ?? [];
-  return attendees
-    .map((a) => (a?.email ?? "").toLowerCase())
-    .filter((e) => e && !isInternalEmail(e) && !e.includes("resource.calendar.google.com"));
-}
-function hasExternalAttendees(ev: any): boolean {
-  return externalAttendees(ev).length > 0;
-}
 
 type Item = { kind: "interview" | "calendar"; when: Date; data: any };
 type Group = { key: string; label: string; items: Item[] };

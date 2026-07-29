@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings } from "@/lib/founders-data";
 import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
+import { isMeetingRow, dedupeAcrossAccounts } from "@/lib/meeting-filters";
 import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { supabase } from "@/integrations/supabase/client";
@@ -195,26 +196,19 @@ function CalendarScreen() {
       });
     });
     const activeEmails = new Set<string>((team.data ?? []).map((tm: any) => String(tm.email).toLowerCase()));
-    const seenGcal = new Set<string>();
-    (teamEvents.data ?? []).forEach((g: any) => {
-      if (!g.start_time || isHolidayRow(g)) return;
+    const gcalRows = dedupeAcrossAccounts(
+      (teamEvents.data ?? []).filter((g: any) => {
+        if (!g.start_time || isHolidayRow(g)) return false;
+        const owner = String(g.user_email ?? "").toLowerCase();
+        if (activeEmails.size > 0 && !activeEmails.has(owner)) return false;
+        // A calendar entry is a meeting when it has a non-Alice-Lane attendee or a
+        // conferencing link — mirrored copies arrive with their guest list stripped.
+        return isMeetingRow(g);
+      }),
+    );
+    gcalRows.forEach((g: any) => {
       const owner = String(g.user_email ?? "").toLowerCase();
-      if (activeEmails.size > 0 && !activeEmails.has(owner)) return;
-      // A calendar entry with no external (non-alicelanecapital) attendee is
-      // treated as an event/personal block, not a meeting — hide it from the grid.
-      const attendees: any[] = Array.isArray(g.attendees) ? g.attendees : [];
-      const externals = attendees
-        .map((a) => String(a?.email ?? "").toLowerCase())
-        .filter((e) =>
-          e &&
-          !e.endsWith("@alicelanecapital.co.za") &&
-          !e.endsWith("@alicelanecapital.com") &&
-          !e.includes("resource.calendar.google.com"),
-        );
-      if (externals.length === 0) return;
-      const dedupeKey = `${owner}::${g.start_time}::${String(g.title ?? "").trim().toLowerCase()}`;
-      if (seenGcal.has(dedupeKey)) return;
-      seenGcal.add(dedupeKey);
+
       const busy = isBusy(g.title);
       out.push({
         id: `gcal-${owner}-${g.google_event_id ?? g.title}-${g.start_time}`,
