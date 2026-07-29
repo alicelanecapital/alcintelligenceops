@@ -29,14 +29,16 @@ export async function syncCalendarForUser(email: string): Promise<CalendarSyncRe
   // unticked silently synced zero events. Only explicit per-account hides apply.
   let calendars: any[] = calListJson.items ?? [];
 
-  // Skip sub-calendars the user has marked private for this account.
+  // Skip sub-calendars the user has marked private for this account -- but never the
+  // account's own primary calendar. Hiding the primary silently zeroed out the whole
+  // account's sync (this is exactly what happened to the Alice Lane connection).
   const { supabaseAdmin: adminForHidden } = await import("@/integrations/supabase/client.server");
   const { data: connRow } = await (adminForHidden.from("google_oauth_connections") as any)
     .select("hidden_calendar_ids")
     .eq("user_email", email)
     .maybeSingle();
   const hidden: string[] = connRow?.hidden_calendar_ids ?? [];
-  if (hidden.length) calendars = calendars.filter((c: any) => !hidden.includes(c.id));
+  if (hidden.length) calendars = calendars.filter((c: any) => c.primary || !hidden.includes(c.id));
 
   if (!calendars.length) {
     // Report what Google actually returned so an empty account is diagnosable
