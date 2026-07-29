@@ -229,11 +229,24 @@ export const setHiddenCalendars = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Never persist the account's own primary calendar as hidden.
+    let hiddenIds = data.hiddenIds;
+    const accessToken = await getValidGoogleAccessToken(data.targetEmail);
+    if (accessToken) {
+      const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const primaryIds = ((json.items ?? []) as any[]).filter((c) => c.primary).map((c) => c.id);
+        hiddenIds = hiddenIds.filter((id) => !primaryIds.includes(id));
+      }
+    }
     const { error } = await (supabaseAdmin.from("google_oauth_connections") as any)
-      .update({ hidden_calendar_ids: data.hiddenIds })
+      .update({ hidden_calendar_ids: hiddenIds })
       .eq("user_email", data.targetEmail);
     if (error) throw error;
-    if (data.hiddenIds.length) {
+    if (hiddenIds.length) {
       await (supabaseAdmin.from("google_calendar_events" as any) as any)
         .delete()
         .eq("user_email", data.targetEmail)
