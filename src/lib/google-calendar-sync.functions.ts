@@ -250,7 +250,7 @@ export const setHiddenCalendars = createServerFn({ method: "POST" })
       await (supabaseAdmin.from("google_calendar_events" as any) as any)
         .delete()
         .eq("user_email", data.targetEmail)
-        .in("calendar_id", data.hiddenIds);
+        .in("calendar_id", hiddenIds);
     }
     return { ok: true };
   });
