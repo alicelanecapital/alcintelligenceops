@@ -216,7 +216,9 @@ export const listGoogleSubCalendars = createServerFn({ method: "POST" })
       primary: !!c.primary,
       backgroundColor: (c.backgroundColor ?? null) as string | null,
       accessRole: (c.accessRole ?? "reader") as string,
-      hidden: hidden.includes(c.id),
+      // The account's own primary calendar can never be hidden -- doing so used to
+      // zero out the entire account's sync.
+      hidden: !c.primary && hidden.includes(c.id),
     }));
   });
 
