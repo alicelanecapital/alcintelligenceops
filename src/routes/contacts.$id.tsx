@@ -55,16 +55,7 @@ function ContactProfile() {
   useEffect(() => { if (tabParam) setActiveTab(tabParam); }, [tabParam]);
 
   const briefFn = useServerFn(generateContactStakeholderBrief);
-  const startMeetingFn = useServerFn(startMeetingForContact);
 
-  const startMeetingMut = useMutation({
-    mutationFn: () => startMeetingFn({ data: { contactId: id } }),
-    onSuccess: (row: any) => {
-      toast.success("Meeting started");
-      navigate({ to: "/interviews/$id", params: { id: row.id } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed to start meeting"),
-  });
 
   const delMut = useMutation({
     mutationFn: () => deleteContact(id),
@@ -135,8 +126,8 @@ function ContactProfile() {
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={
           <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" onClick={() => startMeetingMut.mutate()} disabled={startMeetingMut.isPending}>
-              <Mic className="h-3.5 w-3.5 mr-1" /> {startMeetingMut.isPending ? "Starting…" : "Start Meeting"}
+            <Button size="sm" onClick={() => setActiveTab("live")}>
+              <Mic className="h-3.5 w-3.5 mr-1" /> Start Meeting
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRequestOpen(true)}>
               <FileText className="h-3.5 w-3.5 mr-1" /> Request Info

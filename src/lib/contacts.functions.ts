@@ -65,6 +65,29 @@ export const startMeetingForContact = createServerFn({ method: "POST" })
     const founderName = c.name;
     const businessName = c.company ?? c.name;
 
+    // Reuse an existing unstarted/live session instead of stacking duplicate drafts
+    const { data: existingRows } = await s
+      .from("interviews")
+      .select("*")
+      .eq("contact_id", c.id)
+      .in("status", ["draft", "live"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const existing: any = existingRows?.[0];
+    if (existing) {
+      const patch: any = {};
+      if (data.playbookId && existing.playbook_id !== data.playbookId) patch.playbook_id = data.playbookId;
+      if (data.industry && !existing.industry) patch.industry = data.industry;
+      if (data.meetingType && !existing.meeting_type) patch.meeting_type = data.meetingType;
+      if (data.interviewer && !existing.interviewer_name) patch.interviewer_name = data.interviewer;
+      if (Object.keys(patch).length) {
+        const { data: updated } = await s.from("interviews").update(patch).eq("id", existing.id).select("*").single();
+        return updated ?? existing;
+      }
+      return existing;
+    }
+
+
     const { data: row, error: insErr } = await s
       .from("interviews")
       .insert({
