@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { fetchEvents } from "@/lib/db";
 import { fetchAllMeetings } from "@/lib/founders-data";
 import { fetchAllTeamCalendarEvents } from "@/lib/google-calendar";
+import { isMeetingRow, dedupeAcrossAccounts } from "@/lib/meeting-filters";
 import { fetchTeamMembers, TEAM_MEMBER_COLORS, type TeamMember, type TeamMemberColor } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
 import { supabase } from "@/integrations/supabase/client";
