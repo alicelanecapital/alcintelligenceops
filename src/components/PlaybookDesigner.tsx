@@ -321,11 +321,14 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
     onError: (e: any) => toast.error(e.message ?? "Failed to reorder"),
   });
 
-  const move = (index: number, dir: -1 | 1) => {
-    const target = index + dir;
-    if (target < 0 || target >= questions.length) return;
-    const a = questions[index], b = questions[target];
-    reorderMut.mutate([{ id: a.id, sort_order: b.sort_order }, { id: b.id, sort_order: a.sort_order }]);
+  const handleDragEnd = (e: any) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = questions.findIndex((q) => q.id === active.id);
+    const newIndex = questions.findIndex((q) => q.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reordered = arrayMove(questions, oldIndex, newIndex);
+    reorderMut.mutate(reordered.map((q, idx) => ({ id: q.id, sort_order: idx + 1 })));
   };
 
   return (
@@ -334,36 +337,60 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
         <h2 className="font-serif text-2xl">Questions</h2>
         <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
       </div>
-      <Accordion type="multiple" className="divide-y divide-border">
-        {questions.map((question, idx) => (
-          <QuestionCard
-            key={question.id}
-            question={question}
-            index={idx}
-            total={questions.length}
-            onMove={(dir) => move(idx, dir)}
-            onDelete={() => deleteMut.mutate(question.id)}
-            onSaved={onChanged}
-          />
-        ))}
-      </Accordion>
+      <DndContext
+        sensors={useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+          <Accordion type="multiple" className="divide-y divide-border">
+            {questions.map((question, idx) => (
+              <SortableQuestionCard
+                key={question.id}
+                question={question}
+                index={idx}
+                onDelete={() => deleteMut.mutate(question.id)}
+                onSaved={onChanged}
+              />
+            ))}
+          </Accordion>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
 
-function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
-  question: FrameworkQuestion; index: number; total: number; onMove: (dir: -1 | 1) => void; onDelete: () => void; onSaved: () => void;
+function SortableQuestionCard({ question, index, onDelete, onSaved }: {
+  question: FrameworkQuestion; index: number; onDelete: () => void; onSaved: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <QuestionCard question={question} index={index} onDelete={onDelete} onSaved={onSaved} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
+function QuestionCard({ question, index, onDelete, onSaved, dragHandleProps }: {
+  question: FrameworkQuestion; index: number; onDelete: () => void; onSaved: () => void; dragHandleProps: any;
 }) {
   const [questionText, setQuestionText] = useState(question.question_text);
+  const [rephrased, setRephrased] = useState(question.rephrased_question ?? "");
   const [whyText, setWhyText] = useState(question.why_text ?? "");
+  const [internalGuideline, setInternalGuideline] = useState(question.internal_guideline ?? "");
   const [internalSteps, setInternalSteps] = useState((question.internal_steps ?? []).join("\n"));
+  const [score, setScore] = useState(question.score != null ? String(question.score) : "");
   const [redFlags, setRedFlags] = useState<FrameworkRedFlag[]>(question.red_flags ?? []);
 
   const m = useMutation({
     mutationFn: () => updateFrameworkQuestion(question.id, {
       question_text: questionText,
+      rephrased_question: rephrased || null,
       why_text: whyText,
+      internal_guideline: internalGuideline || null,
       internal_steps: internalSteps.split("\n").map((s) => s.trim()).filter(Boolean),
+      score: score.trim() === "" ? null : Number(score),
       red_flags: redFlags,
     }),
     onSuccess: () => { toast.success("Question saved"); onSaved(); },
@@ -378,9 +405,20 @@ function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
 
   return (
     <AccordionItem value={question.id}>
-      <AccordionTrigger className="text-sm">
-        <span className="text-left">{questionText || `Question ${index + 1}`}</span>
-      </AccordionTrigger>
+      <AccordionPrimitive.Header className="flex items-center">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 px-2"
+          {...dragHandleProps}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <AccordionPrimitive.Trigger className="flex flex-1 items-center justify-between py-4 text-sm font-medium cursor-pointer transition-all hover:underline text-left [&[data-state=open]>svg]:rotate-180">
+          <span className="text-left">{questionText || `Question ${index + 1}`}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+        </AccordionPrimitive.Trigger>
+      </AccordionPrimitive.Header>
       <AccordionContent>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 space-y-3">
@@ -389,17 +427,29 @@ function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
               <Input value={questionText} onChange={(e) => setQuestionText(e.target.value)} className="mt-1" />
             </div>
             <div>
+              <Label className="text-xs">Rephrased</Label>
+              <Input value={rephrased} onChange={(e) => setRephrased(e.target.value)} className="mt-1" placeholder="An alternate way to ask this question" />
+            </div>
+            <div>
               <Label className="text-xs">Why this matters</Label>
               <textarea className="w-full min-h-[60px] px-3 py-2 border rounded-md text-sm bg-background mt-1" value={whyText} onChange={(e) => setWhyText(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Internal Guideline</Label>
+              <textarea className="w-full min-h-[60px] px-3 py-2 border rounded-md text-sm bg-background mt-1" value={internalGuideline} onChange={(e) => setInternalGuideline(e.target.value)} />
             </div>
             <div>
               <Label className="text-xs">Internal verification steps (one per line)</Label>
               <textarea className="w-full min-h-[50px] px-3 py-2 border rounded-md text-sm bg-background mt-1" value={internalSteps} onChange={(e) => setInternalSteps(e.target.value)} />
             </div>
             <div>
+              <Label className="text-xs">Score</Label>
+              <Input type="number" value={score} onChange={(e) => setScore(e.target.value)} className="mt-1 w-32" placeholder="e.g. 5" />
+            </div>
+            <div>
               <div className="flex items-center justify-between">
-                <Label className="text-xs">Red flags</Label>
-                <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={addFlag}><Plus className="h-3 w-3 mr-1" /> Add flag</Button>
+                <Label className="text-xs">Grading</Label>
+                <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={addFlag}><Plus className="h-3 w-3 mr-1" /> Add grading</Button>
               </div>
               <div className="space-y-2 mt-1">
                 {redFlags.map((flag, i) => (
@@ -420,8 +470,6 @@ function QuestionCard({ question, index, total, onMove, onDelete, onSaved }: {
             </div>
           </div>
           <div className="flex flex-col gap-1 shrink-0">
-            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
             <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
           </div>
         </div>

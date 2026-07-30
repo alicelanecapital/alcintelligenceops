@@ -659,7 +659,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         </div>
       </div>
 
-      {reportAvailable && (
+      {reportAvailable && playbook.data?.kind === "due_diligence" && (
         <div className="mt-6 pt-6 border-t border-border">
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-4">Summary</div>
           <ReportContent interviewId={id} />

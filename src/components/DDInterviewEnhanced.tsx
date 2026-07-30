@@ -1003,7 +1003,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                               )}
                               {q.redFlags.length > 0 && (
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-700 mb-1">Red Flags to Watch For:</p>
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">Grading:</p>
                                   <ul className="text-xs text-gray-600 space-y-0.5">
                                     {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
                                   </ul>

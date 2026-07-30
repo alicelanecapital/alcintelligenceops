@@ -16,9 +16,12 @@ export type FrameworkQuestion = {
   round: number;
   sort_order: number;
   question_text: string;
+  rephrased_question: string | null;
   why_text: string | null;
+  internal_guideline: string | null;
   internal_steps: string[] | null;
   red_flags: FrameworkRedFlag[] | null;
+  score: number | null;
 };
 
 export type FrameworkDocument = {
@@ -81,7 +84,7 @@ export async function fetchFrameworkRoundDetail(round: number) {
   if (documents.error) throw documents.error;
   return {
     round: roundRow.data as unknown as FrameworkRound,
-    questions: (questions.data ?? []) as FrameworkQuestion[],
+    questions: (questions.data ?? []) as unknown as FrameworkQuestion[],
     documents: (documents.data ?? []) as FrameworkDocument[],
   };
 }
@@ -132,15 +135,18 @@ export async function deleteFrameworkRound(round: number) {
 export async function createFrameworkQuestion(round: number, sortOrder: number) {
   const { data, error } = await supabase
     .from("dd_framework_questions")
-    .insert({ round, sort_order: sortOrder, question_text: "New question", why_text: "", internal_steps: [], red_flags: [] })
+    .insert({
+      round, sort_order: sortOrder, question_text: "New question", rephrased_question: null,
+      why_text: "", internal_guideline: null, internal_steps: [], score: null, red_flags: [],
+    } as any)
     .select()
     .single();
   if (error) throw error;
-  return data as FrameworkQuestion;
+  return data as unknown as FrameworkQuestion;
 }
 
 export async function updateFrameworkQuestion(id: string, payload: Partial<FrameworkQuestion>) {
-  const { error } = await supabase.from("dd_framework_questions").update(payload).eq("id", id);
+  const { error } = await supabase.from("dd_framework_questions").update(payload as any).eq("id", id);
   if (error) throw error;
 }
 
