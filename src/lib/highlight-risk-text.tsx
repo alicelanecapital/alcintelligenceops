@@ -6,14 +6,21 @@ import { Fragment } from "react";
 // curated keyword match rather than true semantic understanding -- good enough for skimming,
 // not a substitute for reading the full sentence when it matters.
 const RISK_PHRASES = [
+  // Longer, more specific phrases first so they win over a shorter word they contain
+  // (e.g. "health is unproven" should bold as a whole, not just "unproven").
+  "health is unproven", "health resilience for a restart is unverified", "health resilience",
+  "technical difficulties", "slow hardware", "high technical complexity",
+  "total business loss", "business loss", "capacity to scale",
+  "difficult to replicate", "disconnected from modern customer acquisition", "disconnected from",
+  "domestic disputes", "complex stakeholder dynamics", "complex stakeholder",
+  "significant distraction", "distraction", "struggling",
+  "lack of immediate urgency", "lacks a clear", "lack of", "lacks", "lacking",
+  "high entry costs", "capital-intensive", "heavily reliant on", "reliant on", "dependent on", "dependency",
+  "may complicate", "complicate", "uncertain about", "uncertain",
   "no audited", "not audited", "unaudited", "unverified", "self-reported", "unproven",
-  "uncertain", "unclear", "unresolved", "unknown", "undisclosed", "unconfirmed",
-  "lack of", "lacks", "lacking", "no clear", "no finalized", "no finalised",
-  "difficult to replicate", "disconnected from", "reliant on", "dependent on", "dependency",
-  "concentrated", "concentration", "significant distraction", "struggling", "distraction",
-  "total business loss", "business loss", "capacity to scale", "health resilience",
-  "domestic disputes", "complex stakeholder", "complicate", "high entry costs",
-  "high-stakes", "high technical complexity", "capital-intensive", "unfinished",
+  "unclear", "unresolved", "unknown", "undisclosed", "unconfirmed",
+  "no clear", "no finalized", "no finalised",
+  "concentrated", "concentration", "high-stakes", "unfinished",
   "risk", "red flag",
 ];
 
