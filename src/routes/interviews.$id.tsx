@@ -5,8 +5,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
-  saveNote, setInterviewStatus, insertUtterance,
+  saveNote, setInterviewStatus, insertUtterance, setInterviewPlaybook,
 } from "@/lib/interviews";
+import { listToolkits } from "@/lib/toolkits";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { analyzeBehavioralSignals } from "@/lib/video-analysis.functions";
 import { extractVideoFrames } from "@/lib/extract-video-frames";
@@ -188,6 +189,19 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const playbook = useQuery<PlaybookShape>({
     queryKey: ["iv-playbook", interview.playbook_id ?? "default"],
     queryFn: () => fetchPlaybookShape(interview.playbook_id ?? null),
+  });
+  const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
+  // Lets a completed meeting be re-viewed against a different playbook's questions --
+  // its own transcript/video/analyses are unaffected, this only changes which reference
+  // question set is shown alongside them.
+  const changePlaybook = useMutation({
+    mutationFn: (newPlaybookId: string) => setInterviewPlaybook(id, newPlaybookId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["iv", id] });
+      qc.invalidateQueries({ queryKey: ["iv-playbook"] });
+      qc.invalidateQueries({ queryKey: ["iv-playbook-step"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to change playbook"),
   });
   const steps = playbook.data?.steps ?? [];
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -403,35 +417,46 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     <div className="max-w-[1600px] mx-auto px-6 py-6">
       {/* Playbook stepper — replaces the old header strip. Renders horizontally at the
        * top of the workspace and drives which questions appear in the left column. */}
-      {steps.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-baseline justify-between mb-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
-              <div className="font-serif text-lg text-green-800">{playbook.data?.playbookName ?? "Meeting"}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} disabled={!reportAvailable}>
-                <FileOutput className="h-3.5 w-3.5 mr-1" /> Generate Report
-              </Button>
-              <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={!reportAvailable || addToPipeline.isPending}>
-                {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
-              </Button>
-            </div>
+      <div className="mb-4">
+        <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
+            <select
+              value={interview.playbook_id ?? ""}
+              onChange={(e) => e.target.value && changePlaybook.mutate(e.target.value)}
+              disabled={changePlaybook.isPending}
+              className="font-serif text-lg text-green-800 bg-transparent border-0 -ml-1 px-1 py-0.5 rounded hover:bg-muted/50 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {!interview.playbook_id && <option value="">{playbook.data?.playbookName ?? "Meeting"}</option>}
+              {(toolkits.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <div className="text-[11px] text-muted-foreground -mt-1">Switch playbooks to see what other templates would examine in this same transcript/video — doesn't change what's already recorded.</div>
           </div>
-          <TemplatePickerDialog
-            open={pickerOpen}
-            onClose={() => setPickerOpen(false)}
-            onSelect={(templateId) => nav({ to: "/interviews/$id/board-report", params: { id }, search: { template: templateId } })}
-          />
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} disabled={!reportAvailable}>
+              <FileOutput className="h-3.5 w-3.5 mr-1" /> Generate Report
+            </Button>
+            <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={!reportAvailable || addToPipeline.isPending}>
+              {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
+            </Button>
+          </div>
+        </div>
+        <TemplatePickerDialog
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(templateId) => nav({ to: "/interviews/$id/board-report", params: { id }, search: { template: templateId } })}
+        />
+        {steps.length > 0 && (
           <RoundStepper
             rounds={steps.map((s) => ({ round: s.key, title: s.title, subtitle: s.subtitle }))}
             current={currentStep}
             onSelect={(k) => setCurrentStep(k)}
             orientation="horizontal"
           />
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="grid grid-cols-12 gap-4">
         {/* Col 1 — playbook questions for the current step */}
@@ -613,7 +638,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             )}
           </CardContent></Card>
 
-          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet." alert>
+          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet." pill="red">
             {contradictions.map((a: any) => {
               const p = a.payload ?? {};
               return (
@@ -626,7 +651,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet." alert>
+          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet." pill="red">
             {missing.map((a: any) => {
               const p = a.payload ?? {};
               return (
@@ -638,7 +663,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…">
+          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…" pill="green">
             {followUps.map((a: any, i: number) => {
               const p: any = a.payload ?? {};
               return (
@@ -651,7 +676,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear.">
+          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear." pill="green">
             {documentRequests.map((d: any) => (
               <div key={d.id} className="border-b border-border last:border-0 py-1.5">
                 <div className="text-sm">{d.doc_type}</div>
@@ -782,10 +807,11 @@ function ratingColor(r: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-function CollapsedListCard({ title, count, emptyText, children, alert }: { title: string; count: number; emptyText: string; children: React.ReactNode; alert?: boolean }) {
+function CollapsedListCard({ title, count, emptyText, children, pill }: { title: string; count: number; emptyText: string; children: React.ReactNode; pill?: "red" | "green" }) {
   const titleClass = "text-[10px] uppercase tracking-[0.2em] text-muted-foreground";
-  const countBadge = alert && count > 0
-    ? <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-600 text-white text-[10px] normal-case tracking-normal font-bold align-middle">{count}</span>
+  const pillColor = pill === "green" ? "bg-emerald-600" : "bg-red-600";
+  const countBadge = pill && count > 0
+    ? <span className={`ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full ${pillColor} text-white text-[10px] normal-case tracking-normal font-bold align-middle`}>{count}</span>
     : <span className="text-foreground/70 normal-case tracking-normal font-normal">({count})</span>;
   return (
     <Card><CardContent className="p-4">
