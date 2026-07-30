@@ -20,7 +20,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
     // Flat numbered-pill row -- mirrors the admin DD Framework accordion header aesthetic
     // (numbered forest-green badge + bold green title), no per-item card frames.
     return (
-      <div className="flex items-stretch gap-6 overflow-x-auto pb-1 border-b border-border">
+      <div className="flex items-stretch justify-between gap-2 border-b border-border">
         {rounds.map((r, idx) => {
           const active = r.round === current;
           const completed = completedRounds?.includes(r.round) ?? false;
@@ -29,7 +29,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               key={r.round}
               onClick={() => onSelect(r.round)}
               className={cn(
-                "group flex items-center gap-2.5 pb-3 pt-1 px-1 bg-transparent border-0 border-b-2 transition-colors -mb-px",
+                "group flex-1 min-w-0 flex flex-col items-center gap-1.5 pb-3 pt-1 px-1 bg-transparent border-0 border-b-2 transition-colors -mb-px",
                 active ? "border-primary" : "border-transparent hover:border-primary/40",
               )}
             >
@@ -45,7 +45,7 @@ export function RoundStepper({ rounds, current, onSelect, orientation = "vertica
               >
                 {completed ? <Check className="h-3.5 w-3.5" /> : idx + 1}
               </span>
-              <span className="text-left max-w-[9rem]">
+              <span className="text-center w-full">
                 <span className={cn("block text-sm font-bold leading-tight break-words", active || completed ? "text-green-800" : "text-muted-foreground group-hover:text-green-800")}>
                   {r.title}
                 </span>

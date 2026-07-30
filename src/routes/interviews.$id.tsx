@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
-  saveNote, setInterviewStatus, insertUtterance, editUtterance,
+  saveNote, setInterviewStatus, insertUtterance,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { analyzeBehavioralSignals } from "@/lib/video-analysis.functions";
@@ -452,9 +452,14 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                     <AccordionTrigger className="text-sm px-2 py-1.5 hover:no-underline bg-teal-50">
                       <span className="text-left font-medium text-foreground/90">Q{i + 1}. {q.question_text}</span>
                     </AccordionTrigger>
-                    {q.why_text && (
-                      <AccordionContent className="px-2 pb-1.5">
-                        <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>
+                    {(q.why_text || q.internal_guideline) && (
+                      <AccordionContent className="px-2 pb-1.5 space-y-1.5">
+                        {q.why_text && <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>}
+                        {q.internal_guideline && (
+                          <div className="text-[11px] text-amber-800 not-italic bg-amber-50 border border-amber-100 rounded px-1.5 py-1">
+                            <span className="font-medium">Internal guideline:</span> {q.internal_guideline}
+                          </div>
+                        )}
                       </AccordionContent>
                     )}
                   </AccordionItem>
@@ -526,7 +531,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                         {g.utterances.length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
                         <div className="space-y-2">
                           {g.utterances.map((u: any) => (
-                            <UtteranceRow key={u.id} u={u} onEdit={async (text) => { await editUtterance(u.id, text); qc.invalidateQueries({ queryKey: ["iv-utt", id] }); }} />
+                            <UtteranceRow key={u.id} u={u} />
                           ))}
                         </div>
                       </div>
@@ -651,7 +656,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               <AccordionTrigger className="px-4 py-3 hover:no-underline bg-amber-50">
                 <div className="text-left">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Manual assessment</div>
-                  <div className="font-serif text-lg text-amber-900">Private notes · never shown externally</div>
+                  <div className="text-sm text-amber-900">Private notes · never shown externally</div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
@@ -886,26 +891,15 @@ function groupRisks(items: any[]): Array<{ category: string; items: any[]; avgLa
 }
 
 
-function UtteranceRow({ u, onEdit }: { u: any; onEdit: (text: string) => Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(u.text);
-  useEffect(() => setVal(u.text), [u.text]);
+function UtteranceRow({ u }: { u: any }) {
   return (
     <div className="border-b border-border last:border-0 py-2">
       <div className="flex items-center gap-2 text-xs mb-1">
         <span className="font-mono text-muted-foreground">{fmt(u.ts_ms)}</span>
         <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
         {u.confidence != null && <span className="text-[11px] text-muted-foreground">conf {(u.confidence * 100).toFixed(0)}%</span>}
-        <button onClick={() => setEditing(!editing)} className="ml-auto text-[11px] text-muted-foreground hover:text-foreground">{editing ? "Cancel" : "Edit"}</button>
       </div>
-      {editing ? (
-        <div>
-          <Textarea value={val} onChange={(e) => setVal(e.target.value)} className="min-h-20" />
-          <div className="mt-2 flex justify-end"><Button size="sm" onClick={async () => { await onEdit(val); setEditing(false); }}>Save</Button></div>
-        </div>
-      ) : (
-        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
-      )}
+      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
     </div>
   );
 }
