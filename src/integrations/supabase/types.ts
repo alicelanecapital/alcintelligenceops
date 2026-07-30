@@ -2384,6 +2384,77 @@ export type Database = {
           },
         ]
       }
+      report_template_sections: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          sort_order: number
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          sort_order?: number
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          sort_order?: number
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_template_sections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_templates: {
+        Row: {
+          cover_bg: string | null
+          cover_fg: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sample_attachment_name: string | null
+          sample_attachment_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          cover_bg?: string | null
+          cover_fg?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sample_attachment_name?: string | null
+          sample_attachment_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cover_bg?: string | null
+          cover_fg?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sample_attachment_name?: string | null
+          sample_attachment_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignee: string | null
