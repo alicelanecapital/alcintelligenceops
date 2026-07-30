@@ -85,7 +85,7 @@ export async function createFrameworkRound(): Promise<FrameworkRound> {
 
   const { data, error } = await supabase
     .from("dd_framework_rounds")
-    .insert({ round: nextRound, title: `Round ${nextRound}`, subtitle: "", purpose: "", duration: "" })
+    .insert({ round: nextRound, title: `Round ${nextRound}: New Round`, subtitle: "", purpose: "", duration: "" })
     .select()
     .single();
   if (error) throw error;

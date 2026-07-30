@@ -1,10 +1,21 @@
 import { Link, Outlet, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Calendar, CalendarDays, Kanban, Users, Map, BarChart3, MessagesSquare, Building2, Target, ShieldCheck, LogOut, UserCog, LayoutTemplate } from "lucide-react";
+import { useState } from "react";
+import {
+  LayoutDashboard, Calendar, CalendarDays, Kanban, Users, Map, BarChart3, MessagesSquare,
+  Building2, Target, ShieldCheck, LogOut, UserCog, LayoutTemplate, FileText, ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
-const navGroups = [
+type NavItem = {
+  to?: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  children?: NavItem[];
+};
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
     items: [
@@ -24,19 +35,68 @@ const navGroups = [
   {
     label: "Admin",
     items: [
-      { to: "/admin/toolkits", label: "Playbooks", icon: ShieldCheck },
-      { to: "/admin/dd-framework", label: "DD Intelligence Engine", icon: ShieldCheck },
-      { to: "/admin/templates", label: "Templates", icon: LayoutTemplate },
+      {
+        label: "Templates",
+        icon: LayoutTemplate,
+        children: [
+          {
+            to: "/admin/toolkits",
+            label: "Playbooks",
+            icon: ShieldCheck,
+            children: [
+              { to: "/admin/dd-framework", label: "Due Diligence", icon: ShieldCheck },
+            ],
+          },
+          { to: "/admin/templates", label: "Reports", icon: FileText },
+        ],
+      },
       { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },
-
 ];
+
+/** Every `to` under a node, used to work out whether a collapsed group contains the
+ * currently active route so it can auto-expand on load. */
+function collectPaths(item: NavItem): string[] {
+  const own = item.to ? [item.to] : [];
+  const nested = item.children?.flatMap(collectPaths) ?? [];
+  return [...own, ...nested];
+}
+
+function isActivePath(pathname: string, to: string) {
+  return pathname === to || (to !== "/" && pathname.startsWith(to));
+}
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const { session, loading, signOut, user } = useAuth();
+
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        if (item.children && collectPaths(item).some((p) => isActivePath(loc.pathname, p))) {
+          initial.add(item.label);
+        }
+        for (const child of item.children ?? []) {
+          if (child.children && collectPaths(child).some((p) => isActivePath(loc.pathname, p))) {
+            initial.add(child.label);
+          }
+        }
+      }
+    }
+    return initial;
+  });
+
+  function toggle(label: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   if (!session) return <Navigate to="/auth" />;
   return (
@@ -60,24 +120,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
                 {group.label}
               </div>
               <div className="space-y-1">
-                {group.items.map((n) => {
-                  const active = loc.pathname === n.to || (n.to !== "/" && loc.pathname.startsWith(n.to));
-                  const Icon = n.icon;
-                  return (
-                    <Link
-                      key={n.to}
-                      to={n.to}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                        active
-                          ? "bg-forest text-white"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" /> {n.label}
-                    </Link>
-                  );
-                })}
+                {group.items.map((item) => (
+                  <NavNode key={item.label} item={item} depth={0} pathname={loc.pathname} expanded={expanded} onToggle={toggle} />
+                ))}
               </div>
             </div>
           ))}
@@ -95,6 +140,67 @@ export function AppShell({ children }: { children?: ReactNode }) {
       <main className="flex-1 min-w-0 overflow-x-hidden">
         {children ?? <Outlet />}
       </main>
+    </div>
+  );
+}
+
+function NavNode({ item, depth, pathname, expanded, onToggle }: {
+  item: NavItem;
+  depth: number;
+  pathname: string;
+  expanded: Set<string>;
+  onToggle: (label: string) => void;
+}) {
+  const Icon = item.icon;
+  const hasChildren = !!item.children?.length;
+  const isOpen = expanded.has(item.label);
+  const active = item.to ? isActivePath(pathname, item.to) : false;
+  const containsActive = hasChildren && collectPaths(item).some((p) => isActivePath(pathname, p));
+
+  const rowClass = cn(
+    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+    depth > 0 && "ml-3",
+    active
+      ? "bg-forest text-white"
+      : containsActive
+      ? "text-sidebar-accent-foreground font-medium"
+      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+  );
+
+  const label = (
+    <>
+      <Icon className="h-4 w-4 shrink-0" /> <span className="flex-1 truncate">{item.label}</span>
+      {hasChildren && (
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", isOpen ? "rotate-180" : "")} />
+      )}
+    </>
+  );
+
+  return (
+    <div>
+      {item.to ? (
+        <div className={rowClass}>
+          <Link to={item.to} className="flex items-center gap-3 flex-1 min-w-0">
+            <Icon className="h-4 w-4 shrink-0" /> <span className="truncate">{item.label}</span>
+          </Link>
+          {hasChildren && (
+            <button onClick={() => onToggle(item.label)} className="shrink-0" aria-label={`Toggle ${item.label}`}>
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen ? "rotate-180" : "")} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <button onClick={() => onToggle(item.label)} className={cn(rowClass, "w-full text-left")}>
+          {label}
+        </button>
+      )}
+      {hasChildren && isOpen && (
+        <div className="mt-1 space-y-1">
+          {item.children!.map((child) => (
+            <NavNode key={child.label} item={child} depth={depth + 1} pathname={pathname} expanded={expanded} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

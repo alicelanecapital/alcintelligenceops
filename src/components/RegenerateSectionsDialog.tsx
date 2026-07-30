@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import type { ExtractedHeading } from "@/lib/extract-template-headings";
 
 type DraftRow = ExtractedHeading & { include: boolean };
@@ -40,6 +40,10 @@ export function RegenerateSectionsDialog({ open, onClose, headings, onApply, app
     }));
   }
 
+  function removeRow(i: number) {
+    setRows((r) => r.filter((_, idx) => idx !== i));
+  }
+
   const includedCount = rows.filter((r) => r.include).length;
 
   return (
@@ -49,7 +53,7 @@ export function RegenerateSectionsDialog({ open, onClose, headings, onApply, app
           <DialogTitle>Detected Sections</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground -mt-2">
-          Detected from heading styles in the attachment. Uncheck anything that isn't really a heading, fix levels with the arrows, then apply — this replaces the template's current section list.
+          Detected from heading styles in the attachment. Uncheck or delete anything that isn't really a heading, fix levels with the arrows, then apply — this replaces the template's current section list.
         </p>
         <div className="max-h-[50vh] overflow-y-auto space-y-1.5 border rounded-md p-2">
           {rows.length === 0 && <div className="text-sm text-muted-foreground p-4 text-center">No headings detected.</div>}
@@ -62,6 +66,9 @@ export function RegenerateSectionsDialog({ open, onClose, headings, onApply, app
               </div>
               <span className="text-[10px] uppercase tracking-widest text-muted-foreground w-24 shrink-0">{LEVEL_LABEL[row.level]}</span>
               <Input value={row.title} onChange={(e) => update(i, { title: e.target.value })} className="h-8 text-sm flex-1" disabled={!row.include} />
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" title="Remove this row" onClick={() => removeRow(i)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
           ))}
         </div>

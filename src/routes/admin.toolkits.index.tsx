@@ -77,7 +77,7 @@ function ToolkitRow({ t, onDelete, onRename }: { t: Toolkit; onDelete: () => voi
       </div>
       <div className="min-w-0 flex-1">
         <div className="font-serif text-base leading-tight truncate">
-          {isDD ? `${t.name} (Playbook Template)` : t.name}
+          {t.name}
           {isDD && <Badge variant="outline" className="ml-2 text-[10px] border-green-700 text-green-800">Template</Badge>}
         </div>
         {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}

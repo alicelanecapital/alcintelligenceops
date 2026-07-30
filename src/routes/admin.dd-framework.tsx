@@ -97,7 +97,7 @@ function DDFrameworkAdmin() {
     <div className="max-w-4xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Admin"
-        title="DD Intelligence Engine"
+        title="Due Diligence"
         description="Adjust the questions, guidance, and required documents for each due diligence round."
       />
 
