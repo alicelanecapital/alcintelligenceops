@@ -37,7 +37,7 @@ function InterviewWorkspace() {
   // hooks than during the previous render." Computing defaultTab defensively (iv may not
   // exist yet) lets these run before any early return.
   const iv = interview.data;
-  const defaultTab = iv ? (iv.status === "completed" ? "report" : (iv.status === "live" ? "live" : "brief")) : "brief";
+  const defaultTab = iv ? (iv.status === "completed" || iv.status === "live" ? "live" : "brief") : "brief";
   const [tab, setTab] = useState(defaultTab);
   useEffect(() => { setTab(defaultTab); }, [defaultTab]);
 
@@ -77,7 +77,6 @@ function InterviewWorkspace() {
                 <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
               )}
               <TabsTrigger value="live">Live workspace</TabsTrigger>
-              <TabsTrigger value="report" disabled={iv.status !== "completed" && !report.data}>IC report</TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -85,8 +84,7 @@ function InterviewWorkspace() {
         {iv.status !== "live" && iv.status !== "completed" && (
           <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
         )}
-        <TabsContent value="live"><LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} onOpenReport={() => setTab("report")} /></TabsContent>
-        <TabsContent value="report"><ReportView interviewId={id} /></TabsContent>
+        <TabsContent value="live"><LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} /></TabsContent>
       </Tabs>
     </div>
   );
@@ -145,9 +143,24 @@ function BriefList({ title, items, icon, numbered }: { title: string; items?: st
 
 /* ---------------- Live workspace ---------------- */
 
-function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any; reportAvailable: boolean; onOpenReport: () => void }) {
+function LiveView({ interview, reportAvailable }: { interview: any; reportAvailable: boolean }) {
   const id = interview.id;
   const qc = useQueryClient();
+  const nav = useNavigate();
+  const createOpp = useServerFn(createOpportunityFromContact);
+  const addToPipeline = useMutation({
+    mutationFn: async () => {
+      const contactId = interview.contact_id;
+      if (!contactId) throw new Error("Meeting isn't linked to a contact");
+      return createOpp({ data: { contactId } });
+    },
+    onSuccess: (opp: any) => {
+      toast.success("Added to Deal Pipeline");
+      nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+  const [pickerOpen, setPickerOpen] = useState(false);
   // (nav removed — finalise auto-runs on Stop and refreshes queries in place)
   const utt = useQuery({ queryKey: ["iv-utt", id], queryFn: () => getUtterances(id), refetchInterval: 4000 });
   const ana = useQuery({ queryKey: ["iv-ana", id], queryFn: () => getAnalyses(id), refetchInterval: 6000 });
@@ -375,10 +388,20 @@ function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
               <div className="font-serif text-lg text-green-800">{playbook.data?.playbookName ?? "Meeting"}</div>
             </div>
-            <Button size="sm" variant="outline" onClick={onOpenReport} disabled={!reportAvailable}>
-              <FileText className="h-3.5 w-3.5 mr-1" /> IC Report
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} disabled={!reportAvailable}>
+                <FileOutput className="h-3.5 w-3.5 mr-1" /> Generate Report
+              </Button>
+              <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={!reportAvailable || addToPipeline.isPending}>
+                {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
+              </Button>
+            </div>
           </div>
+          <TemplatePickerDialog
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={(templateId) => nav({ to: "/interviews/$id/board-report", params: { id }, search: { template: templateId } })}
+          />
           <RoundStepper
             rounds={steps.map((s) => ({ round: s.key, title: s.title, subtitle: s.subtitle }))}
             current={currentStep}
@@ -630,6 +653,13 @@ function LiveView({ interview, reportAvailable, onOpenReport }: { interview: any
           </Accordion>
         </div>
       </div>
+
+      {reportAvailable && (
+        <div className="mt-6 pt-6 border-t border-border">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-4">Summary</div>
+          <ReportContent interviewId={id} />
+        </div>
+      )}
     </div>
   );
 }
@@ -835,43 +865,14 @@ function NoteBox({ interviewId, section, initial, compact }: { interviewId: stri
 
 /* ---------------- Report ---------------- */
 
-function ReportView({ interviewId }: { interviewId: string }) {
+function ReportContent({ interviewId }: { interviewId: string }) {
   const report = useQuery({ queryKey: ["iv-report", interviewId], queryFn: () => getReport(interviewId) });
-  const interview = useQuery({ queryKey: ["iv", interviewId], queryFn: () => getInterview(interviewId) });
-  const nav = useNavigate();
-  const createOpp = useServerFn(createOpportunityFromContact);
-  const addToPipeline = useMutation({
-    mutationFn: async () => {
-      const contactId = (interview.data as any)?.contact_id;
-      if (!contactId) throw new Error("Meeting isn't linked to a contact");
-      return createOpp({ data: { contactId } });
-    },
-    onSuccess: (opp: any) => {
-      toast.success("Added to Deal Pipeline");
-      nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   if (report.isLoading) return <div className="p-10 text-muted-foreground">Loading memo…</div>;
-  if (!report.data) return <div className="p-10 text-muted-foreground">No memo yet. Complete the interview to generate the IC report.</div>;
+  if (!report.data) return <div className="p-10 text-muted-foreground">No memo yet. Complete the interview to generate the summary.</div>;
   const r = report.data.body as any;
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-10 space-y-6">
-      <div className="flex justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
-          <FileOutput className="h-3.5 w-3.5 mr-1" /> Generate Report
-        </Button>
-        <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={addToPipeline.isPending}>
-          {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
-        </Button>
-      </div>
-      <TemplatePickerDialog
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(templateId) => nav({ to: "/interviews/$id/board-report", params: { id: interviewId }, search: { template: templateId } })}
-      />
+    <div className="space-y-6">
       <Recommendation r={r.recommendation} />
 
       <div className="grid md:grid-cols-2 gap-6">
