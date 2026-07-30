@@ -39,14 +39,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         label: "Templates",
         icon: LayoutTemplate,
         children: [
-          {
-            to: "/admin/toolkits",
-            label: "Playbooks",
-            icon: ShieldCheck,
-            children: [
-              { to: "/admin/dd-framework", label: "Due Diligence", icon: ShieldCheck },
-            ],
-          },
+          { to: "/admin/toolkits", label: "Playbooks", icon: ShieldCheck },
           { to: "/admin/templates", label: "Reports", icon: FileText },
         ],
       },
