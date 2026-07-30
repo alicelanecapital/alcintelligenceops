@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { cn } from "@/lib/utils";
+import { highlightRiskText } from "@/lib/highlight-risk-text";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
@@ -684,10 +685,14 @@ function RedFlagsInline({ contactId, opportunities }: { contactId: string; oppor
           <ul className="mt-1.5 ml-6 space-y-1.5">
             {g.flags.map((f: any, fi: number) => {
               const flag = typeof f === "object" ? f : { text: String(f) };
+              const text = flag.text ?? flag.flag_text ?? String(flag);
               return (
-                <li key={fi} className="text-sm text-foreground/80">
-                  {flag.text ?? flag.flag_text ?? String(flag)}
-                  {flag.severity ? <span className="text-rose-600"> · {flag.severity}</span> : ""}
+                <li key={fi} className="text-sm text-foreground/80 flex gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                  <span>
+                    {highlightRiskText(text)}
+                    {flag.severity ? <span className="text-rose-600"> · {flag.severity}</span> : ""}
+                  </span>
                 </li>
               );
             })}
