@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { fetchOpportunitiesWithDDStatus, createOpportunity, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
 import { fetchFounders } from "@/lib/db";
-import { fetchAllFrameworkRounds } from "@/lib/dd-framework-admin";
+import { fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from "@/lib/dd-framework-admin";
 // Card frames removed — Deal Pipeline now uses a single-row divider list.
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,12 @@ const ROUND_COLORS: Record<number, string> = {
 function DDEngine() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunitiesWithDDStatus });
-  const rounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
+  const ddToolkitId = useQuery({ queryKey: ["dd-toolkit-id"], queryFn: fetchDueDiligenceToolkitId });
+  const rounds = useQuery({
+    queryKey: ["dd-framework-rounds", ddToolkitId.data],
+    queryFn: () => fetchAllFrameworkRounds(ddToolkitId.data),
+    enabled: ddToolkitId.isSuccess,
+  });
   const totalRounds = rounds.data?.length ? Math.max(...rounds.data.map((r) => r.round)) : 5;
   const navigate = useNavigate();
   const [view, setView] = useState<"active" | "approved" | "rejected" | "archived">("active");

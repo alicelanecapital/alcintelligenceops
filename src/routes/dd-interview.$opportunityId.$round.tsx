@@ -7,7 +7,7 @@ import { DDInterviewEnhanced } from "@/components/DDInterviewEnhanced";
 // Brief / AI Overview / DISC / Red Flags) is shown from the Deal Pipeline click-through
 // dialog, not above every round.
 import { RoundStepper } from "@/components/RoundStepper";
-import { fetchAllFrameworkRounds } from "@/lib/dd-framework-admin";
+import { fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from "@/lib/dd-framework-admin";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +47,12 @@ function DDInterviewPage() {
     queryKey: ["opportunity-company-details", opportunityId],
     queryFn: () => fetchOpportunityCompanyDetails(opportunityId),
   });
-  const frameworkRounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
+  const ddToolkitId = useQuery({ queryKey: ["dd-toolkit-id"], queryFn: fetchDueDiligenceToolkitId });
+  const frameworkRounds = useQuery({
+    queryKey: ["dd-framework-rounds", ddToolkitId.data],
+    queryFn: () => fetchAllFrameworkRounds(ddToolkitId.data),
+    enabled: ddToolkitId.isSuccess,
+  });
   const completedRounds = useQuery({
     queryKey: ["dd-interview-statuses", opportunityId],
     queryFn: () => fetchCompletedRounds(opportunityId),

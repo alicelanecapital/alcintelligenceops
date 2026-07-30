@@ -4,6 +4,7 @@ export type FrameworkRedFlag = { text: string; severity: "WALK_AWAY" | "PRICE_IT
 
 export type FrameworkRound = {
   round: number;
+  toolkit_id: string | null;
   title: string;
   subtitle: string | null;
   purpose: string | null;
@@ -28,17 +29,35 @@ export type FrameworkDocument = {
   purpose: string | null;
 };
 
-export async function fetchAllFrameworkRounds(): Promise<FrameworkRound[]> {
+export async function fetchAllFrameworkRounds(toolkitId?: string | null): Promise<FrameworkRound[]> {
   // Order by sort_order so admin-controlled reordering (drag-and-drop in
   // /admin/dd-framework) is honoured everywhere rounds are listed; falls back
   // to round number for rows that don't yet have a sort_order set.
-  const { data, error } = await supabase
+  let q = supabase
     .from("dd_framework_rounds")
     .select("*")
     .order("sort_order" as any, { ascending: true })
     .order("round", { ascending: true });
+  if (toolkitId) q = q.eq("toolkit_id" as any, toolkitId) as any;
+  const { data, error } = await q;
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as FrameworkRound[];
+}
+
+/** dd_framework_rounds is shared across every toolkit that has a designer enabled --
+ * this resolves the one toolkit row that is the DD Intelligence Engine, needed anywhere
+ * that historically assumed "the" framework (Deal Pipeline Room, legacy no-playbook
+ * interviews, the /admin/dd-framework screen itself). */
+export async function fetchDueDiligenceToolkitId(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("toolkits" as any)
+    .select("id")
+    .eq("kind", "due_diligence")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any)?.id ?? null;
 }
 
 /** Persist a new order for the rounds. `round` (the identifier) is left untouched;
@@ -61,35 +80,46 @@ export async function fetchFrameworkRoundDetail(round: number) {
   if (questions.error) throw questions.error;
   if (documents.error) throw documents.error;
   return {
-    round: roundRow.data as FrameworkRound,
+    round: roundRow.data as unknown as FrameworkRound,
     questions: (questions.data ?? []) as FrameworkQuestion[],
     documents: (documents.data ?? []) as FrameworkDocument[],
   };
 }
 
 export async function updateFrameworkRound(round: number, payload: Partial<FrameworkRound>) {
-  const { error } = await supabase.from("dd_framework_rounds").update(payload).eq("round", round);
+  const { error } = await supabase.from("dd_framework_rounds").update(payload as any).eq("round", round);
   if (error) throw error;
 }
 
-/** Appends a new round after the current last one (rounds are a plain incrementing integer,
- * not reorderable, so a new round always lands at the end). */
-export async function createFrameworkRound(): Promise<FrameworkRound> {
+/** Appends a new round after the current last one. `round` is a single counter shared
+ * across every toolkit's rounds (dd_framework_questions/documents key off it directly),
+ * so the next round number is always the table-wide max + 1. `sort_order` defaults to 0
+ * at the DB level, so it must be set explicitly here to the table-wide max + 1 as well --
+ * otherwise a new round sorts *before* every existing round instead of landing last. */
+export async function createFrameworkRound(toolkitId: string): Promise<FrameworkRound> {
   const { data: existing, error: fetchError } = await supabase
     .from("dd_framework_rounds")
-    .select("round")
+    .select("round, sort_order")
     .order("round", { ascending: false })
     .limit(1);
   if (fetchError) throw fetchError;
   const nextRound = ((existing?.[0] as any)?.round ?? 0) + 1;
 
+  const { data: maxSort, error: sortError } = await supabase
+    .from("dd_framework_rounds")
+    .select("sort_order")
+    .order("sort_order" as any, { ascending: false })
+    .limit(1);
+  if (sortError) throw sortError;
+  const nextSort = ((maxSort?.[0] as any)?.sort_order ?? 0) + 1;
+
   const { data, error } = await supabase
     .from("dd_framework_rounds")
-    .insert({ round: nextRound, title: `Round ${nextRound}: New Round`, subtitle: "", purpose: "", duration: "" })
+    .insert({ round: nextRound, toolkit_id: toolkitId, title: `Round ${nextRound}: New Round`, subtitle: "", purpose: "", duration: "", sort_order: nextSort } as any)
     .select()
     .single();
   if (error) throw error;
-  return data as FrameworkRound;
+  return data as unknown as FrameworkRound;
 }
 
 /** Deletes a round -- its questions and documents cascade automatically (they reference

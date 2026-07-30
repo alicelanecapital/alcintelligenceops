@@ -1,15 +1,15 @@
 // Given a Playbook (toolkit) id, return the ordered steps + per-step questions and
 // required documents that drive the Live Workspace stepper + left-hand questions column.
 //
-// Today only the DD Intelligence Engine template (toolkits.kind === "due_diligence")
-// has a real designer -- it maps to dd_framework_rounds / dd_framework_questions /
-// dd_framework_documents. Any other playbook (or no playbook selected) falls back to a
-// single generic "Meeting" step with no questions, which keeps the workspace usable
-// while a custom designer is not yet built out.
+// Every toolkit (DD Intelligence Engine or a custom playbook like "Pitch Playbook") owns
+// its own rounds in the shared dd_framework_rounds table, scoped by toolkit_id. A playbook
+// with no rounds configured yet falls back to a single generic "Meeting" step with no
+// questions, which keeps the workspace usable while it's still being designed.
 
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAllFrameworkRounds,
+  fetchDueDiligenceToolkitId,
   type FrameworkQuestion,
   type FrameworkDocument,
   type FrameworkRound,
@@ -51,7 +51,8 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
     // Legacy interviews with no playbook — assume DD template so the historical
     // 5-round experience is preserved when re-opening older sessions.
     try {
-      const rounds = await fetchAllFrameworkRounds();
+      const ddToolkitId = await fetchDueDiligenceToolkitId();
+      const rounds = ddToolkitId ? await fetchAllFrameworkRounds(ddToolkitId) : [];
       if (rounds.length) return { playbookId: null, playbookName: "DD Intelligence Engine", kind: "due_diligence", steps: stepsFromDDRounds(rounds) };
     } catch {}
     return { playbookId: null, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP] };
@@ -63,16 +64,13 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
     .maybeSingle();
   if (error) throw error;
   if (!tk) return { playbookId, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP] };
-  if ((tk.kind as string) === "due_diligence") {
-    const rounds = await fetchAllFrameworkRounds();
-    return {
-      playbookId,
-      playbookName: tk.name,
-      kind: "due_diligence",
-      steps: rounds.length ? stepsFromDDRounds(rounds) : [FALLBACK_STEP],
-    };
-  }
-  return { playbookId, playbookName: tk.name, kind: "custom", steps: [FALLBACK_STEP] };
+  const rounds = await fetchAllFrameworkRounds(playbookId);
+  return {
+    playbookId,
+    playbookName: tk.name,
+    kind: (tk.kind as string) === "due_diligence" ? "due_diligence" : "custom",
+    steps: rounds.length ? stepsFromDDRounds(rounds) : [FALLBACK_STEP],
+  };
 }
 
 export async function fetchPlaybookStepDetail(
@@ -80,7 +78,7 @@ export async function fetchPlaybookStepDetail(
   stepKey: number,
 ): Promise<PlaybookStepDetail> {
   const step = shape.steps.find((s) => s.key === stepKey) ?? shape.steps[0] ?? FALLBACK_STEP;
-  if (shape.kind !== "due_diligence") {
+  if (shape.kind === "none") {
     return { step, questions: [], documents: [] };
   }
   const [q, d] = await Promise.all([

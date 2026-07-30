@@ -3,8 +3,8 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { listToolkits } from "@/lib/toolkits";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wrench } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PlaybookDesigner } from "@/components/PlaybookDesigner";
 
 export const Route = createFileRoute("/admin/toolkits/$id")({
   component: () => <AppShell><ToolkitDesigner /></AppShell>,
@@ -32,17 +32,14 @@ function ToolkitDesigner() {
         description={toolkit?.description ?? "Design the rounds, questions and required documents for this playbook."}
       />
 
-      <div className="mt-8 border border-border rounded-md p-8 text-center">
-        <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-          <Wrench className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="font-serif text-lg">Designer coming online</div>
-        <p className="text-sm text-muted-foreground mt-2 max-w-lg mx-auto">
-          The round / question / document designer is currently wired up for the DD Intelligence Engine. Support for custom playbooks will be added next -- ping the team when you're ready to define this playbook and we'll enable the designer for it.
-        </p>
-        <Link to="/admin/toolkits" className="inline-block mt-4">
-          <Button variant="outline" size="sm">Back to playbooks</Button>
-        </Link>
+      <div className="mt-8">
+        {q.isLoading ? (
+          <p className="text-sm text-muted-foreground py-10">Loading…</p>
+        ) : !toolkit ? (
+          <p className="text-sm text-muted-foreground py-10">Playbook not found.</p>
+        ) : (
+          <PlaybookDesigner toolkitId={toolkit.id} />
+        )}
       </div>
     </div>
   );

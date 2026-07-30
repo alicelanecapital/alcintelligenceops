@@ -88,6 +88,24 @@ export async function setInterviewStatus(id: string, patch: Partial<{ status: st
   if (error) throw error;
 }
 
+export async function setInterviewPlaybook(id: string, playbookId: string) {
+  const { error } = await (supabase.from("interviews") as any).update({ playbook_id: playbookId }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Meetings that have already graduated into the Deal Pipeline (via "Add to Deal
+ * Pipeline" or a Due Diligence playbook chosen at Begin Meeting) -- keyed by the
+ * originating interview id, valued by the opportunity it became. Used to hide those
+ * meetings from the Planned queue and route their Past Meetings row into the Deal
+ * Pipeline Room instead of the old Live Workspace. */
+export async function listGraduatedMeetingOpportunities(): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from("opportunities").select("id, meeting_id").not("meeting_id", "is", null);
+  if (error) throw error;
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as any[]) if (row.meeting_id) map.set(row.meeting_id, row.id);
+  return map;
+}
+
 export async function stopInterview(id: string) {
   await setInterviewStatus(id, { status: "completed", ended_at: new Date().toISOString() });
 }

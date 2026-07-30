@@ -1,17 +1,22 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
-import { listInterviews } from "@/lib/interviews";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listInterviews, setInterviewPlaybook, listGraduatedMeetingOpportunities } from "@/lib/interviews";
+import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import { fetchUpcomingGoogleCalendarEvents } from "@/lib/google-calendar";
 import { isMeetingRow, dedupeAcrossAccounts } from "@/lib/meeting-filters";
 import { fetchTeamMembers } from "@/lib/team-members";
 import { COLOR_CLASSES, DEFAULT_COLOR_CLASSES } from "@/lib/team-member-colors";
+import type { Toolkit } from "@/lib/toolkits";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { useMemo } from "react";
+import { PlaybookPickerDialog } from "@/components/PlaybookPickerDialog";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Play, CalendarClock, MapPin, Video } from "lucide-react";
 import {
   format, startOfDay, endOfDay, startOfWeek, endOfWeek, addWeeks, subYears,
@@ -113,7 +118,9 @@ function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
   const upcoming = useQuery({ queryKey: ["upcoming-calendar-meetings"], queryFn: fetchUpcomingGoogleCalendarEvents });
   const members = useQuery({ queryKey: ["team-members"], queryFn: fetchTeamMembers });
+  const graduated = useQuery({ queryKey: ["graduated-meetings"], queryFn: listGraduatedMeetingOpportunities });
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
+  const graduatedMap = graduated.data ?? new Map<string, string>();
 
   const { plannedGroups, past } = useMemo(() => {
     const items: Item[] = [];
@@ -124,6 +131,9 @@ function InterviewsIndex() {
     const planned: Item[] = [];
     const past: Item[] = [];
     for (const it of items) {
+      // Graduated meetings (moved to the Deal Pipeline) never sit in the Planned queue --
+      // they're done as an Engagement, only their history remains.
+      if (it.kind === "interview" && graduatedMap.has(it.data.id)) { past.push(it); continue; }
       const t = it.when.getTime();
       if (t >= todayStart) planned.push(it);
       else if (t >= oneYearAgo) past.push(it);
@@ -131,7 +141,7 @@ function InterviewsIndex() {
     planned.sort((a, b) => a.when.getTime() - b.when.getTime());
     past.sort((a, b) => b.when.getTime() - a.when.getTime());
     return { plannedGroups: groupPlanned(planned), past };
-  }, [q.data, upcoming.data]);
+  }, [q.data, upcoming.data, graduatedMap]);
 
   const renderRows = (items: Item[]) =>
     items.length === 0 ? (
@@ -140,7 +150,7 @@ function InterviewsIndex() {
       <div className="divide-y divide-border/40">
         {items.map((it) =>
           it.kind === "interview"
-            ? <InterviewRow key={`i-${it.data.id}`} i={it.data} />
+            ? <InterviewRow key={`i-${it.data.id}`} i={it.data} opportunityId={graduatedMap.get(it.data.id) ?? null} />
             : <CalendarEventRow key={`c-${it.data.id}`} ev={it.data} memberByEmail={memberByEmail} />
         )}
       </div>
@@ -190,15 +200,61 @@ function InterviewsIndex() {
 }
 
 
-function InterviewRow({ i }: { i: any }) {
+function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | null }) {
+  const nav = useNavigate();
+  const qc = useQueryClient();
+  const createOpp = useServerFn(createOpportunityFromContact);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const beginMut = useMutation({
+    mutationFn: async (toolkit: Toolkit) => {
+      await setInterviewPlaybook(i.id, toolkit.id);
+      if (toolkit.kind === "due_diligence") {
+        if (!i.contact_id) throw new Error("Meeting isn't linked to a contact");
+        const opp = await createOpp({ data: { contactId: i.contact_id } });
+        return { toolkit, opp };
+      }
+      return { toolkit, opp: null };
+    },
+    onSuccess: ({ toolkit, opp }) => {
+      setPickerOpen(false);
+      if (opp) {
+        toast.success("Moved to Deal Pipeline");
+        qc.invalidateQueries({ queryKey: ["graduated-meetings"] });
+        nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: (opp as any).id, round: "1" } });
+      } else {
+        nav({ to: "/interviews/$id", params: { id: i.id } });
+      }
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to begin meeting"),
+  });
+
+  const target = opportunityId
+    ? { to: "/dd-interview/$opportunityId/$round" as const, params: { opportunityId, round: "1" } }
+    : { to: "/interviews/$id" as const, params: { id: i.id } };
+
   return (
-    <Link to="/interviews/$id" params={{ id: i.id }} className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
-      <div className="flex-1 min-w-0">
+    <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
+      <Link to={target.to} params={target.params as any} className="flex-1 min-w-0">
         <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
-      </div>
-      {i.status === "completed" && <StatusBadge status={i.status} />}
-    </Link>
+      </Link>
+      {opportunityId ? (
+        <Badge className="bg-primary text-primary-foreground">Deal Pipeline</Badge>
+      ) : (
+        <>
+          {i.status === "completed" && <StatusBadge status={i.status} />}
+          <Button size="sm" className="h-7 px-2 gap-1" onClick={() => setPickerOpen(true)}>
+            <Play className="h-3 w-3" /> Begin Meeting
+          </Button>
+          <PlaybookPickerDialog
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={(toolkit) => beginMut.mutate(toolkit)}
+          />
+        </>
+      )}
+    </div>
   );
 }
 

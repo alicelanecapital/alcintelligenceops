@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
-import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds } from '@/lib/dd-framework-admin';
+import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from '@/lib/dd-framework-admin';
 import { detectSector, generateAnalysisReport, MIN_SECTOR_CONFIDENCE } from '@/lib/dd-sector-detection';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
@@ -141,7 +141,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const roundData = framework.data?.round;
   // Round count isn't fixed at 5 -- DD Framework Admin can add/remove rounds -- so the "last
   // round" for Round Gates/advancing is whatever the highest configured round actually is.
-  const allRounds = useQuery({ queryKey: ['dd-framework-rounds'], queryFn: fetchAllFrameworkRounds });
+  const ddToolkitId = useQuery({ queryKey: ['dd-toolkit-id'], queryFn: fetchDueDiligenceToolkitId });
+  const allRounds = useQuery({
+    queryKey: ['dd-framework-rounds', ddToolkitId.data],
+    queryFn: () => fetchAllFrameworkRounds(ddToolkitId.data),
+    enabled: ddToolkitId.isSuccess,
+  });
   const maxRound = Math.max(1, ...(allRounds.data ?? []).map((r) => r.round));
   const questions = (framework.data?.questions ?? []).map((q) => ({
     number: q.sort_order,
