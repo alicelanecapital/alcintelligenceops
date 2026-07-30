@@ -836,9 +836,30 @@ function CollapsedListCard({ title, count, emptyText, children, pill }: { title:
   );
 }
 
-function BehavioralSignalsPanel({ interviewId, analysisId, signals, onDeleted }: {
+// Older analyses (before the schema merged facial/eye/head/hand into one paragraph and
+// added energy_and_pace/personality_impression) still have their insights sitting under
+// the old per-category field names -- normalize those into the current shape so nothing
+// that was already generated disappears from the panel.
+function normalizeBehavioralSignals(signals: any) {
+  const legacyBits = [
+    signals.facial_expressiveness?.observation,
+    signals.eye_contact_and_gaze?.observation,
+    signals.head_movement?.observation,
+    signals.hand_gestures?.observation,
+  ].filter(Boolean);
+  const expression_summary = signals.expression_summary ?? (legacyBits.length ? legacyBits.join(" ") : undefined);
+  const expression_flag = signals.expression_flag ?? [
+    signals.facial_expressiveness?.flag, signals.eye_contact_and_gaze?.flag,
+    signals.head_movement?.flag, signals.hand_gestures?.flag,
+  ].some(Boolean);
+  const energy_and_pace = signals.energy_and_pace ?? signals.movement_pace_and_symmetry;
+  return { ...signals, expression_summary, expression_flag, energy_and_pace };
+}
+
+function BehavioralSignalsPanel({ interviewId, analysisId, signals: rawSignals, onDeleted }: {
   interviewId: string; analysisId: string; signals: any; onDeleted: () => void;
 }) {
+  const signals = normalizeBehavioralSignals(rawSignals);
   const videoUrl = useQuery({
     queryKey: ["iv-video-url", signals.video_path],
     queryFn: () => getInterviewVideoSignedUrl(signals.video_path),
