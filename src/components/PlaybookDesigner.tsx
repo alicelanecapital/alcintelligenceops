@@ -96,7 +96,7 @@ export function PlaybookDesigner({ toolkitId, stripDueDiligenceWording }: { tool
     <div>
       <div className="flex justify-end gap-2 mb-3">
         <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
-          <Upload className="h-3.5 w-3.5 mr-1" /> Upload questionnaire
+          <Upload className="h-3.5 w-3.5 mr-1" /> Upload Template
         </Button>
         <Button size="sm" onClick={() => addRoundMut.mutate()} disabled={addRoundMut.isPending}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
@@ -206,6 +206,7 @@ function SortableRoundItem({
               <span className="block text-sm truncate">
                 {(() => {
                   const t = round.title ?? "";
+                  if (!t) return <span className="font-medium text-muted-foreground italic">Round {index + 1}</span>;
                   const m = t.match(/^(Round\s*\d+:)\s*(.*)$/i);
                   if (m) return (<><span className="font-bold text-primary">{m[1]}</span>{" "}{m[2]}</>);
                   return <span className="font-medium">{t}</span>;
@@ -288,16 +289,16 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
         <div className="grid grid-cols-[1fr_160px] gap-3">
           <div>
             <Label className="text-sm">Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" placeholder="e.g. Round 1: Sense Check" />
           </div>
           <div>
             <Label className="text-sm">Duration</Label>
-            <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1" />
+            <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1" placeholder="e.g. 30 minutes" />
           </div>
         </div>
         <div>
           <Label className="text-sm">Subtitle</Label>
-          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
+          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" placeholder="A one-line framing for this round" />
         </div>
         <div>
           <Label className="text-sm">Purpose</Label>
@@ -305,6 +306,7 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             className="w-full min-h-[90px] px-3 py-2 border rounded-md text-sm bg-background mt-1"
+            placeholder="What this round is trying to establish"
           />
         </div>
         <div className="flex justify-end">
@@ -435,7 +437,7 @@ function QuestionCard({ question, index, onDelete, onSaved, dragHandleProps }: {
           <div className="flex-1 space-y-3">
             <div>
               <Label className="text-xs">Question</Label>
-              <Input value={questionText} onChange={(e) => setQuestionText(e.target.value)} className="mt-1" />
+              <Input value={questionText} onChange={(e) => setQuestionText(e.target.value)} className="mt-1" placeholder="What should be asked" />
             </div>
             <div>
               <Label className="text-xs">Rephrased</Label>
@@ -556,7 +558,7 @@ function DocumentCard({ doc, index, total, onMove, onDelete, onSaved }: {
       <div className="flex-1 grid grid-cols-2 gap-3">
         <div>
           <Label className="text-xs">Document name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Cap table" />
         </div>
         <div>
           <Label className="text-xs">Purpose</Label>

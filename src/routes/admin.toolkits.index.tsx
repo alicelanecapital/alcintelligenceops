@@ -153,7 +153,7 @@ function NewToolkitButton() {
               <Input value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" placeholder="What is this playbook for?" />
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => { setOpen(false); setUploadOpen(true); }}>
-              <Upload className="h-3.5 w-3.5 mr-1" /> Or upload a questionnaire instead
+              <Upload className="h-3.5 w-3.5 mr-1" /> Or upload a template instead
             </Button>
           </div>
           <DialogFooter>

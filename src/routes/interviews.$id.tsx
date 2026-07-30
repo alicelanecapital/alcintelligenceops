@@ -342,6 +342,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const analyses: any[] = ana.data ?? [];
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
   const behavioralSignals: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals")?.payload;
+  const transcriptSummary: string | undefined = analyses.find(a => a.kind === "transcript_summary")?.payload?.summary;
 
   // ---- Dedup + cross-frame precedence (see plan §7) ----
   const rawRisks = analyses.filter(a => a.kind === "risk");
@@ -541,6 +542,19 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               </Accordion>
             </CardContent>
           </Card>
+
+          {transcriptSummary && (
+            <Accordion type="single" collapsible className="rounded-md border border-border bg-white overflow-hidden">
+              <AccordionItem value="summary" className="border-0">
+                <AccordionTrigger className="px-4 py-2.5 hover:no-underline">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Summary</div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-3">
+                  <p className="text-sm text-foreground/85 leading-relaxed">{transcriptSummary}</p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
 
           {scores && (
             <Card><CardContent className="p-4">

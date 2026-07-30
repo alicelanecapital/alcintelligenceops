@@ -64,7 +64,7 @@ export function PlaybookUploadDialog({ open, onClose, toolkitId, onCreateToolkit
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); reset(); } }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Upload a questionnaire</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Upload a template</DialogTitle></DialogHeader>
 
         {stage === "pick" && (
           <div className="space-y-3">

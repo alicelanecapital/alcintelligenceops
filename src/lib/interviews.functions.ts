@@ -50,6 +50,7 @@ Be concrete and specific to the founder/business context. Never invent numbers n
 const ANALYSIS_SYSTEM = `You are an Alice Lane Capital investment committee AI sitting beside an interviewer during a live founder meeting.
 Analyse the transcript so far. Return STRICT JSON with these keys:
 {
+  "transcript_summary": string,
   "facts": [{ "subject": string, "predicate": string, "value": string, "evidence": string }],
   "risks": [{ "category": string, "rating": "Low"|"Medium"|"High"|"Critical", "reason": string, "evidence": string, "mitigation": string }],
   "contradictions": [{ "statement_a": string, "statement_b": string, "reason": string }],
@@ -66,6 +67,7 @@ Analyse the transcript so far. Return STRICT JSON with these keys:
   }
 }
 Risk categories must be one of: "Founder Risk","Cash Leakage Risk","Revenue Quality Risk","Debt Risk","Tax Risk","Expansion Risk","Minority Ownership Risk","Liquidity Risk","Exit Risk".
+"transcript_summary" is a concise 3-5 sentence plain-language recap of the conversation so far, for someone catching up mid-meeting.
 Ground every finding in explicit transcript evidence. Prefer fewer, higher-quality items over speculation.`;
 
 const REPORT_SYSTEM = `You are the Alice Lane Capital investment committee lead writing the post-interview memo suite.
@@ -190,6 +192,7 @@ ${transcript.slice(-12000)}
     for (const m of result.missing_evidence ?? []) rows.push({ interview_id: data.interviewId, kind: "missing_evidence", payload: m });
     for (const q of result.follow_up_questions ?? []) rows.push({ interview_id: data.interviewId, kind: "follow_up", payload: q });
     if (result.scores) rows.push({ interview_id: data.interviewId, kind: "score", payload: result.scores });
+    if (result.transcript_summary) rows.push({ interview_id: data.interviewId, kind: "transcript_summary", payload: { summary: result.transcript_summary } });
     if (rows.length) await sb.from("interview_analyses").insert(rows);
 
     // Doc requests

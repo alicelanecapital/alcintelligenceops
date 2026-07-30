@@ -118,7 +118,7 @@ export async function createFrameworkRound(toolkitId: string): Promise<Framework
 
   const { data, error } = await supabase
     .from("dd_framework_rounds")
-    .insert({ round: nextRound, toolkit_id: toolkitId, title: `Round ${nextRound}: New Round`, subtitle: "", purpose: "", duration: "", sort_order: nextSort } as any)
+    .insert({ round: nextRound, toolkit_id: toolkitId, title: "", subtitle: "", purpose: "", duration: "", sort_order: nextSort } as any)
     .select()
     .single();
   if (error) throw error;
@@ -136,7 +136,7 @@ export async function createFrameworkQuestion(round: number, sortOrder: number) 
   const { data, error } = await supabase
     .from("dd_framework_questions")
     .insert({
-      round, sort_order: sortOrder, question_text: "New question", rephrased_question: null,
+      round, sort_order: sortOrder, question_text: "", rephrased_question: null,
       why_text: "", internal_guideline: null, internal_steps: [], score: null, red_flags: [],
     } as any)
     .select()
@@ -162,7 +162,7 @@ export async function reorderFrameworkQuestions(items: { id: string; sort_order:
 export async function createFrameworkDocument(round: number, sortOrder: number) {
   const { data, error } = await supabase
     .from("dd_framework_documents")
-    .insert({ round, sort_order: sortOrder, name: "New document", purpose: "" })
+    .insert({ round, sort_order: sortOrder, name: "", purpose: "" })
     .select()
     .single();
   if (error) throw error;
