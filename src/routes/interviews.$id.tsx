@@ -8,6 +8,8 @@ import {
   saveNote, setInterviewStatus, insertUtterance, editUtterance,
 } from "@/lib/interviews";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
+import { analyzeBehavioralSignals } from "@/lib/video-analysis.functions";
+import { extractVideoFrames } from "@/lib/extract-video-frames";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Video } from "lucide-react";
 import { format } from "date-fns";
 import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
@@ -176,6 +178,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
   const [openSessions, setOpenSessions] = useState<string[]>([]);
+  const [analyzingVideo, setAnalyzingVideo] = useState(false);
+  const analyzeVideoFn = useServerFn(analyzeBehavioralSignals);
 
   // Playbook: the top-of-workspace stepper and left-hand questions column both come from
   // the playbook picked when the meeting was started. Fallback to the DD Intelligence
@@ -321,8 +325,23 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     }
   }
 
+  async function uploadVideo(file: File) {
+    setAnalyzingVideo(true);
+    try {
+      const frames = await extractVideoFrames(file);
+      await analyzeVideoFn({ data: { interviewId: id, images: frames } });
+      qc.invalidateQueries({ queryKey: ["iv-ana", id] });
+      toast.success("Behavioral signals analysed");
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to analyse video");
+    } finally {
+      setAnalyzingVideo(false);
+    }
+  }
+
   const analyses: any[] = ana.data ?? [];
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
+  const behavioralSignals: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals")?.payload;
 
   // ---- Dedup + cross-frame precedence (see plan §7) ----
   const rawRisks = analyses.filter(a => a.kind === "risk");
@@ -484,6 +503,13 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                     <input type="file" accept=".txt,.md,.vtt,.srt,text/*" className="hidden"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
                       disabled={finalizing} />
+                  </label>
+                  <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
+                    <Video className="h-3.5 w-3.5" />
+                    <span>{analyzingVideo ? "Analysing…" : "Upload video"}</span>
+                    <input type="file" accept="video/*" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadVideo(f); } e.currentTarget.value = ""; }}
+                      disabled={analyzingVideo} />
                   </label>
                 </div>
               </div>
@@ -658,6 +684,36 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
           </Accordion>
         </div>
       </div>
+
+      {behavioralSignals && (
+        <div className="mt-4 rounded-md border border-amber-300 bg-white overflow-hidden">
+          <div className="px-4 py-3 bg-amber-50">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Behavioral signals · from uploaded video</div>
+            <div className="text-xs text-amber-900/80 italic">AI-observed, descriptive only — not an assessment of honesty. Flags are prompts to ask more, never a verdict.</div>
+          </div>
+          <div className="px-4 py-3 grid md:grid-cols-2 gap-3">
+            {[
+              ["Facial expressiveness", behavioralSignals.facial_expressiveness],
+              ["Eye contact & gaze", behavioralSignals.eye_contact_and_gaze],
+              ["Head movement", behavioralSignals.head_movement],
+              ["Posture", behavioralSignals.posture],
+              ["Hand gestures", behavioralSignals.hand_gestures],
+              ["Movement pace & symmetry", behavioralSignals.movement_pace_and_symmetry],
+            ].map(([label, v]: any) => v && (
+              <div key={label as string} className="text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{label}</span>
+                  {v.flag && <Badge className="bg-amber-500 text-white text-[10px]">Worth probing</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">{v.observation}</div>
+              </div>
+            ))}
+          </div>
+          {behavioralSignals.summary && (
+            <div className="px-4 pb-4 text-xs text-muted-foreground italic">{behavioralSignals.summary}</div>
+          )}
+        </div>
+      )}
 
       {reportAvailable && playbook.data?.kind === "due_diligence" && (
         <div className="mt-6 pt-6 border-t border-border">

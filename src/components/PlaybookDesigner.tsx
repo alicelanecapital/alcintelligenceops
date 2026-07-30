@@ -24,9 +24,10 @@ import {
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, Trash2, ChevronUp, ChevronDown, Save, GripVertical } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Save, GripVertical, Upload } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { PlaybookUploadDialog } from "@/components/PlaybookUploadDialog";
 
 const SEVERITIES: FrameworkRedFlag["severity"][] = ["WALK_AWAY", "PRICE_IT_IN", "MONITOR"];
 const SEVERITY_COLORS: Record<string, string> = {
@@ -89,14 +90,24 @@ export function PlaybookDesigner({ toolkitId, stripDueDiligenceWording }: { tool
   };
 
   const strip = (s: string | null | undefined) => (stripDueDiligenceWording ? (s ?? "").replace(/Due Diligence/gi, "DD") : (s ?? ""));
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <div>
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3">
+        <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
+          <Upload className="h-3.5 w-3.5 mr-1" /> Upload questionnaire
+        </Button>
         <Button size="sm" onClick={() => addRoundMut.mutate()} disabled={addRoundMut.isPending}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Round
         </Button>
       </div>
+      <PlaybookUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        toolkitId={toolkitId}
+        onDone={() => { setUploadOpen(false); qc.invalidateQueries({ queryKey: ["dd-framework-rounds", toolkitId] }); }}
+      />
 
       {rounds.isSuccess && list.length === 0 ? (
         <div className="p-10 text-center text-sm text-muted-foreground">No rounds yet -- add the first one to start designing this playbook.</div>

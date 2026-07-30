@@ -14,9 +14,10 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ArrowRight, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, ShieldCheck, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PlaybookUploadDialog } from "@/components/PlaybookUploadDialog";
 
 export const Route = createFileRoute("/admin/toolkits/")({
   component: () => <AppShell><ToolkitsAdmin /></AppShell>,
@@ -116,6 +117,7 @@ function ToolkitRow({ t, onDelete, onRename }: { t: Toolkit; onDelete: () => voi
 function NewToolkitButton() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -132,32 +134,46 @@ function NewToolkitButton() {
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" /> New playbook
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif text-2xl">New playbook</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Founder discovery interview" />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" placeholder="What is this playbook for?" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !name.trim()}>
-            {mut.isPending ? "Creating…" : "Create playbook"}
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Plus className="h-4 w-4 mr-2" /> New playbook
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="font-serif text-2xl">New playbook</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Founder discovery interview" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" placeholder="What is this playbook for?" />
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setOpen(false); setUploadOpen(true); }}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> Or upload a questionnaire instead
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => mut.mutate()} disabled={mut.isPending || !name.trim()}>
+              {mut.isPending ? "Creating…" : "Create playbook"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <PlaybookUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onCreateToolkit={async (n, d) => {
+          const created = await createToolkit({ name: n, description: d || undefined });
+          return created.id;
+        }}
+        onDone={() => { setUploadOpen(false); qc.invalidateQueries({ queryKey: ["toolkits"] }); toast.success("Playbook created"); }}
+      />
+    </>
   );
 }
 
