@@ -427,14 +427,20 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                   : "No questions for this step."}
               </div>
             ) : (
-              <ol className="space-y-2 list-decimal list-inside">
-                {(stepDetail.data?.questions ?? []).map((q) => (
-                  <li key={q.id} className="text-sm rounded-md bg-teal-50 border border-teal-100 px-2 py-1.5 leading-snug">
-                    <span className="font-medium text-foreground/90">{q.question_text}</span>
-                    {q.why_text && <div className="text-[11px] text-muted-foreground mt-1 not-italic">{q.why_text}</div>}
-                  </li>
+              <Accordion type="multiple" className="rounded-md border border-teal-100">
+                {(stepDetail.data?.questions ?? []).map((q, i) => (
+                  <AccordionItem key={q.id} value={q.id} className="border-teal-100 last:border-b-0">
+                    <AccordionTrigger className="text-sm px-2 py-1.5 hover:no-underline bg-teal-50">
+                      <span className="text-left font-medium text-foreground/90">Q{i + 1}. {q.question_text}</span>
+                    </AccordionTrigger>
+                    {q.why_text && (
+                      <AccordionContent className="px-2 pb-1.5">
+                        <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
                 ))}
-              </ol>
+              </Accordion>
             )}
           </CardContent></Card>
 
@@ -470,9 +476,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                       className={`px-2 py-0.5 rounded ${currentSpeaker === s ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{s}</button>
                   ))}
                   <span className="mx-1 text-muted-foreground">·</span>
-                  {!recording
-                    ? <Button onClick={startRec} size="sm" className="h-7 px-2"><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
-                    : <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2"><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>}
+                  <Button onClick={startRec} size="sm" className="h-7 px-2" disabled={recording}><Mic className="h-3.5 w-3.5 mr-1" />Start</Button>
+                  <Button onClick={stopRec} size="sm" variant="destructive" className="h-7 px-2" disabled={!recording}><StopCircle className="h-3.5 w-3.5 mr-1" />Stop</Button>
                   <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
                     <FileText className="h-3.5 w-3.5" />
                     <span>{finalizing ? "Finalising…" : "Upload transcript"}</span>

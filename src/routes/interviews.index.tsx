@@ -192,16 +192,13 @@ function InterviewsIndex() {
 
 function InterviewRow({ i }: { i: any }) {
   return (
-    <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
-      <Link to="/interviews/$id" params={{ id: i.id }} className="flex-1 min-w-0">
+    <Link to="/interviews/$id" params={{ id: i.id }} className="flex items-center gap-3 px-2 py-3 hover:bg-muted/40 transition-colors">
+      <div className="flex-1 min-w-0">
         <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
-      </Link>
-      <StatusBadge status={i.status} />
-      <Link to="/interviews/$id" params={{ id: i.id }}>
-        <Button size="sm" className="h-7 px-2 gap-1"><Play className="h-3 w-3" /> Start meeting</Button>
-      </Link>
-    </div>
+      </div>
+      {i.status === "completed" && <StatusBadge status={i.status} />}
+    </Link>
   );
 }
 
