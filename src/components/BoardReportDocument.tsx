@@ -37,6 +37,7 @@ export const BoardReportDocument = forwardRef<HTMLDivElement, {
   const dealTitle = meta.businessName || meta.founderName || "Opportunity";
   const pages = useMemo(() => groupIntoPages(sections), [sections]);
   const hasCoverTheme = !!(template.cover_bg && template.cover_fg);
+  const accent = template.cover_bg || "#0F766E";
 
   return (
     <div ref={ref}>
@@ -44,6 +45,9 @@ export const BoardReportDocument = forwardRef<HTMLDivElement, {
       <Page footer={brand} bg={template.cover_bg} fg={template.cover_fg}>
         <div className="h-full flex flex-col justify-between">
           <div>
+            {template.logo_url && (
+              <img src={template.logo_url} alt={brand} className="h-12 mb-6 object-contain" style={{ objectPosition: "left" }} />
+            )}
             <div className="text-[11px] uppercase tracking-[0.3em]" style={{ opacity: 0.7 }}>{brand}</div>
             <div className="h-px w-16 my-4" style={{ backgroundColor: hasCoverTheme ? template.cover_fg! : undefined }} />
           </div>
@@ -82,22 +86,26 @@ export const BoardReportDocument = forwardRef<HTMLDivElement, {
 
       {/* Section pages -- one per top-level section, with nested subsections stacked below */}
       {pages.map((group, i) => (
-        <Page key={group.anchor.id} footer={brand} pageNumber={i + 3}>
-          <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Section {i + 1} of {pages.length}</div>
+        <Page key={group.anchor.id} footer={brand} pageNumber={i + 3} accent={accent}>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-2">
+            <span>{brand}</span>
+            <span style={{ color: accent }}>·</span>
+            <span>Section {i + 1} of {pages.length}</span>
+          </div>
           <div className="font-serif text-3xl mb-5">{group.anchor.title}</div>
-          <div className="h-px bg-border mb-6" />
+          <div className="h-[3px] w-16 mb-6" style={{ backgroundColor: accent }} />
           <div className="space-y-5">
-            {buildSectionBlocks(group.anchor.title, report).map((b, bi) => <Block key={bi} block={b} redact={redactScores} />)}
+            {buildSectionBlocks(group.anchor.title, report).map((b, bi) => <Block key={bi} block={b} redact={redactScores} accent={accent} />)}
           </div>
           {group.children.map((child) => (
             <div key={child.id} className="mt-8">
               {child.level === 2 ? (
-                <div className="font-serif text-xl mb-3">{child.title}</div>
+                <div className="font-serif text-xl mb-3 pl-3" style={{ borderLeft: `3px solid ${accent}` }}>{child.title}</div>
               ) : (
-                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">{child.title}</div>
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 pl-3">{child.title}</div>
               )}
-              <div className="space-y-4">
-                {buildSectionBlocks(child.title, report).map((b, bi) => <Block key={bi} block={b} redact={redactScores} />)}
+              <div className="space-y-4 pl-3">
+                {buildSectionBlocks(child.title, report).map((b, bi) => <Block key={bi} block={b} redact={redactScores} accent={accent} />)}
               </div>
             </div>
           ))}
@@ -107,13 +115,14 @@ export const BoardReportDocument = forwardRef<HTMLDivElement, {
   );
 });
 
-function Page({ children, footer, pageNumber, bg, fg }: { children: React.ReactNode; footer: string; pageNumber?: number; bg?: string | null; fg?: string | null }) {
+function Page({ children, footer, pageNumber, bg, fg, accent }: { children: React.ReactNode; footer: string; pageNumber?: number; bg?: string | null; fg?: string | null; accent?: string }) {
   const themed = !!(bg && fg);
   return (
     <div
       className={`board-report-page px-16 py-14 relative ${themed ? "" : "bg-white text-foreground"}`}
       style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, boxSizing: "border-box", backgroundColor: bg ?? undefined, color: fg ?? undefined }}
     >
+      {accent && !themed && <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: accent }} />}
       <div style={{ height: PAGE_HEIGHT - 2 * 56 - 40, overflow: "hidden" }}>{children}</div>
       <div
         className="absolute bottom-10 left-16 right-16 flex items-center justify-between text-[10px] uppercase tracking-widest pt-3"
@@ -126,21 +135,21 @@ function Page({ children, footer, pageNumber, bg, fg }: { children: React.ReactN
   );
 }
 
-function Block({ block, redact }: { block: ReportBlock; redact?: boolean }) {
+function Block({ block, redact, accent }: { block: ReportBlock; redact?: boolean; accent?: string }) {
   if (block.type === "paragraph") {
-    return <p className="text-sm leading-relaxed whitespace-pre-wrap">{block.text}</p>;
+    return <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/90">{block.text}</p>;
   }
   if (block.type === "note") {
-    return <p className="text-sm italic text-muted-foreground">{block.text}</p>;
+    return <p className="text-[13px] italic text-muted-foreground">{block.text}</p>;
   }
   if (block.type === "bullets") {
     return (
       <div>
-        {block.heading && <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">{block.heading}</div>}
+        {block.heading && <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">{block.heading}</div>}
         <ul className="space-y-1.5">
           {block.items.map((it, i) => (
-            <li key={i} className="text-sm flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+            <li key={i} className="text-[13px] flex gap-2.5 leading-snug">
+              <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: accent ?? "var(--primary)" }} />
               <span>{it}</span>
             </li>
           ))}
@@ -150,11 +159,11 @@ function Block({ block, redact }: { block: ReportBlock; redact?: boolean }) {
   }
   // table
   return (
-    <div className="divide-y divide-border border-t border-b border-border">
+    <div className="rounded-md border border-border overflow-hidden">
       {block.rows.map((row, i) => (
-        <div key={i} className="flex gap-4 py-2 text-sm">
-          <div className="w-48 shrink-0 text-muted-foreground">{row.label}</div>
-          <div className="flex-1">{redact && row.redactable ? "[Redacted]" : row.value}</div>
+        <div key={i} className={`flex gap-4 py-2.5 px-3 text-[13px] ${i % 2 === 1 ? "bg-muted/30" : ""}`}>
+          <div className="w-48 shrink-0 font-medium text-foreground/70">{row.label}</div>
+          <div className="flex-1">{redact && row.redactable ? <span className="italic text-muted-foreground">[Redacted]</span> : row.value}</div>
         </div>
       ))}
     </div>

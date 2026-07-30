@@ -4,9 +4,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchTemplates, fetchTemplateDetail, createTemplate, updateTemplate, deleteTemplate,
-  uploadTemplateAttachment, createSection, updateSection, deleteSection, reorderSections,
+  uploadTemplateAttachment, uploadTemplateLogo, replaceSections,
+  createSection, updateSection, deleteSection, reorderSections,
   type ReportTemplate, type ReportTemplateSection,
 } from "@/lib/report-templates";
+import { extractHeadingsFromAttachment, type ExtractedHeading } from "@/lib/extract-template-headings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +18,8 @@ import {
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { SortableTemplateSections } from "@/components/SortableTemplateSections";
-import { Plus, Trash2, Paperclip, Upload, FileText } from "lucide-react";
+import { RegenerateSectionsDialog } from "@/components/RegenerateSectionsDialog";
+import { Plus, Trash2, Paperclip, Upload, FileText, WandSparkles, Image as ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -121,7 +124,12 @@ function TemplateDetail({ template, sections, onChanged, onDeleteTemplate }: {
   const [coverBg, setCoverBg] = useState(template.cover_bg ?? "");
   const [coverFg, setCoverFg] = useState(template.cover_fg ?? "");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [detectedHeadings, setDetectedHeadings] = useState<ExtractedHeading[]>([]);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => {
     setName(template.name);
@@ -141,6 +149,44 @@ function TemplateDetail({ template, sections, onChanged, onDeleteTemplate }: {
     onSuccess: () => { toast.success("Sample attachment uploaded"); onChanged(); },
     onError: (e: any) => toast.error(e.message ?? "Failed to upload attachment"),
     onSettled: () => setUploading(false),
+  });
+
+  const uploadLogoMut = useMutation({
+    mutationFn: (file: File) => uploadTemplateLogo(template.id, file),
+    onSuccess: () => { toast.success("Logo uploaded"); onChanged(); },
+    onError: (e: any) => toast.error(e.message ?? "Failed to upload logo"),
+    onSettled: () => setUploadingLogo(false),
+  });
+
+  async function runExtraction() {
+    if (!template.sample_attachment_url || !template.sample_attachment_name) {
+      toast.error("Upload a .docx or .pdf sample attachment first");
+      return;
+    }
+    setExtracting(true);
+    try {
+      const headings = await extractHeadingsFromAttachment(template.sample_attachment_url, template.sample_attachment_name);
+      if (!headings.length) {
+        toast.error("Couldn't detect any headings in that attachment");
+        return;
+      }
+      setDetectedHeadings(headings);
+      setWizardOpen(true);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to read the attachment");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  const applySectionsMut = useMutation({
+    mutationFn: (sections: { title: string; level: 1 | 2 | 3 }[]) => replaceSections(template.id, sections),
+    onSuccess: () => {
+      toast.success("Sections regenerated");
+      onChanged();
+      setWizardOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to apply sections"),
   });
 
   const addSectionMut = useMutation({
@@ -224,13 +270,14 @@ function TemplateDetail({ template, sections, onChanged, onDeleteTemplate }: {
             ) : (
               <div className="text-xs text-muted-foreground italic">No sample attached yet.</div>
             )}
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                 <Upload className="h-3.5 w-3.5 mr-1" /> {uploading ? "Uploading…" : template.sample_attachment_url ? "Replace" : "Upload"}
               </Button>
               <input
                 ref={fileInputRef}
                 type="file"
+                accept=".pdf,.doc,.docx"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -238,7 +285,42 @@ function TemplateDetail({ template, sections, onChanged, onDeleteTemplate }: {
                   e.target.value = "";
                 }}
               />
+              {template.sample_attachment_url && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title="Regenerate sections from this attachment's heading styles"
+                  onClick={runExtraction}
+                  disabled={extracting}
+                >
+                  <WandSparkles className="h-3.5 w-3.5 mr-1" /> {extracting ? "Reading…" : "Regenerate Sections"}
+                </Button>
+              )}
             </div>
+          </div>
+
+          <div>
+            <Label className="text-sm">Cover Logo</Label>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+              Rendered directly on the assembled report's cover page (top-left, above the title).
+            </p>
+            {template.logo_url && (
+              <img src={template.logo_url} alt="Template logo" className="h-10 mb-2 object-contain" style={template.cover_bg ? { background: template.cover_bg, padding: 4, borderRadius: 4 } : undefined} />
+            )}
+            <Button size="sm" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+              <ImageIcon className="h-3.5 w-3.5 mr-1" /> {uploadingLogo ? "Uploading…" : template.logo_url ? "Replace" : "Upload"}
+            </Button>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) { setUploadingLogo(true); uploadLogoMut.mutate(f); }
+                e.target.value = "";
+              }}
+            />
           </div>
 
           <div className="flex justify-between items-center pt-2">
@@ -280,6 +362,14 @@ function TemplateDetail({ template, sections, onChanged, onDeleteTemplate }: {
         />
         {!sections.length && <div className="text-sm text-muted-foreground italic mt-2">No sections yet — add one to start building this layout.</div>}
       </div>
+
+      <RegenerateSectionsDialog
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        headings={detectedHeadings}
+        applying={applySectionsMut.isPending}
+        onApply={(sects) => applySectionsMut.mutate(sects)}
+      />
     </div>
   );
 }

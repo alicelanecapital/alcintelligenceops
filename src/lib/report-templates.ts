@@ -12,6 +12,7 @@ export type ReportTemplate = {
   sample_attachment_name: string | null;
   cover_bg: string | null;
   cover_fg: string | null;
+  logo_url: string | null;
   created_at: string;
 };
 
@@ -47,7 +48,7 @@ export async function createTemplate(name: string) {
   return data as ReportTemplate;
 }
 
-export async function updateTemplate(id: string, payload: Partial<Pick<ReportTemplate, "name" | "description" | "sample_attachment_url" | "sample_attachment_name" | "cover_bg" | "cover_fg">>) {
+export async function updateTemplate(id: string, payload: Partial<Pick<ReportTemplate, "name" | "description" | "sample_attachment_url" | "sample_attachment_name" | "cover_bg" | "cover_fg" | "logo_url">>) {
   const { error } = await db.from("report_templates").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
@@ -67,6 +68,30 @@ export async function uploadTemplateAttachment(templateId: string, file: File): 
   const { data } = supabase.storage.from("report-template-samples").getPublicUrl(path);
   await updateTemplate(templateId, { sample_attachment_url: data.publicUrl, sample_attachment_name: file.name });
   return { url: data.publicUrl, name: file.name };
+}
+
+/** Uploads the template's cover-page logo (distinct from the general sample attachment) --
+ * rendered directly on the assembled report's cover page. */
+export async function uploadTemplateLogo(templateId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const path = `${templateId}/logo-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("report-template-samples").upload(path, file, { upsert: true });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("report-template-samples").getPublicUrl(path);
+  await updateTemplate(templateId, { logo_url: data.publicUrl });
+  return data.publicUrl;
+}
+
+/** Replaces every section on a template in one go -- used by the "regenerate from
+ * attachment" wizard, which detects a whole new heading structure and swaps it in
+ * wholesale rather than diffing against the old list. */
+export async function replaceSections(templateId: string, sections: { title: string; level: 1 | 2 | 3 }[]) {
+  const { error: deleteError } = await db.from("report_template_sections").delete().eq("template_id", templateId);
+  if (deleteError) throw deleteError;
+  if (!sections.length) return;
+  const rows = sections.map((s, i) => ({ template_id: templateId, title: s.title, level: s.level, sort_order: i + 1 }));
+  const { error: insertError } = await db.from("report_template_sections").insert(rows);
+  if (insertError) throw insertError;
 }
 
 export async function createSection(templateId: string, sortOrder: number, title = "New Section", level: 1 | 2 | 3 = 1) {
