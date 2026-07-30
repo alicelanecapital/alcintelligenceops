@@ -10,6 +10,7 @@ import {
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { analyzeBehavioralSignals } from "@/lib/video-analysis.functions";
 import { extractVideoFrames } from "@/lib/extract-video-frames";
+import { uploadInterviewVideo, getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Video } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Video, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
@@ -328,8 +329,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   async function uploadVideo(file: File) {
     setAnalyzingVideo(true);
     try {
-      const frames = await extractVideoFrames(file);
-      await analyzeVideoFn({ data: { interviewId: id, images: frames } });
+      const [frames, videoPath] = await Promise.all([extractVideoFrames(file), uploadInterviewVideo(id, file)]);
+      await analyzeVideoFn({ data: { interviewId: id, images: frames, videoPath } });
       qc.invalidateQueries({ queryKey: ["iv-ana", id] });
       toast.success("Behavioral signals analysed");
     } catch (e: any) {
@@ -341,7 +342,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
 
   const analyses: any[] = ana.data ?? [];
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
-  const behavioralSignals: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals")?.payload;
+  const behavioralSignalsRow: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals");
+  const behavioralSignals: any = behavioralSignalsRow?.payload;
   const transcriptSummary: string | undefined = analyses.find(a => a.kind === "transcript_summary")?.payload?.summary;
 
   // ---- Dedup + cross-frame precedence (see plan §7) ----
@@ -611,7 +613,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             )}
           </CardContent></Card>
 
-          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…">
+          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…" titleClassName="text-[10px] uppercase tracking-[0.2em] text-orange-600 font-bold">
             {followUps.map((a: any, i: number) => {
               const p: any = a.payload ?? {};
               return (
@@ -624,7 +626,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet.">
+          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet." titleClassName="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold">
             {missing.map((a: any) => {
               const p = a.payload ?? {};
               return (
@@ -636,7 +638,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet.">
+          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet." titleClassName="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold">
             {contradictions.map((a: any) => {
               const p = a.payload ?? {};
               return (
@@ -649,7 +651,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear.">
+          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear." titleClassName="text-[10px] uppercase tracking-[0.2em] text-orange-600 font-bold">
             {documentRequests.map((d: any) => (
               <div key={d.id} className="border-b border-border last:border-0 py-1.5">
                 <div className="text-sm">{d.doc_type}</div>
@@ -705,33 +707,12 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
       </div>
 
       {behavioralSignals && (
-        <div className="mt-4 rounded-md border border-amber-300 bg-white overflow-hidden">
-          <div className="px-4 py-3 bg-amber-50">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Behavioral signals · from uploaded video</div>
-            <div className="text-xs text-amber-900/80 italic">AI-observed, descriptive only — not an assessment of honesty. Flags are prompts to ask more, never a verdict.</div>
-          </div>
-          <div className="px-4 py-3 grid md:grid-cols-2 gap-3">
-            {[
-              ["Facial expressiveness", behavioralSignals.facial_expressiveness],
-              ["Eye contact & gaze", behavioralSignals.eye_contact_and_gaze],
-              ["Head movement", behavioralSignals.head_movement],
-              ["Posture", behavioralSignals.posture],
-              ["Hand gestures", behavioralSignals.hand_gestures],
-              ["Movement pace & symmetry", behavioralSignals.movement_pace_and_symmetry],
-            ].map(([label, v]: any) => v && (
-              <div key={label as string} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{label}</span>
-                  {v.flag && <Badge className="bg-amber-500 text-white text-[10px]">Worth probing</Badge>}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">{v.observation}</div>
-              </div>
-            ))}
-          </div>
-          {behavioralSignals.summary && (
-            <div className="px-4 pb-4 text-xs text-muted-foreground italic">{behavioralSignals.summary}</div>
-          )}
-        </div>
+        <BehavioralSignalsPanel
+          interviewId={id}
+          analysisId={behavioralSignalsRow.id}
+          signals={behavioralSignals}
+          onDeleted={() => qc.invalidateQueries({ queryKey: ["iv-ana", id] })}
+        />
       )}
 
       {reportAvailable && playbook.data?.kind === "due_diligence" && (
@@ -801,19 +782,20 @@ function ratingColor(r: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-function CollapsedListCard({ title, count, emptyText, children }: { title: string; count: number; emptyText: string; children: React.ReactNode }) {
+function CollapsedListCard({ title, count, emptyText, children, titleClassName }: { title: string; count: number; emptyText: string; children: React.ReactNode; titleClassName?: string }) {
+  const titleClass = titleClassName ?? "text-[10px] uppercase tracking-[0.2em] text-muted-foreground";
   return (
     <Card><CardContent className="p-4">
       {count === 0 ? (
         <>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">{title}</div>
+          <div className={`${titleClass} mb-2`}>{title}</div>
           <div className="text-xs text-muted-foreground italic">{emptyText}</div>
         </>
       ) : (
         <Accordion type="multiple" defaultValue={[]}>
           <AccordionItem value="x" className="border-0">
             <AccordionTrigger className="hover:no-underline py-1">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{title} <span className="text-foreground/70 normal-case tracking-normal">({count})</span></span>
+              <span className={titleClass}>{title} <span className="text-foreground/70 normal-case tracking-normal font-normal">({count})</span></span>
             </AccordionTrigger>
             <AccordionContent>
               <div className="pt-1">{children}</div>
@@ -822,6 +804,79 @@ function CollapsedListCard({ title, count, emptyText, children }: { title: strin
         </Accordion>
       )}
     </CardContent></Card>
+  );
+}
+
+function BehavioralSignalsPanel({ interviewId, analysisId, signals, onDeleted }: {
+  interviewId: string; analysisId: string; signals: any; onDeleted: () => void;
+}) {
+  const videoUrl = useQuery({
+    queryKey: ["iv-video-url", signals.video_path],
+    queryFn: () => getInterviewVideoSignedUrl(signals.video_path),
+    enabled: !!signals.video_path,
+  });
+  const del = useMutation({
+    mutationFn: () => deleteBehavioralSignals(analysisId, signals.video_path),
+    onSuccess: () => { toast.success("Video and behavioral signals removed"); onDeleted(); },
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete"),
+  });
+
+  return (
+    <div className="mt-4 rounded-md border border-amber-300 bg-white overflow-hidden">
+      <div className="px-4 py-3 bg-amber-50 flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-amber-800">Behavioral signals · from uploaded video</div>
+          <div className="text-xs text-amber-900/80 italic">AI-observed, descriptive only — not an assessment of honesty. Flags are prompts to ask more, never a verdict.</div>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive shrink-0" onClick={() => del.mutate()} disabled={del.isPending}>
+          <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete video
+        </Button>
+      </div>
+      {signals.video_path && (
+        <div className="px-4 pt-3">
+          {videoUrl.data ? (
+            <video controls src={videoUrl.data} className="w-full max-h-80 rounded-md bg-black" />
+          ) : (
+            <div className="text-xs text-muted-foreground italic">Loading video…</div>
+          )}
+        </div>
+      )}
+      <div className="px-4 py-3 space-y-3">
+        {signals.expression_summary && (
+          <div className="text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Facial, eye, head & hand expression</span>
+              {signals.expression_flag && <Badge className="bg-amber-500 text-white text-[10px]">Worth probing</Badge>}
+            </div>
+            <div className="text-sm text-amber-900/80 italic mt-0.5">{signals.expression_summary}</div>
+          </div>
+        )}
+        <div className="grid md:grid-cols-2 gap-3">
+          {[
+            ["Posture", signals.posture],
+            ["Energy & pace", signals.energy_and_pace],
+          ].map(([label, v]: any) => v && (
+            <div key={label as string} className="text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{label}</span>
+                {v.flag && <Badge className="bg-amber-500 text-white text-[10px]">Worth probing</Badge>}
+              </div>
+              <div className="text-sm text-amber-900/80 italic mt-0.5">{v.observation}</div>
+            </div>
+          ))}
+        </div>
+        {signals.personality_impression && (
+          <div className="text-sm">
+            <span className="font-medium">Personality impression</span>
+            <span className="text-[10px] text-muted-foreground not-italic ml-2">tentative, from this meeting only</span>
+            <div className="text-sm text-amber-900/80 italic mt-0.5">{signals.personality_impression}</div>
+          </div>
+        )}
+      </div>
+      {signals.summary && (
+        <div className="px-4 pb-4 text-sm text-amber-900/80 italic">{signals.summary}</div>
+      )}
+    </div>
   );
 }
 
