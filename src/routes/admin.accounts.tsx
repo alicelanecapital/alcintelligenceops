@@ -355,7 +355,7 @@ function AccountsScreen() {
               const isMe = m.email.toLowerCase() === myEmail;
               return (
                 <div key={m.id} className="px-5 py-3 text-sm">
-                  <div className="grid grid-cols-[minmax(0,1fr)_120px_150px_32px_32px] items-center gap-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)_44px_150px_32px_32px] items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className={cn("h-3 w-3 rounded-full shrink-0", classes.dot)} />
                       <div className="min-w-0">
@@ -363,22 +363,53 @@ function AccountsScreen() {
                           {m.display_name || m.email}
                           {isMe && <Badge variant="outline" className="text-[10px]">You</Badge>}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {m.display_name ? `${m.email} · ` : ""}
-                          {conn
-                            ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}${conn.last_synced_at ? ` · Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}` : " · Never synced"}`
-                            : "Not connected yet"}
+                        {m.display_name && (
+                          <div className="text-xs text-muted-foreground truncate">{m.email}</div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {conn ? `Connected ${format(new Date(conn.connected_at), "d MMM yyyy")}` : "Not connected yet"}
                         </div>
+                        {conn && (
+                          <div className="text-xs text-muted-foreground">
+                            {conn.last_synced_at
+                              ? `Last synced ${format(new Date(conn.last_synced_at), "d MMM yyyy, HH:mm")}`
+                              : "Never synced"}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <select
-                      value={m.color}
-                      onChange={(e) => updateColorMut.mutate({ id: m.id, color: e.target.value as TeamMemberColor })}
-                      className="h-8 w-full text-xs border border-input rounded-md bg-background px-2 capitalize"
-                    >
-                      {TEAM_MEMBER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          title={m.color}
+                          aria-label={`Colour: ${m.color}`}
+                          className="h-8 w-11 border border-input rounded-md bg-background flex items-center justify-center"
+                        >
+                          <span className={cn("h-4 w-4 rounded-full", classes.dot)} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto p-2">
+                        <div className="grid grid-cols-4 gap-2">
+                          {TEAM_MEMBER_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              title={c}
+                              aria-label={c}
+                              onClick={() => updateColorMut.mutate({ id: m.id, color: c })}
+                              className={cn(
+                                "h-6 w-6 rounded-full border-2",
+                                c === m.color ? "border-foreground" : "border-transparent",
+                                COLOR_CLASSES[c].dot,
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
 
                     {conn ? (
                       <Button size="sm" className="w-full" onClick={() => syncMut.mutate(m.email)} disabled={syncMut.isPending}>
