@@ -666,34 +666,35 @@ function RedFlagsInline({ contactId, opportunities }: { contactId: string; oppor
   });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   const groups = q.data ?? [];
-  const flat = groups.flatMap((g) =>
-    g.flags.map((f: any) => ({
-      ...(typeof f === "object" ? f : { text: String(f) }),
-      source: g.source,
-      round: g.round,
-      when: g.when,
-    })),
-  );
-  if (!flat.length) return (
+  if (!groups.some((g) => g.flags.length)) return (
     <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 inline-flex items-center gap-2">
       <CheckCircle2 className="h-4 w-4" /> No red flags detected — flags from DD rounds and Live Workspace meetings will surface here.
     </div>
   );
   return (
-    <ul className="space-y-2">
-      {flat.map((f: any, i: number) => (
-        <li key={i} className="border-b border-border py-2 text-sm">
-          <span className="inline-flex items-center gap-2">
+    <div className="space-y-4">
+      {groups.filter((g) => g.flags.length).map((g, gi) => (
+        <div key={gi} className="border-b border-border pb-3 last:border-0 last:pb-0">
+          <span className="inline-flex items-center gap-2 text-sm">
             <Flag className="h-3.5 w-3.5 text-rose-600" />
             <span className="font-medium text-rose-700">
-              {f.source === "DD" ? `Round ${f.round}` : `Meeting${f.when ? ` · ${new Date(f.when).toLocaleDateString()}` : ""}`}
-              {f.severity ? ` · ${f.severity}` : ""}
+              {g.source === "DD" ? `Round ${g.round}` : `Meeting${g.when ? ` · ${new Date(g.when).toLocaleDateString()}` : ""}`}
             </span>
           </span>
-          <div className="text-sm text-foreground/80 mt-1 ml-6">{f.text ?? f.flag_text ?? String(f)}</div>
-        </li>
+          <ul className="mt-1.5 ml-6 space-y-1.5">
+            {g.flags.map((f: any, fi: number) => {
+              const flag = typeof f === "object" ? f : { text: String(f) };
+              return (
+                <li key={fi} className="text-sm text-foreground/80">
+                  {flag.text ?? flag.flag_text ?? String(flag)}
+                  {flag.severity ? <span className="text-rose-600"> · {flag.severity}</span> : ""}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

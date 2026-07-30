@@ -41,7 +41,7 @@ function ToolkitsAdmin() {
         actions={<NewToolkitButton />}
       />
 
-      <div className="mt-6 border-t border-border">
+      <div className="mt-6">
         {(q.data ?? []).map((t) => (
           <ToolkitRow
             key={t.id}
