@@ -27,10 +27,12 @@ import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as CompaniesIdRouteImport } from './routes/companies.$id'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
 import { Route as AdminToolkitsIndexRouteImport } from './routes/admin.toolkits.index'
 import { Route as OpportunitiesIdSynopsisRouteImport } from './routes/opportunities_.$id.synopsis'
+import { Route as InterviewsIdBoardReportRouteImport } from './routes/interviews_.$id.board-report'
 import { Route as DdInterviewOpportunityIdRoundRouteImport } from './routes/dd-interview.$opportunityId.$round'
 import { Route as AuthGoogleCallbackRouteImport } from './routes/auth.google.callback'
 import { Route as ApiCronSyncGoogleCalendarsRouteImport } from './routes/api/cron.sync-google-calendars'
@@ -126,6 +128,11 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDdFrameworkRoute = AdminDdFrameworkRouteImport.update({
   id: '/admin/dd-framework',
   path: '/admin/dd-framework',
@@ -144,6 +151,11 @@ const AdminToolkitsIndexRoute = AdminToolkitsIndexRouteImport.update({
 const OpportunitiesIdSynopsisRoute = OpportunitiesIdSynopsisRouteImport.update({
   id: '/opportunities_/$id/synopsis',
   path: '/opportunities/$id/synopsis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewsIdBoardReportRoute = InterviewsIdBoardReportRouteImport.update({
+  id: '/interviews_/$id/board-report',
+  path: '/interviews/$id/board-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DdInterviewOpportunityIdRoundRoute =
@@ -180,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -194,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
+  '/interviews/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits/': typeof AdminToolkitsIndexRoute
 }
@@ -208,6 +222,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -222,6 +237,7 @@ export interface FileRoutesByTo {
   '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
+  '/interviews/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits': typeof AdminToolkitsIndexRoute
 }
@@ -237,6 +253,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/dd-framework': typeof AdminDdFrameworkRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/book/$slug': typeof BookSlugRoute
   '/companies/$id': typeof CompaniesIdRoute
@@ -251,6 +268,7 @@ export interface FileRoutesById {
   '/api/cron/sync-google-calendars': typeof ApiCronSyncGoogleCalendarsRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/dd-interview/$opportunityId/$round': typeof DdInterviewOpportunityIdRoundRoute
+  '/interviews_/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities_/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits/': typeof AdminToolkitsIndexRoute
 }
@@ -267,6 +285,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/accounts'
     | '/admin/dd-framework'
+    | '/admin/templates'
     | '/api/transcribe'
     | '/book/$slug'
     | '/companies/$id'
@@ -281,6 +300,7 @@ export interface FileRouteTypes {
     | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
+    | '/interviews/$id/board-report'
     | '/opportunities/$id/synopsis'
     | '/admin/toolkits/'
   fileRoutesByTo: FileRoutesByTo
@@ -295,6 +315,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/accounts'
     | '/admin/dd-framework'
+    | '/admin/templates'
     | '/api/transcribe'
     | '/book/$slug'
     | '/companies/$id'
@@ -309,6 +330,7 @@ export interface FileRouteTypes {
     | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
+    | '/interviews/$id/board-report'
     | '/opportunities/$id/synopsis'
     | '/admin/toolkits'
   id:
@@ -323,6 +345,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/accounts'
     | '/admin/dd-framework'
+    | '/admin/templates'
     | '/api/transcribe'
     | '/book/$slug'
     | '/companies/$id'
@@ -337,6 +360,7 @@ export interface FileRouteTypes {
     | '/api/cron/sync-google-calendars'
     | '/auth/google/callback'
     | '/dd-interview/$opportunityId/$round'
+    | '/interviews_/$id/board-report'
     | '/opportunities_/$id/synopsis'
     | '/admin/toolkits/'
   fileRoutesById: FileRoutesById
@@ -352,6 +376,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminDdFrameworkRoute: typeof AdminDdFrameworkRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   BookSlugRoute: typeof BookSlugRoute
   CompaniesIdRoute: typeof CompaniesIdRoute
@@ -365,6 +390,7 @@ export interface RootRouteChildren {
   AdminToolkitsIdRoute: typeof AdminToolkitsIdRoute
   ApiCronSyncGoogleCalendarsRoute: typeof ApiCronSyncGoogleCalendarsRoute
   DdInterviewOpportunityIdRoundRoute: typeof DdInterviewOpportunityIdRoundRoute
+  InterviewsIdBoardReportRoute: typeof InterviewsIdBoardReportRoute
   OpportunitiesIdSynopsisRoute: typeof OpportunitiesIdSynopsisRoute
   AdminToolkitsIndexRoute: typeof AdminToolkitsIndexRoute
 }
@@ -497,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/dd-framework': {
       id: '/admin/dd-framework'
       path: '/admin/dd-framework'
@@ -523,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: '/opportunities/$id/synopsis'
       fullPath: '/opportunities/$id/synopsis'
       preLoaderRoute: typeof OpportunitiesIdSynopsisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interviews_/$id/board-report': {
+      id: '/interviews_/$id/board-report'
+      path: '/interviews/$id/board-report'
+      fullPath: '/interviews/$id/board-report'
+      preLoaderRoute: typeof InterviewsIdBoardReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dd-interview/$opportunityId/$round': {
@@ -577,6 +617,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   AdminAccountsRoute: AdminAccountsRoute,
   AdminDdFrameworkRoute: AdminDdFrameworkRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   BookSlugRoute: BookSlugRoute,
   CompaniesIdRoute: CompaniesIdRoute,
@@ -590,9 +631,20 @@ const rootRouteChildren: RootRouteChildren = {
   AdminToolkitsIdRoute: AdminToolkitsIdRoute,
   ApiCronSyncGoogleCalendarsRoute: ApiCronSyncGoogleCalendarsRoute,
   DdInterviewOpportunityIdRoundRoute: DdInterviewOpportunityIdRoundRoute,
+  InterviewsIdBoardReportRoute: InterviewsIdBoardReportRoute,
   OpportunitiesIdSynopsisRoute: OpportunitiesIdSynopsisRoute,
   AdminToolkitsIndexRoute: AdminToolkitsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

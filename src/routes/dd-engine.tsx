@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { fetchOpportunitiesWithDDStatus, createOpportunity, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
 import { fetchFounders } from "@/lib/db";
+import { fetchAllFrameworkRounds } from "@/lib/dd-framework-admin";
 // Card frames removed — Deal Pipeline now uses a single-row divider list.
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -46,6 +47,8 @@ const ROUND_COLORS: Record<number, string> = {
 function DDEngine() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["opportunities"], queryFn: fetchOpportunitiesWithDDStatus });
+  const rounds = useQuery({ queryKey: ["dd-framework-rounds"], queryFn: fetchAllFrameworkRounds });
+  const totalRounds = rounds.data?.length ? Math.max(...rounds.data.map((r) => r.round)) : 5;
   const navigate = useNavigate();
   const [view, setView] = useState<"active" | "approved" | "rejected" | "archived">("active");
   const [displayMode, setDisplayMode] = useViewMode("dd-engine");
@@ -156,22 +159,23 @@ function DDEngine() {
                 )}
               </div>
               <div className="min-w-0 flex-1 flex items-center gap-3">
-                <div className="font-serif text-sm truncate min-w-0 flex-1">{opp.founder?.name ?? opp.name}</div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleBegin(opp.id, currentRound ?? undefined); }}
+                  title="Enter the Rounds Room"
+                  className="font-serif text-sm truncate min-w-0 flex-1 text-left text-primary hover:underline"
+                >
+                  {opp.founder?.name ?? opp.name}
+                </button>
                 <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">{opp.company?.name ?? "—"}</div>
               </div>
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium shrink-0 ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
-                {currentRound ? `Round ${currentRound}/5` : "Not started"}
+                {currentRound ? `Round ${currentRound}/${totalRounds}` : "Not started"}
               </Badge>
               <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleViewSynopsis(opp)}>
                   <FileText className="h-3 w-3 mr-1" /> View Synopsis
                 </Button>
-                {!isFinal && (
-                  <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => handleBegin(opp.id, currentRound ?? undefined)}>
-                    <Play className="h-3 w-3 mr-1 text-green-800 fill-green-800" />
-                    {currentRound ? "Resume" : "Begin"}
-                  </Button>
-                )}
                 {!isFinal && (
                   <>
                     <Button size="icon" variant="ghost" className="h-6 w-6 text-green-600" title="Approve deal" onClick={() => statusMut.mutate({ id: opp.id, status: "approved" })}>

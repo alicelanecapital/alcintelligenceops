@@ -18,8 +18,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput } from "lucide-react";
 import { format } from "date-fns";
+import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
 export const Route = createFileRoute("/interviews/$id")({ component: () => <AppShell><InterviewWorkspace /></AppShell> });
 
@@ -851,16 +852,26 @@ function ReportView({ interviewId }: { interviewId: string }) {
     },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   if (report.isLoading) return <div className="p-10 text-muted-foreground">Loading memo…</div>;
   if (!report.data) return <div className="p-10 text-muted-foreground">No memo yet. Complete the interview to generate the IC report.</div>;
   const r = report.data.body as any;
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-10 space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
+          <FileOutput className="h-3.5 w-3.5 mr-1" /> Generate Report
+        </Button>
         <Button size="sm" onClick={() => addToPipeline.mutate()} disabled={addToPipeline.isPending}>
           {addToPipeline.isPending ? "Adding…" : "Add to Deal Pipeline"}
         </Button>
       </div>
+      <TemplatePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(templateId) => nav({ to: "/interviews/$id/board-report", params: { id: interviewId }, search: { template: templateId } })}
+      />
       <Recommendation r={r.recommendation} />
 
       <div className="grid md:grid-cols-2 gap-6">
