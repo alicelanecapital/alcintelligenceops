@@ -613,32 +613,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             )}
           </CardContent></Card>
 
-          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…" titleClassName="text-[10px] uppercase tracking-[0.2em] text-orange-600 font-bold">
-            {followUps.map((a: any, i: number) => {
-              const p: any = a.payload ?? {};
-              return (
-                <div key={a.id ?? i} className="border-b border-border last:border-0 py-2">
-                  <div className="text-sm font-medium">{p.question}</div>
-                  {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
-                  {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
-                </div>
-              );
-            })}
-          </CollapsedListCard>
-
-          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet." titleClassName="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold">
-            {missing.map((a: any) => {
-              const p = a.payload ?? {};
-              return (
-                <div key={a.id} className="border-b border-border last:border-0 py-2">
-                  <div className="text-sm font-medium">{p.topic}</div>
-                  <div className="text-[11px] text-muted-foreground">{p.why}</div>
-                </div>
-              );
-            })}
-          </CollapsedListCard>
-
-          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet." titleClassName="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold">
+          <CollapsedListCard title="Contradictions" count={contradictions.length} emptyText="Nothing flagged yet." alert>
             {contradictions.map((a: any) => {
               const p = a.payload ?? {};
               return (
@@ -651,7 +626,32 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             })}
           </CollapsedListCard>
 
-          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear." titleClassName="text-[10px] uppercase tracking-[0.2em] text-orange-600 font-bold">
+          <CollapsedListCard title="Missing evidence" count={missing.length} emptyText="Nothing flagged yet." alert>
+            {missing.map((a: any) => {
+              const p = a.payload ?? {};
+              return (
+                <div key={a.id} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.topic}</div>
+                  <div className="text-[11px] text-muted-foreground">{p.why}</div>
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Suggested follow-ups" count={followUps.length} emptyText="Waiting for signal…">
+            {followUps.map((a: any, i: number) => {
+              const p: any = a.payload ?? {};
+              return (
+                <div key={a.id ?? i} className="border-b border-border last:border-0 py-2">
+                  <div className="text-sm font-medium">{p.question}</div>
+                  {p.reason && <div className="text-[11px] text-muted-foreground italic mt-0.5">Why: {p.reason}</div>}
+                  {p.alternative && <div className="text-[11px] text-muted-foreground mt-0.5">Alt: {p.alternative}</div>}
+                </div>
+              );
+            })}
+          </CollapsedListCard>
+
+          <CollapsedListCard title="Document requests" count={documentRequests.length} emptyText="Auto-generated as gaps appear.">
             {documentRequests.map((d: any) => (
               <div key={d.id} className="border-b border-border last:border-0 py-1.5">
                 <div className="text-sm">{d.doc_type}</div>
@@ -782,8 +782,11 @@ function ratingColor(r: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-function CollapsedListCard({ title, count, emptyText, children, titleClassName }: { title: string; count: number; emptyText: string; children: React.ReactNode; titleClassName?: string }) {
-  const titleClass = titleClassName ?? "text-[10px] uppercase tracking-[0.2em] text-muted-foreground";
+function CollapsedListCard({ title, count, emptyText, children, alert }: { title: string; count: number; emptyText: string; children: React.ReactNode; alert?: boolean }) {
+  const titleClass = "text-[10px] uppercase tracking-[0.2em] text-muted-foreground";
+  const countBadge = alert && count > 0
+    ? <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-600 text-white text-[10px] normal-case tracking-normal font-bold align-middle">{count}</span>
+    : <span className="text-foreground/70 normal-case tracking-normal font-normal">({count})</span>;
   return (
     <Card><CardContent className="p-4">
       {count === 0 ? (
@@ -795,7 +798,7 @@ function CollapsedListCard({ title, count, emptyText, children, titleClassName }
         <Accordion type="multiple" defaultValue={[]}>
           <AccordionItem value="x" className="border-0">
             <AccordionTrigger className="hover:no-underline py-1">
-              <span className={titleClass}>{title} <span className="text-foreground/70 normal-case tracking-normal font-normal">({count})</span></span>
+              <span className={titleClass}>{title} {countBadge}</span>
             </AccordionTrigger>
             <AccordionContent>
               <div className="pt-1">{children}</div>
