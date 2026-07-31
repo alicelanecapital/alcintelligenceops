@@ -214,6 +214,7 @@ function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | nu
         <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
       </div>
+      <MeetingStatusBadge status={i.status} />
       {opportunityId && <Badge className="bg-primary text-primary-foreground">Deal Pipeline</Badge>}
     </Link>
   );
