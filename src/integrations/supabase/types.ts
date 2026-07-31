@@ -396,10 +396,13 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          internal_guideline: string | null
           internal_steps: string[] | null
           question_text: string
           red_flags: Json | null
+          rephrased_question: string | null
           round: number
+          score: number | null
           sort_order: number
           updated_at: string
           why_text: string | null
@@ -407,10 +410,13 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          internal_guideline?: string | null
           internal_steps?: string[] | null
           question_text: string
           red_flags?: Json | null
+          rephrased_question?: string | null
           round: number
+          score?: number | null
           sort_order?: number
           updated_at?: string
           why_text?: string | null
@@ -418,10 +424,13 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          internal_guideline?: string | null
           internal_steps?: string[] | null
           question_text?: string
           red_flags?: Json | null
+          rephrased_question?: string | null
           round?: number
+          score?: number | null
           sort_order?: number
           updated_at?: string
           why_text?: string | null
@@ -444,6 +453,7 @@ export type Database = {
           sort_order: number
           subtitle: string | null
           title: string
+          toolkit_id: string | null
         }
         Insert: {
           duration?: string | null
@@ -452,6 +462,7 @@ export type Database = {
           sort_order?: number
           subtitle?: string | null
           title: string
+          toolkit_id?: string | null
         }
         Update: {
           duration?: string | null
@@ -460,8 +471,17 @@ export type Database = {
           sort_order?: number
           subtitle?: string | null
           title?: string
+          toolkit_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dd_framework_rounds_toolkit_id_fkey"
+            columns: ["toolkit_id"]
+            isOneToOne: false
+            referencedRelation: "toolkits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dd_internal_verification: {
         Row: {
