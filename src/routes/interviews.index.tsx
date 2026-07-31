@@ -202,6 +202,18 @@ function InterviewsIndex() {
   );
 }
 
+const STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  live: { label: "Live", className: "bg-red-100 text-red-800 border-red-300" },
+  draft: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
+  paused: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
+  completed: { label: "Completed", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+};
+
+function MeetingStatusBadge({ status }: { status?: string | null }) {
+  const meta = status ? STATUS_STYLES[status] : undefined;
+  if (!meta) return null;
+  return <Badge variant="outline" className={`text-[10px] ${meta.className}`}>{meta.label}</Badge>;
+}
 
 function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | null }) {
   const target = opportunityId
@@ -214,6 +226,7 @@ function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | nu
         <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
       </div>
+      <MeetingStatusBadge status={i.status} />
       {opportunityId && <Badge className="bg-primary text-primary-foreground">Deal Pipeline</Badge>}
     </Link>
   );
