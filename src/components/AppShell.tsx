@@ -43,6 +43,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { to: "/admin/templates", label: "Reports", icon: FileText },
         ],
       },
+      { to: "/admin/dd-framework", label: "DD Intelligence Engine", icon: Target },
       { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },
