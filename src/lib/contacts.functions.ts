@@ -26,6 +26,61 @@ async function callAI(system: string, user: string): Promise<string> {
   return (data?.choices?.[0]?.message?.content ?? "").trim();
 }
 
+async function callAIJson(system: string, user: string): Promise<any> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) throw new Error("LOVABLE_API_KEY not configured");
+  const res = await fetch(GATEWAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`AI gateway ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content ?? "";
+  try { return JSON.parse(content); } catch { return {}; }
+}
+
+// Best-effort enrichment of a contact's details from what the model already knows --
+// there is no live web search wired into this AI gateway, so this never invents specifics
+// (phone numbers, emails) it isn't confident about; it leaves those blank rather than guess.
+// Used by an "Enrich with AI" action in the Add/Edit Contact dialogs to pre-fill fields the
+// user hasn't already typed something into.
+export const enrichContactDetails = createServerFn({ method: "POST" })
+  .inputValidator((d: { name?: string; company?: string; position?: string; website?: string }) => d)
+  .handler(async ({ data }) => {
+    if (!data.name?.trim() && !data.company?.trim()) throw new Error("Enter a name or company first");
+    const user = `Person name: ${data.name || "unknown"}
+Company: ${data.company || "unknown"}
+Stated role: ${data.position || "unknown"}
+Known website: ${data.website || "none given"}
+
+Based only on what you already know (no live web access), suggest values for this contact's CRM record.
+Leave any field blank ("" ) rather than guessing if you're not reasonably confident -- never invent a
+phone number, email address, or LinkedIn URL you don't have real knowledge of.`;
+    const result = await callAIJson(
+      "You are a research analyst enriching a CRM contact record for an investor. Only state facts you're " +
+      "reasonably confident about; leave a field as an empty string if unsure. Return strict JSON only.",
+      `${user}\n\nReturn JSON: { "position": "", "website": "", "linkedin": "", "company_description": "", "notes": "" }`,
+    );
+    return {
+      position: result.position || "",
+      website: result.website || "",
+      linkedin: result.linkedin || "",
+      company_description: result.company_description || "",
+      notes: result.notes || "",
+    };
+  });
+
 // Generates a short "what does this company do" description for the Add Contact
 // wizard. Used to populate contacts.company_description, which then flows into
 // opportunities.description (via createOpportunityFromContact below) and is shown

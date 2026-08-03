@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { updateContact, CATEGORY_OPTIONS } from "@/lib/contacts";
-import { generateCompanyDescription } from "@/lib/contacts.functions";
+import { updateContact } from "@/lib/contacts";
+import { generateCompanyDescription, enrichContactDetails } from "@/lib/contacts.functions";
 import { EventSelect } from "@/components/EventSelect";
+import { CategorySelect } from "@/components/CategorySelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,9 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
   const qc = useQueryClient();
   const [form, setForm] = useState<any>(contact);
   const generateDescription = useServerFn(generateCompanyDescription);
+  const enrichDetails = useServerFn(enrichContactDetails);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const lastAutoCompanyRef = useRef<string>("");
 
   useEffect(() => { if (open) setForm(contact); }, [open, contact]);
@@ -56,6 +59,27 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
     }
   }
 
+  async function runEnrich() {
+    if (!form.name?.trim() && !form.company?.trim()) { toast.error("Enter a name or company first"); return; }
+    setEnriching(true);
+    try {
+      const result = await enrichDetails({ data: { name: form.name, company: form.company, position: form.position, website: form.website } });
+      setForm((f: any) => ({
+        ...f,
+        position: f.position?.trim() ? f.position : result.position || f.position,
+        website: f.website?.trim() ? f.website : result.website || f.website,
+        linkedin: f.linkedin?.trim() ? f.linkedin : result.linkedin || f.linkedin,
+        company_description: f.company_description?.trim() ? f.company_description : result.company_description || f.company_description,
+        notes: f.notes?.trim() ? f.notes : result.notes || f.notes,
+      }));
+      toast.success("Filled in what AI could confidently tell — review before saving");
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to enrich contact");
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   function onCompanyBlur() {
     // Auto-fill Name from Company if Name is still blank
     setForm((f: any) => (f.name?.trim() ? f : { ...f, name: f.company ?? "" }));
@@ -87,15 +111,20 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Edit contact</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>Edit contact</DialogTitle>
+            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={runEnrich} disabled={enriching}>
+              <Sparkles className="h-3 w-3 mr-1" />{enriching ? "Enriching…" : "Enrich with AI"}
+            </Button>
+          </div>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <F label="Company">
             <Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} onBlur={onCompanyBlur} />
           </F>
           <F label="Category">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <CategorySelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} />
           </F>
           <F label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></F>
           <F label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></F>

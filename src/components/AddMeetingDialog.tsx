@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,6 +27,15 @@ export function AddMeetingDialog({ open, onOpenChange }: { open: boolean; onOpen
   const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits, enabled: open });
   const startMeeting = useServerFn(startMeetingForContact);
   const createOpp = useServerFn(createOpportunityFromContact);
+
+  // Default to Ad Hoc Meeting (most meetings aren't formal DD rounds), falling back to
+  // whatever toolkit comes first if that hasn't been seeded. There's no "no playbook"
+  // option any more -- every meeting runs against some playbook, even a free-form one.
+  useEffect(() => {
+    if (playbookId || !toolkits.data?.length) return;
+    const adHoc = toolkits.data.find((t) => t.name?.trim().toLowerCase() === "ad hoc meeting");
+    setPlaybookId((adHoc ?? toolkits.data[0]).id);
+  }, [toolkits.data, playbookId]);
 
   function reset() {
     setContactId(""); setPlaybookId(""); setCreatingContact(false); setNewContact({ name: "", company: "", category: "founder" });
@@ -128,7 +137,6 @@ export function AddMeetingDialog({ open, onOpenChange }: { open: boolean; onOpen
               onChange={(e) => setPlaybookId(e.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">No playbook (freeform)</option>
               {(toolkits.data ?? []).map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}

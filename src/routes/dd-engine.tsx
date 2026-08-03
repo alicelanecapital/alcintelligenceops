@@ -173,9 +173,19 @@ function DDEngine() {
                   title="Enter the Rounds Room"
                   className="font-serif text-sm truncate min-w-0 flex-1 text-left text-primary hover:underline"
                 >
-                  {opp.founder?.name ?? opp.name}
+                  {opp.dd_company_name ?? opp.name}
                 </button>
-                <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">{opp.company?.name ?? "—"}</div>
+                <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">{opp.founder?.name ?? ""}</div>
+                {(opp.dd_key_contacts ?? []).length > 0 && (
+                  <div className="hidden md:flex items-center gap-1 flex-wrap shrink-0 max-w-[280px]">
+                    {opp.dd_key_contacts.slice(0, 3).map((c: any) => (
+                      <Badge key={c.id} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">{c.name}</Badge>
+                    ))}
+                    {opp.dd_key_contacts.length > 3 && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">+{opp.dd_key_contacts.length - 3}</Badge>
+                    )}
+                  </div>
+                )}
               </div>
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium shrink-0 ${currentRound ? ROUND_COLORS[currentRound] : "bg-muted text-muted-foreground border-border"}`}>
                 {currentRound ? `Round ${currentRound}/${totalRounds}` : "Not started"}
@@ -218,7 +228,7 @@ function DDEngine() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete this opportunity?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This permanently deletes "{opp.founder?.name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
+                        This permanently deletes "{opp.dd_company_name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

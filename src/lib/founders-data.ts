@@ -176,6 +176,12 @@ export async function fetchOpportunitiesWithDDStatus() {
   // contacts.photo_url migration yet still loads the rest of the pipeline normally --
   // Postgres rejects the whole query otherwise if any selected column doesn't exist.
   const photoByContactId = new Map<string, string>();
+  // The opportunity's own contact (direct contact_id, or via founder.contact_id for legacy
+  // founder-based opportunities) -- used to resolve a company name/id for opportunities that
+  // don't have opportunities.company_id set (createOpportunityFromContact always leaves it
+  // null), and to find every other contact at that same company for the "key contacts" badges.
+  const contactByPrimaryId = new Map<string, { id: string; name: string; company: string | null; company_id: string | null }>();
+  const keyContactsByCompanyId = new Map<string, { id: string; name: string }[]>();
   try {
     const contactIds = new Set<string>();
     for (const opp of opps ?? []) {
@@ -183,13 +189,16 @@ export async function fetchOpportunitiesWithDDStatus() {
       if ((opp as any).founder?.contact_id) contactIds.add((opp as any).founder.contact_id);
     }
     if (contactIds.size) {
-      const { data: contactPhotos, error: photosError } = await (supabase.from("contacts") as any)
-        .select("id, photo_url")
+      const { data: primaryContacts, error: primaryError } = await (supabase.from("contacts") as any)
+        .select("id, name, company, company_id, photo_url")
         .in("id", [...contactIds]);
-      if (photosError) throw photosError;
+      if (primaryError) throw primaryError;
       const { contactPhotoPath } = await import("@/lib/contacts");
       const paths: { id: string; path: string }[] = [];
-      for (const c of (contactPhotos ?? []) as any[]) {
+      const companyIds = new Set<string>();
+      for (const c of (primaryContacts ?? []) as any[]) {
+        contactByPrimaryId.set(c.id, { id: c.id, name: c.name, company: c.company, company_id: c.company_id });
+        if (c.company_id) companyIds.add(c.company_id);
         const p = contactPhotoPath(c.photo_url);
         if (p) paths.push({ id: c.id, path: p });
       }
@@ -203,13 +212,26 @@ export async function fetchOpportunitiesWithDDStatus() {
           });
         }
       }
+      if (companyIds.size) {
+        const { data: companyContacts, error: ccError } = await (supabase.from("contacts") as any)
+          .select("id, name, company_id")
+          .in("company_id", [...companyIds]);
+        if (ccError) throw ccError;
+        for (const c of (companyContacts ?? []) as any[]) {
+          const arr = keyContactsByCompanyId.get(c.company_id) ?? [];
+          arr.push({ id: c.id, name: c.name });
+          keyContactsByCompanyId.set(c.company_id, arr);
+        }
+      }
     }
   } catch (error) {
-    console.error("Failed to load contact photos:", error);
+    console.error("Failed to load contact/company details for pipeline:", error);
   }
 
   return (opps ?? []).map((opp: any) => {
     const status = byOpportunity.get(opp.id);
+    const primaryContact = contactByPrimaryId.get(opp.contact_id) ?? contactByPrimaryId.get(opp.founder?.contact_id);
+    const resolvedCompanyId = opp.company_id ?? primaryContact?.company_id ?? null;
     return {
       ...opp,
       dd_current_round: status?.round ?? null,
@@ -218,6 +240,14 @@ export async function fetchOpportunitiesWithDDStatus() {
       // Contact-based opportunities link directly; founder-based ones link via the founder's
       // own contact record -- either way, surface whichever photo is actually available.
       dd_photo_url: photoByContactId.get(opp.contact_id) ?? photoByContactId.get(opp.founder?.contact_id) ?? null,
+      // Best available company name: the opportunity's own company link, then the primary
+      // contact's free-text company field, then the opportunity name itself.
+      dd_company_name: opp.company?.name ?? primaryContact?.company ?? opp.name,
+      // Every contact sharing that company (if linked via company_id), falling back to just
+      // the opportunity's own primary contact so there's always at least one badge.
+      dd_key_contacts: resolvedCompanyId
+        ? (keyContactsByCompanyId.get(resolvedCompanyId) ?? [])
+        : (primaryContact ? [{ id: primaryContact.id, name: primaryContact.name }] : []),
     };
   });
 }

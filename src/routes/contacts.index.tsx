@@ -4,13 +4,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchContacts, createContact, updateContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
-import { generateCompanyDescription, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
+import { generateCompanyDescription, enrichContactDetails, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
 import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
 import { decodeQrFromDataUrl, parseQrToContact } from "@/lib/qr";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { EditContactDialog } from "@/components/EditContactDialog";
 import { EventSelect } from "@/components/EventSelect";
+import { CategorySelect } from "@/components/CategorySelect";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -650,7 +651,9 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
 
   const [form, setForm] = useState<any>(buildInitial);
   const generateDescription = useServerFn(generateCompanyDescription);
+  const enrichDetails = useServerFn(enrichContactDetails);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const lastAutoCompanyRef = useRef<string>("");
 
   useEffect(() => {
@@ -696,6 +699,27 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     }
   }
 
+  async function runEnrich() {
+    if (!form.name?.trim() && !form.company?.trim()) { toast.error("Enter a name or company first"); return; }
+    setEnriching(true);
+    try {
+      const result = await enrichDetails({ data: { name: form.name, company: form.company, position: form.position, website: form.website } });
+      setForm((f: any) => ({
+        ...f,
+        position: f.position?.trim() ? f.position : result.position || f.position,
+        website: f.website?.trim() ? f.website : result.website || f.website,
+        linkedin: f.linkedin?.trim() ? f.linkedin : result.linkedin || f.linkedin,
+        company_description: f.company_description?.trim() ? f.company_description : result.company_description || f.company_description,
+        notes: f.notes?.trim() ? f.notes : result.notes || f.notes,
+      }));
+      toast.success("Filled in what AI could confidently tell — review before saving");
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to enrich contact");
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   async function autoGenerateIfEmpty() {
     const c = form.company?.trim() || (initialForm?.company ?? "").trim();
     if (!c || c.length < 2) return;
@@ -732,7 +756,20 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={runEnrich}
+              disabled={enriching || (!form.name?.trim() && !form.company?.trim())}
+            >
+              <Sparkles className="h-3 w-3 mr-1" />
+              {enriching ? "Enriching…" : "Enrich with AI"}
+            </Button>
+          </div>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Company">
@@ -746,9 +783,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
             />
           </Field>
           <Field label="Category">
-            <select className="w-full h-9 px-3 border rounded-md text-sm bg-background" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <CategorySelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} />
           </Field>
           <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
