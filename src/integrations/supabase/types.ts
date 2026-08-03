@@ -228,6 +228,7 @@ export type Database = {
           category: string
           company: string | null
           company_description: string | null
+          company_id: string | null
           created_at: string
           date_met: string | null
           email: string | null
@@ -257,6 +258,7 @@ export type Database = {
           category?: string
           company?: string | null
           company_description?: string | null
+          company_id?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
@@ -286,6 +288,7 @@ export type Database = {
           category?: string
           company?: string | null
           company_description?: string | null
+          company_id?: string | null
           created_at?: string
           date_met?: string | null
           email?: string | null
@@ -311,6 +314,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contacts_organisation_id_fkey"
             columns: ["organisation_id"]

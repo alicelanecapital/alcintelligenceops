@@ -411,6 +411,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     }
   };
 
+  // A round can now have more than one transcript uploaded to it (e.g. the meeting
+  // was split across two calls). Each upload is appended -- never overwrites the
+  // last one -- and clearly labelled so it's obvious in the combined text which
+  // upload each part came from.
+  const countTranscriptUploads = (text: string) => (text.match(/--- Transcript upload \d+/g) ?? []).length;
+
   // Upload a transcript file directly, for rounds where recording wasn't started live.
   // Accepts .txt/.md, .pdf, and .doc/.docx -- text is extracted client-side.
   const handleTranscriptFile = async (file: File) => {
@@ -421,15 +427,27 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         toast.error("Couldn't find any text in that file.");
         return;
       }
-      setTranscript(text);
+      const uploadNumber = countTranscriptUploads(transcript) + 1;
+      const label = `--- Transcript upload ${uploadNumber}: ${file.name} (${new Date().toLocaleString()}) ---`;
+      const combined = transcript ? `${transcript}\n\n${label}\n${text}` : `${label}\n${text}`;
+      setTranscript(combined);
       if (interviewRowId) {
-        await supabase.from('dd_interviews').update({ transcript: text, transcript_source: 'manual' }).eq('id', interviewRowId);
+        await supabase.from('dd_interviews').update({ transcript: combined, transcript_source: 'manual' }).eq('id', interviewRowId);
       }
-      await persistTranscriptAgainstAllQuestions(text);
-      toast.success('Transcript uploaded');
+      // Re-run against the FULL combined transcript so every question response and
+      // the detected sector reflect all uploads so far, not just the newest one.
+      await persistTranscriptAgainstAllQuestions(combined);
+      toast.success(
+        uploadNumber > 1
+          ? `Transcript ${uploadNumber} added — combined with the existing transcript for this round`
+          : 'Transcript uploaded',
+      );
+      if (uploadNumber > 1 && aiAnalysis) {
+        toast('Re-run "Generate AI analysis" to reflect the combined transcript.');
+      }
 
-      if (round === 1 && text) {
-        await runSectorDetectionAndSync(text);
+      if (round === 1 && combined) {
+        await runSectorDetectionAndSync(combined);
       }
       refreshOpportunityIntelligence();
     } catch (error: any) {
@@ -1119,7 +1137,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                         disabled={uploadingTranscript}
                         className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
                       >
-                        {uploadingTranscript ? 'Reading…' : '📄 Upload Transcript'}
+                        {uploadingTranscript ? 'Reading…' : countTranscriptUploads(transcript) > 0 ? '📄 Add Another Transcript' : '📄 Upload Transcript'}
                       </button>
                       <input
                         ref={transcriptFileInputRef}
@@ -1129,10 +1147,12 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
                       />
                     </div>
-                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) instead.</p>
+                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) — you can upload more than one for this round, each is added and clearly labelled rather than replacing the last.</p>
                     {transcript && (
                       <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">Transcript (Auto-Updating):</p>
+                        <p className="text-xs font-semibold text-gray-600 mb-2">
+                          Transcript (Auto-Updating){countTranscriptUploads(transcript) > 1 ? ` — ${countTranscriptUploads(transcript)} uploads combined` : ''}:
+                        </p>
                         {renderSpeakerColoredTranscript(transcript)}
                       </div>
                     )}

@@ -29,6 +29,24 @@ export async function dismissInterview(id: string) {
   if (error) throw error;
 }
 
+/** Permanently deletes a meeting. Utterances, analyses, notes, doc requests and
+ * reports cascade-delete with it (all FK'd to interviews.id ON DELETE CASCADE). */
+export async function deleteInterview(id: string) {
+  const { error } = await (supabase.from("interviews") as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteUtterance(id: string) {
+  const { error } = await (supabase.from("interview_utterances") as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Deletes every transcript line for an interview, leaving the meeting record itself intact. */
+export async function clearTranscript(interviewId: string) {
+  const { error } = await (supabase.from("interview_utterances") as any).delete().eq("interview_id", interviewId);
+  if (error) throw error;
+}
+
 export async function getInterview(id: string) {
   const { data, error } = await supabase.from("interviews").select("*").eq("id", id).maybeSingle();
   if (error) throw error;

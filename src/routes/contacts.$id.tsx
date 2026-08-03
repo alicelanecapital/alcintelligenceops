@@ -426,12 +426,15 @@ function LiveWorkspaceTab({ contact, meetings }: { contact: any; meetings: any[]
   const startMeeting = useServerFn(startMeetingForContact);
   const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
 
-  // Default to the DD Intelligence Engine template if present.
+  // Default to the Ad Hoc Meeting playbook — most meetings aren't formal DD rounds.
+  // Fall back to the DD Intelligence Engine template if Ad Hoc hasn't been seeded yet.
+  const adHocTemplate = (toolkits.data ?? []).find((t) => (t as any).name?.trim().toLowerCase() === "ad hoc meeting");
   const ddTemplate = (toolkits.data ?? []).find((t) => (t as any).kind === "due_diligence");
+  const defaultTemplate = adHocTemplate ?? ddTemplate;
   const [playbookId, setPlaybookId] = useState<string>("");
   useEffect(() => {
-    if (!playbookId && ddTemplate) setPlaybookId(ddTemplate.id);
-  }, [ddTemplate, playbookId]);
+    if (!playbookId && defaultTemplate) setPlaybookId(defaultTemplate.id);
+  }, [defaultTemplate, playbookId]);
   const [industry, setIndustry] = useState<string>(contact.industry ?? "");
 
   const startMut = useMutation({

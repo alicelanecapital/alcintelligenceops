@@ -6,12 +6,11 @@ import { createOpportunityFromContact } from "@/lib/contacts.functions";
 import {
   getInterview, getUtterances, getAnalyses, getDocRequests, getReport, getNotes,
   saveNote, setInterviewStatus, insertUtterance, setInterviewPlaybook,
+  deleteInterview, deleteUtterance, clearTranscript,
 } from "@/lib/interviews";
 import { listToolkits } from "@/lib/toolkits";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
-import { analyzeBehavioralSignals } from "@/lib/video-analysis.functions";
-import { extractVideoFrames } from "@/lib/extract-video-frames";
-import { uploadInterviewVideo, getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
+import { getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,9 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Video, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
@@ -34,6 +34,16 @@ function InterviewWorkspace() {
   const qc = useQueryClient();
   const interview = useQuery({ queryKey: ["iv", id], queryFn: () => getInterview(id) });
   const report = useQuery({ queryKey: ["iv-report", id], queryFn: () => getReport(id) });
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const deleteMeeting = useMutation({
+    mutationFn: () => deleteInterview(id),
+    onSuccess: () => {
+      toast.success("Meeting deleted");
+      qc.invalidateQueries({ queryKey: ["interviews"] });
+      nav({ to: "/interviews" });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete meeting"),
+  });
 
   // Hooks must run unconditionally on every render -- these used to sit after the loading/
   // not-found early returns below, so the very first render (while data is still loading)
@@ -62,9 +72,22 @@ function InterviewWorkspace() {
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
             <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "Paused" : iv.status}</Badge>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete meeting" onClick={() => setConfirmDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => deleteMeeting.mutate()}
+        pending={deleteMeeting.isPending}
+        title="Delete meeting?"
+        name={`${iv.founder_name} · ${iv.business_name}`}
+        description="This will permanently delete this meeting, its transcript, analyses and generated memo. This cannot be undone."
+      />
 
 
       <Tabs value={tab} onValueChange={async (v) => {
@@ -180,8 +203,21 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const busyRef = useRef(false);
   const [finalizing, setFinalizing] = useState(false);
   const [openSessions, setOpenSessions] = useState<string[]>([]);
-  const [analyzingVideo, setAnalyzingVideo] = useState(false);
-  const analyzeVideoFn = useServerFn(analyzeBehavioralSignals);
+  const [clearTranscriptOpen, setClearTranscriptOpen] = useState(false);
+  const clearTranscriptMut = useMutation({
+    mutationFn: () => clearTranscript(id),
+    onSuccess: () => {
+      toast.success("Transcript cleared");
+      qc.invalidateQueries({ queryKey: ["iv-utt", id] });
+      setClearTranscriptOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to clear transcript"),
+  });
+  const deleteUtteranceMut = useMutation({
+    mutationFn: (utteranceId: string) => deleteUtterance(utteranceId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["iv-utt", id] }),
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete line"),
+  });
 
   // Playbook: the top-of-workspace stepper and left-hand questions column both come from
   // the playbook picked when the meeting was started. Fallback to the DD Intelligence
@@ -337,20 +373,6 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
       await finalizeNow();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to upload transcript");
-    }
-  }
-
-  async function uploadVideo(file: File) {
-    setAnalyzingVideo(true);
-    try {
-      const [frames, videoPath] = await Promise.all([extractVideoFrames(file), uploadInterviewVideo(id, file)]);
-      await analyzeVideoFn({ data: { interviewId: id, images: frames, videoPath } });
-      qc.invalidateQueries({ queryKey: ["iv-ana", id] });
-      toast.success("Behavioral signals analysed");
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to analyse video");
-    } finally {
-      setAnalyzingVideo(false);
     }
   }
 
@@ -537,13 +559,14 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadTranscript(f); } e.currentTarget.value = ""; }}
                       disabled={finalizing} />
                   </label>
-                  <label className="inline-flex items-center gap-1 h-7 px-2 rounded border border-input bg-background text-xs cursor-pointer hover:bg-secondary">
-                    <Video className="h-3.5 w-3.5" />
-                    <span>{analyzingVideo ? "Analysing…" : "Upload video"}</span>
-                    <input type="file" accept="video/*" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) { void uploadVideo(f); } e.currentTarget.value = ""; }}
-                      disabled={analyzingVideo} />
-                  </label>
+                  {(utt.data ?? []).length > 0 && (
+                    <Button
+                      size="sm" variant="outline" className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      onClick={() => setClearTranscriptOpen(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear transcript
+                    </Button>
+                  )}
                 </div>
               </div>
               <Accordion type="multiple" value={openSessions} onValueChange={setOpenSessions}>
@@ -559,7 +582,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                         {g.utterances.length === 0 && <div className="text-sm text-muted-foreground italic py-10 text-center">Press Start and speak — transcript appears here.</div>}
                         <div className="space-y-2">
                           {g.utterances.map((u: any) => (
-                            <UtteranceRow key={u.id} u={u} />
+                            <UtteranceRow key={u.id} u={u} onDelete={() => deleteUtteranceMut.mutate(u.id)} />
                           ))}
                         </div>
                       </div>
@@ -569,6 +592,16 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               </Accordion>
             </CardContent>
           </Card>
+
+          <ConfirmDeleteDialog
+            open={clearTranscriptOpen}
+            onClose={() => setClearTranscriptOpen(false)}
+            onConfirm={() => clearTranscriptMut.mutate()}
+            pending={clearTranscriptMut.isPending}
+            title="Clear transcript?"
+            description="This will permanently delete every transcript line for this meeting. The meeting record, memo and analyses stay in place. This cannot be undone."
+            confirmLabel="Clear transcript"
+          />
 
           {transcriptSummary && (
             <Accordion type="single" collapsible className="rounded-md border border-border bg-white overflow-hidden">
@@ -1010,15 +1043,24 @@ function groupRisks(items: any[]): Array<{ category: string; items: any[]; avgLa
 }
 
 
-function UtteranceRow({ u }: { u: any }) {
+function UtteranceRow({ u, onDelete }: { u: any; onDelete: () => void }) {
   return (
-    <div className="border-b border-border last:border-0 py-2">
-      <div className="flex items-center gap-2 text-xs mb-1">
-        <span className="font-mono text-muted-foreground">{fmt(u.ts_ms)}</span>
-        <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
-        {u.confidence != null && <span className="text-[11px] text-muted-foreground">conf {(u.confidence * 100).toFixed(0)}%</span>}
+    <div className="border-b border-border last:border-0 py-2 group flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 text-xs mb-1">
+          <span className="font-mono text-muted-foreground">{fmt(u.ts_ms)}</span>
+          <Badge variant="outline" className="text-[10px] py-0">{u.speaker}</Badge>
+          {u.confidence != null && <span className="text-[11px] text-muted-foreground">conf {(u.confidence * 100).toFixed(0)}%</span>}
+        </div>
+        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
       </div>
-      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{u.text}</p>
+      <button
+        onClick={onDelete}
+        title="Delete this line"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

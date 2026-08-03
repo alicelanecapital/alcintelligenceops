@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCompanies, fetchCompanyProfile } from "@/lib/founders-data";
+import { fetchContactsByCompany } from "@/lib/contacts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -49,9 +50,11 @@ function CompaniesList() {
 export function CompanyProfile() {
   const { id } = useParams({ from: "/companies/$id" });
   const q = useQuery({ queryKey: ["company", id], queryFn: () => fetchCompanyProfile(id) });
+  const contactsQ = useQuery({ queryKey: ["company-contacts", id], queryFn: () => fetchContactsByCompany(id) });
   if (q.isLoading) return <div className="p-10 text-muted-foreground">Loading…</div>;
   if (q.error || !q.data) return <div className="p-10 text-destructive">Could not load company.</div>;
   const { company, founders, meetings, notes, tasks, documents, opportunities, investments } = q.data;
+  const contacts = contactsQ.data ?? [];
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <Link to="/companies" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4"><ArrowLeft className="h-3 w-3" /> Companies</Link>
@@ -72,7 +75,7 @@ export function CompanyProfile() {
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1">
-          {["overview","founders","meetings","documents","notes","tasks","opportunities","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
+          {["overview","contacts","founders","meetings","documents","notes","tasks","opportunities","investments"].map(t => <TabsTrigger key={t} value={t} className="capitalize text-xs">{t}</TabsTrigger>)}
         </TabsList>
         <TabsContent value="overview">
           <div className="grid md:grid-cols-2 gap-4">
@@ -81,6 +84,22 @@ export function CompanyProfile() {
               return <Card key={k}><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{k.replace(/_/g," ")}</div><div className="text-sm">{String(v)}</div></CardContent></Card>;
             })}
           </div>
+        </TabsContent>
+        <TabsContent value="contacts">
+          {contacts.length === 0 ? (
+            <Card><CardContent className="p-6 text-sm text-muted-foreground text-center">No contacts linked to this company yet — add one from the Contacts page and set its company to "{company.name}".</CardContent></Card>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-3">
+              {contacts.map((c: any) => (
+                <Link key={c.id} to="/contacts/$id" params={{ id: c.id }}>
+                  <Card className="hover:border-primary/50 transition-colors"><CardContent className="p-4">
+                    <div className="font-medium">{c.name}</div>
+                    <div className="text-xs text-muted-foreground">{c.position ?? "—"}</div>
+                  </CardContent></Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="founders">
           <div className="grid md:grid-cols-2 gap-3">{founders.map((f: any) => f && (

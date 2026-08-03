@@ -22,6 +22,7 @@ export type ContactRow = {
   source_event_id: string | null;
   date_met: string | null;
   organisation_id: string | null;
+  company_id: string | null;
   owner_id: string | null;
   photo_url: string | null;
   created_at: string;
@@ -66,17 +67,43 @@ export async function fetchContact(id: string) {
   return data as unknown as ContactRow | null;
 }
 
+/** Finds an existing company by case-insensitive name match, creating one if needed.
+ * Lets many contacts share a single company record (and its Companies-page profile)
+ * just by typing the same company name, without changing the Add/Edit Contact UI. */
+export async function resolveCompanyId(name: string | null | undefined): Promise<string | null> {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return null;
+  const { data: existing, error: findError } = await supabase
+    .from("companies")
+    .select("id")
+    .ilike("name", trimmed)
+    .limit(1)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (existing) return (existing as any).id;
+  const { data: created, error: createError } = await supabase
+    .from("companies")
+    .insert({ name: trimmed } as any)
+    .select("id")
+    .single();
+  if (createError) throw createError;
+  return (created as any).id;
+}
+
 export async function createContact(input: Partial<Omit<ContactRow, "source_event">>) {
   const payload: any = { ...input };
   if (!payload.name) throw new Error("Name is required");
   if (!payload.category) payload.category = "ecosystem";
+  payload.company_id = await resolveCompanyId(payload.company);
   const { data, error } = await supabase.from("contacts").insert(payload).select("*").single();
   if (error) throw error;
   return data as unknown as ContactRow;
 }
 
 export async function updateContact(id: string, input: Partial<Omit<ContactRow, "source_event">>) {
-  const { data, error } = await supabase.from("contacts").update(input as any).eq("id", id).select("*").single();
+  const payload: any = { ...input };
+  if ("company" in payload) payload.company_id = await resolveCompanyId(payload.company);
+  const { data, error } = await supabase.from("contacts").update(payload).eq("id", id).select("*").single();
   if (error) throw error;
   return data as unknown as ContactRow;
 }
@@ -117,6 +144,16 @@ export async function uploadContactPhoto(contactId: string, file: File): Promise
   await updateContact(contactId, { photo_url: path });
   const { data } = await supabase.storage.from("contact-photos").createSignedUrl(path, 60 * 60);
   return data?.signedUrl ?? null;
+}
+
+export async function fetchContactsByCompany(companyId: string) {
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("name");
+  if (error) throw error;
+  return (data ?? []) as unknown as ContactRow[];
 }
 
 export async function fetchContactMeetings(contactId: string) {
