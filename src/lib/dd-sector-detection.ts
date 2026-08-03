@@ -278,6 +278,62 @@ Return JSON: { "flags": [{ "text": "...", "severity": "WALK_AWAY"|"PRICE_IT_IN"|
     return uniqueFlags.slice(0, 5);
   });
 
+/**
+ * Analyzes an independent expert/consultant's transcript against this round's existing
+ * red flags. Unlike founder transcripts, this person is NOT being assessed -- there is
+ * deliberately no scoring, DISC/voice analysis, or per-question response persistence
+ * here. The only output is: does this transcript validate or refute each existing red
+ * flag, does it raise any new ones, and what questions has it revealed we haven't asked
+ * yet. Runs server-side.
+ */
+export const analyzeExpertConsultantTranscript = createServerFn({ method: "POST" })
+  .inputValidator((d: { transcript: string; existingRedFlags: string[]; sector?: string }) => d)
+  .handler(async ({ data }): Promise<{
+    validations: Array<{ flag: string; verdict: "VALIDATED" | "REFUTED" | "NOT_ADDRESSED"; evidence: string }>;
+    newFlags: Array<{ text: string; severity: "WALK_AWAY" | "PRICE_IT_IN" | "MONITOR" }>;
+    openQuestions: string[];
+  }> => {
+    const flagsSection = data.existingRedFlags.length
+      ? `Existing red flags raised so far in this due diligence round:\n${data.existingRedFlags.map((f, i) => `${i + 1}. ${f}`).join("\n")}\n`
+      : "No red flags have been raised in this round yet.\n";
+
+    const prompt = `This transcript is from a meeting with an INDEPENDENT EXPERT OR CONSULTANT supporting our
+due diligence on a ${data.sector ?? "company"} deal -- for example an industry expert, reference check,
+or subject-matter advisor. They are NOT the founder and are NOT being assessed themselves --
+do not evaluate their credibility, confidence, or behaviour. Only use what they say to sanity-check
+our existing findings and surface anything new.
+
+${flagsSection}
+Transcript: ${data.transcript.substring(0, 6000)}
+
+For EACH existing red flag above, decide whether this transcript VALIDATES it (independently confirms
+the concern), REFUTES it (contradicts or resolves the concern), or NOT_ADDRESSED (transcript doesn't
+speak to it) -- with a one-sentence evidence quote/paraphrase for VALIDATED or REFUTED verdicts.
+Then identify any genuinely NEW red flags this transcript raises that weren't already on the list.
+Finally, log follow-up questions this transcript reveals we haven't asked yet (gaps, unexplored claims,
+areas the expert flagged but didn't fully cover).
+
+Return JSON:
+{
+  "validations": [{ "flag": "...", "verdict": "VALIDATED"|"REFUTED"|"NOT_ADDRESSED", "evidence": "..." }],
+  "newFlags": [{ "text": "...", "severity": "WALK_AWAY"|"PRICE_IT_IN"|"MONITOR" }],
+  "openQuestions": ["...", "..."]
+}`;
+    try {
+      const result = await callAI(
+        "You are a due diligence analyst incorporating independent expert/consultant input into an investment review. You never assess or score the expert themselves -- only what their input means for the deal.",
+        prompt,
+      );
+      return {
+        validations: Array.isArray(result.validations) ? result.validations : [],
+        newFlags: Array.isArray(result.newFlags) ? result.newFlags : [],
+        openQuestions: Array.isArray(result.openQuestions) ? result.openQuestions : [],
+      };
+    } catch {
+      return { validations: [], newFlags: [], openQuestions: [] };
+    }
+  });
+
 /** Generates a comprehensive AI analysis report for a round. Runs server-side. */
 export const generateAnalysisReport = createServerFn({ method: "POST" })
   .inputValidator((d: { interviewId: string; transcript: string; sector: string; round: number; scriptedQuestions?: string[] }) => d)

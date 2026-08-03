@@ -25,6 +25,7 @@ export type ContactRow = {
   company_id: string | null;
   owner_id: string | null;
   photo_url: string | null;
+  stakeholder_brief: { summary?: string; background_points?: string[] } | null;
   created_at: string;
   updated_at: string;
   source_event?: { id: string; name: string } | null;

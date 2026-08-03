@@ -17,12 +17,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { fetchContact } from "@/lib/contacts";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Circle, FileText, Mic, Sparkles, StopCircle, FileOutput, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Mic, Sparkles, StopCircle, FileOutput, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
@@ -45,15 +45,15 @@ function InterviewWorkspace() {
     onError: (e: any) => toast.error(e.message ?? "Failed to delete meeting"),
   });
 
-  // Hooks must run unconditionally on every render -- these used to sit after the loading/
-  // not-found early returns below, so the very first render (while data is still loading)
-  // called two fewer hooks than every render after, which React rejects with "Rendered more
-  // hooks than during the previous render." Computing defaultTab defensively (iv may not
-  // exist yet) lets these run before any early return.
   const iv = interview.data;
-  const defaultTab = iv ? (iv.status === "completed" || iv.status === "live" ? "live" : "brief") : "brief";
-  const [tab, setTab] = useState(defaultTab);
-  useEffect(() => { setTab(defaultTab); }, [defaultTab]);
+  // There's only one workspace view now (the pre-interview brief tab was removed), so
+  // opening a meeting goes straight to live status instead of waiting on a tab switch.
+  useEffect(() => {
+    if (iv && iv.status !== "live" && iv.status !== "completed") {
+      setInterviewStatus(id, { status: "live", started_at: new Date().toISOString() })
+        .then(() => qc.invalidateQueries({ queryKey: ["iv", id] }));
+    }
+  }, [iv, id, qc]);
 
   if (interview.isLoading) return <div className="p-10 text-muted-foreground">Loading…</div>;
   if (!iv) return <div className="p-10">Not found. <Link to="/interviews" className="underline">Back</Link></div>;
@@ -90,81 +90,8 @@ function InterviewWorkspace() {
       />
 
 
-      <Tabs value={tab} onValueChange={async (v) => {
-        setTab(v);
-        if (v === "live" && iv.status !== "live") {
-          await setInterviewStatus(id, { status: "live", started_at: new Date().toISOString() });
-          qc.invalidateQueries({ queryKey: ["iv", id] });
-        }
-      }}>
-        <div className="border-b border-border bg-white">
-          <div className="max-w-[1600px] mx-auto px-8">
-            <TabsList className="bg-transparent h-12">
-              {iv.status !== "live" && iv.status !== "completed" && (
-                <TabsTrigger value="brief">Pre-interview brief</TabsTrigger>
-              )}
-              <TabsTrigger value="live">Live workspace</TabsTrigger>
-            </TabsList>
-          </div>
-        </div>
-
-        {iv.status !== "live" && iv.status !== "completed" && (
-          <TabsContent value="brief"><BriefView interview={iv} /></TabsContent>
-        )}
-        <TabsContent value="live"><LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} /></TabsContent>
-      </Tabs>
+      <LiveView interview={iv} reportAvailable={iv.status === "completed" || !!report.data} />
     </div>
-  );
-}
-
-/* ---------------- Brief ---------------- */
-
-function BriefView({ interview }: { interview: any }) {
-  const b: any = interview.brief ?? {};
-  const kv = (label: string, value: string | undefined) => (
-    <div className="border-b border-border py-3">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-      <div className="text-sm mt-1">{value ?? "—"}</div>
-    </div>
-  );
-  return (
-    <div className="max-w-[1400px] mx-auto px-8 py-10 grid lg:grid-cols-3 gap-6">
-      <Card className="lg:col-span-1">
-        <CardContent className="p-6">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Meeting</div>
-          <h2 className="font-serif text-2xl mt-1">{interview.founder_name}</h2>
-          <div className="text-sm text-muted-foreground">{interview.business_name}</div>
-          {kv("Industry", interview.industry)}
-          {kv("Status", interview.status)}
-          {kv("Created", new Date(interview.created_at).toLocaleString())}
-          {b.summary && <div className="mt-4 p-4 rounded-md bg-secondary text-sm leading-relaxed">{b.summary}</div>}
-        </CardContent>
-      </Card>
-
-      <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
-        <BriefList title="Suggested focus areas" items={b.focus_areas} icon={<Sparkles className="h-4 w-4 text-primary" />} />
-        <BriefList title="Opening questions" items={b.opening_questions} numbered />
-        <BriefList title="Known risks" items={b.known_risks} icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} />
-        <BriefList title="Potential opportunities" items={b.potential_opportunities} />
-        <BriefList title="Outstanding documents" items={b.outstanding_documents} icon={<FileText className="h-4 w-4 text-primary" />} />
-      </div>
-    </div>
-  );
-}
-
-function BriefList({ title, items, icon, numbered }: { title: string; items?: string[]; icon?: React.ReactNode; numbered?: boolean }) {
-  return (
-    <Card><CardContent className="p-6">
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <div className="font-serif text-lg">{title}</div>
-      </div>
-      {(!items || items.length === 0) ? <div className="text-sm text-muted-foreground italic">None generated.</div> : (
-        <ol className={numbered ? "list-decimal pl-5 space-y-2" : "space-y-2"}>
-          {items.map((s, i) => <li key={i} className="text-sm text-foreground/85 leading-relaxed">{s}</li>)}
-        </ol>
-      )}
-    </CardContent></Card>
   );
 }
 
@@ -193,6 +120,11 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const ana = useQuery({ queryKey: ["iv-ana", id], queryFn: () => getAnalyses(id), refetchInterval: 6000 });
   const docs = useQuery({ queryKey: ["iv-docs", id], queryFn: () => getDocRequests(id), refetchInterval: 8000 });
   const notes = useQuery({ queryKey: ["iv-notes", id], queryFn: () => getNotes(id) });
+  const contactQ = useQuery({
+    queryKey: ["iv-contact", interview.contact_id],
+    queryFn: () => fetchContact(interview.contact_id),
+    enabled: !!interview.contact_id,
+  });
 
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -479,6 +411,32 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
           />
         )}
       </div>
+
+      {interview.contact_id && (
+        <Accordion type="single" collapsible className="mb-4 rounded-md border border-sky-200 bg-sky-50 overflow-hidden">
+          <AccordionItem value="stakeholder-brief" className="border-0">
+            <AccordionTrigger className="px-4 py-2.5 hover:no-underline">
+              <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-900"><Sparkles className="h-3.5 w-3.5" /> Stakeholder Brief</span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              {contactQ.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : contactQ.data?.stakeholder_brief ? (
+                <div className="space-y-2 text-sm text-sky-900">
+                  {contactQ.data.stakeholder_brief.summary && <p className="leading-relaxed">{contactQ.data.stakeholder_brief.summary}</p>}
+                  {(contactQ.data.stakeholder_brief.background_points?.length ?? 0) > 0 && (
+                    <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
+                      {contactQ.data.stakeholder_brief.background_points!.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No stakeholder brief yet — generate one from the contact's profile.</p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
 
       <div className="grid grid-cols-12 gap-4">
         {/* Col 1 — playbook questions for the current step */}

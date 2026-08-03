@@ -28,7 +28,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
       { to: "/events", label: "Events", icon: Calendar },
       { to: "/contacts", label: "Contacts", icon: Users },
-      { to: "/interviews", label: "Engagements", icon: MessagesSquare },
+      { to: "/interviews", label: "Meetings", icon: MessagesSquare },
       { to: "/dd-engine", label: "Deal Pipeline", icon: Kanban },
     ],
   },

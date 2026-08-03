@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SECTOR_MODULES, VERIFICATION_TRIANGLE } from '@/lib/dd-framework-data';
 import { fetchFrameworkRoundDetail, fetchRoundOwnDocuments, fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from '@/lib/dd-framework-admin';
-import { detectSector, generateAnalysisReport, MIN_SECTOR_CONFIDENCE } from '@/lib/dd-sector-detection';
+import { detectSector, generateAnalysisReport, analyzeExpertConsultantTranscript, MIN_SECTOR_CONFIDENCE } from '@/lib/dd-sector-detection';
+import { listExpertReviews, saveExpertReview, deleteExpertReview, type ExpertReview } from '@/lib/dd-expert-reviews';
 import { useServerFn } from '@tanstack/react-start';
 import { getOrCreateUploadChannel, syncUploadChannelDocuments, getSignedDocumentUrl } from '@/lib/dd-upload-channel.functions';
 import { generateStakeholderBrief } from '@/lib/stakeholder-brief.functions';
@@ -89,6 +90,10 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   const [newCustomQuestion, setNewCustomQuestion] = useState('');
   const [editingCustomQuestionId, setEditingCustomQuestionId] = useState<string | null>(null);
   const [editingCustomQuestionText, setEditingCustomQuestionText] = useState('');
+  const [expertReviews, setExpertReviews] = useState<ExpertReview[]>([]);
+  const [expertConsultantName, setExpertConsultantName] = useState('');
+  const [analyzingExpertReview, setAnalyzingExpertReview] = useState(false);
+  const expertTranscriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const [gateAction, setGateAction] = useState<'hold' | 'terminate' | null>(null);
   const [gateComment, setGateComment] = useState('');
   const [submittingGateAction, setSubmittingGateAction] = useState(false);
@@ -590,6 +595,86 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
     })();
     return () => { cancelled = true; };
   }, [interviewRowId]);
+
+  // Independent expert/consultant transcripts uploaded against this round -- these
+  // people are never assessed, so this list is entirely separate from questions/
+  // responses/scoring above.
+  useEffect(() => {
+    if (!interviewRowId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listExpertReviews(interviewRowId);
+        if (!cancelled) setExpertReviews(rows);
+      } catch (error: any) {
+        console.error('Failed to load expert consultant reviews:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [interviewRowId]);
+
+  // Upload an expert/consultant transcript: check it against this round's existing red
+  // flags, surface any new ones, and log unasked questions. No scoring, no DISC, no
+  // per-question founder responses -- this person isn't being assessed.
+  const handleExpertTranscriptFile = async (file: File) => {
+    if (!interviewRowId) {
+      toast.error('This round is still loading — try again in a moment.');
+      return;
+    }
+    setAnalyzingExpertReview(true);
+    try {
+      const text = await extractTranscriptText(file);
+      if (!text) {
+        toast.error("Couldn't find any text in that file.");
+        return;
+      }
+      const existingRedFlags: string[] = (aiAnalysis?.redFlags ?? []).map((f: any) => (typeof f === 'string' ? f : f?.text)).filter(Boolean);
+      const result = await analyzeExpertConsultantTranscript({
+        data: { transcript: text, existingRedFlags, sector: sector ? (SECTOR_MODULES[sector as keyof typeof SECTOR_MODULES]?.name ?? sector) : undefined },
+      });
+      const saved = await saveExpertReview({
+        interviewId: interviewRowId,
+        consultantName: expertConsultantName.trim() || null,
+        fileName: file.name,
+        transcript: text,
+        validations: result.validations,
+        newFlags: result.newFlags,
+        openQuestions: result.openQuestions,
+      });
+      setExpertReviews((prev) => [saved, ...prev]);
+      setExpertConsultantName('');
+
+      // Fold any new flags into this round's tracked red flags so they surface everywhere
+      // red flags are shown (Contact profile, opportunity views) -- tagged so it's clear
+      // they came from expert input rather than the founder interview itself.
+      if (result.newFlags.length) {
+        const tagged = result.newFlags.map((f) => ({ text: `[Expert Input] ${f.text}`, severity: f.severity }));
+        const merged = [...(aiAnalysis?.redFlags ?? []), ...tagged];
+        const nextAnalysis = { ...(aiAnalysis ?? {}), redFlags: merged };
+        setAiAnalysis(nextAnalysis);
+        await (supabase.from('dd_interviews') as any).update({ ai_analysis: nextAnalysis, red_flags: merged }).eq('id', interviewRowId);
+      }
+
+      toast.success(
+        `Expert review analysed — ${result.validations.length} flag${result.validations.length === 1 ? '' : 's'} checked, `
+        + `${result.newFlags.length} new, ${result.openQuestions.length} open question${result.openQuestions.length === 1 ? '' : 's'} logged.`,
+      );
+      refreshOpportunityIntelligence();
+    } catch (error: any) {
+      toast.error('Failed to analyse expert transcript: ' + (error?.message ?? 'unknown error'));
+    } finally {
+      setAnalyzingExpertReview(false);
+    }
+  };
+
+  const handleDeleteExpertReview = async (id: string) => {
+    try {
+      await deleteExpertReview(id);
+      setExpertReviews((prev) => prev.filter((r) => r.id !== id));
+    } catch (error: any) {
+      toast.error('Failed to delete review: ' + (error?.message ?? 'unknown error'));
+    }
+  };
 
   const handleAddCustomQuestion = async () => {
     if (!interviewRowId || !newCustomQuestion.trim()) return;
@@ -1235,7 +1320,8 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
               )}
 
               {step.key === 'ai_analysis' && (
-                aiAnalysis ? (
+                <>
+                {aiAnalysis ? (
                   <>
                     <div className="space-y-3">
                       <h3 className="text-base font-bold text-gray-900">📊 AI Assessment</h3>
@@ -1296,7 +1382,121 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">No AI analysis yet — analyze this round's recording from the Interview Questions step first.</p>
-                )
+                )}
+
+                {/* Expert / Consultant input -- independent third parties (industry experts,
+                    reference checks, advisors) supporting the DD process. They are never
+                    assessed themselves: no scoring, no DISC, no per-question responses. Their
+                    transcript only checks existing red flags and surfaces new ones/questions. */}
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">🎓 Expert / Consultant Input</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a transcript from an independent expert, reference, or consultant supporting this deal —
+                      not the founder. They are not assessed; their input only validates or refutes existing red flags,
+                      raises new ones, and logs questions we haven't asked yet.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={expertConsultantName}
+                      onChange={(e) => setExpertConsultantName(e.target.value)}
+                      placeholder="Consultant / expert name (optional)"
+                      className="flex-1 min-w-[200px] text-sm border border-border rounded px-2 py-1.5"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => expertTranscriptFileInputRef.current?.click()}
+                      disabled={analyzingExpertReview || !interviewRowId}
+                      className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {analyzingExpertReview ? 'Analysing…' : '📄 Upload Expert Transcript'}
+                    </button>
+                    <input
+                      ref={expertTranscriptFileInputRef}
+                      type="file"
+                      accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExpertTranscriptFile(f); e.target.value = ''; }}
+                    />
+                  </div>
+
+                  {expertReviews.length === 0 ? (
+                    <p className="text-xs text-gray-500">No expert or consultant transcripts uploaded for this round yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {expertReviews.map((review) => (
+                        <div key={review.id} className="p-3 bg-gray-50 border border-border rounded">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {review.consultant_name || 'Expert / Consultant'}
+                              <span className="text-xs font-normal text-muted-foreground ml-2">
+                                {review.file_name} · {new Date(review.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <button onClick={() => handleDeleteExpertReview(review.id)} className="text-xs text-red-500 hover:text-red-700 shrink-0">Delete</button>
+                          </div>
+
+                          {review.validations.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Existing red flags checked</p>
+                              <ul className="space-y-1">
+                                {review.validations.map((v, i) => (
+                                  <li key={i} className="text-xs">
+                                    <span className={
+                                      v.verdict === 'VALIDATED' ? 'font-semibold text-red-700' :
+                                      v.verdict === 'REFUTED' ? 'font-semibold text-green-700' :
+                                      'font-semibold text-gray-500'
+                                    }>
+                                      {v.verdict === 'VALIDATED' ? '✓ Validated' : v.verdict === 'REFUTED' ? '✗ Refuted' : '– Not addressed'}:
+                                    </span>{' '}
+                                    <span className="text-gray-800">{v.flag}</span>
+                                    {v.evidence && <span className="text-muted-foreground"> — {v.evidence}</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {review.new_flags.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-gray-700 mb-1">New flags raised</p>
+                              <ul className="space-y-1">
+                                {review.new_flags.map((f, i) => (
+                                  <li key={i} className="text-xs">
+                                    <span className={`font-semibold ${
+                                      f.severity === 'WALK_AWAY' ? 'text-red-700' :
+                                      f.severity === 'PRICE_IT_IN' ? 'text-orange-700' :
+                                      'text-yellow-700'
+                                    }`}>{f.severity}:</span>{' '}
+                                    <span className="text-gray-800">{f.text}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {review.open_questions.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Questions we haven't asked yet</p>
+                              <ul className="space-y-1">
+                                {review.open_questions.map((q, i) => (
+                                  <li key={i} className="text-xs text-gray-800">• {q}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {!review.validations.length && !review.new_flags.length && !review.open_questions.length && (
+                            <p className="text-xs text-muted-foreground">Nothing notable surfaced from this transcript.</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                </>
               )}
             </AccordionContent>
           </AccordionItem>

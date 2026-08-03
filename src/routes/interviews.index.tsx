@@ -164,7 +164,7 @@ function InterviewsIndex() {
         description="Founder engagements recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
         actions={
           <div className="flex items-center gap-2">
-            <Button onClick={() => setAddMeetingOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add meeting</Button>
+            <Button onClick={() => setAddMeetingOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Meeting</Button>
             <SyncGoogleButton mode="team" className="bg-green-700 hover:bg-green-800 text-white border-green-700 hover:border-green-800" />
           </div>
         }
