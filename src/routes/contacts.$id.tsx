@@ -122,7 +122,7 @@ function ContactProfile() {
         />
       </div>
       <PageHeader
-        eyebrow={<Link to="/contacts" className="hover:underline">← Contacts</Link>}
+        eyebrow={<Link to="/contacts" className="hover:underline">← Organisations</Link>}
         title={c.company || c.name}
         description={c.company ? `${c.name}${c.position ? ` · ${c.position}` : ""}` : (c.position ?? "")}
         actions={

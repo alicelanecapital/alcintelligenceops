@@ -25,7 +25,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, GitMerge, QrCode, Pencil, X, CalendarPlus, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, Building2, Users, GitMerge, QrCode, Pencil, X, CalendarPlus, AlertCircle } from "lucide-react";
 import { ScheduleMeetingDialog } from "@/components/ScheduleMeetingDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -47,7 +47,9 @@ function ContactsIndex() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [letter, setLetter] = useState<string | null>(null);
   const [view, setView] = useViewMode("contacts");
-  const [groupBy, setGroupBy] = useState<"none" | "event" | "category" | "company">("none");
+  // Organisations are the parent entity now -- contacts default to nesting under the
+  // company they belong to, instead of a flat list.
+  const [groupBy, setGroupBy] = useState<"none" | "event" | "category" | "company">("company");
   const q = useQuery({ queryKey: ["contacts", category], queryFn: () => fetchContacts(category) });
 
   const primaryLabel = (c: ContactRow) => c.company || c.name;
@@ -84,7 +86,7 @@ function ContactsIndex() {
         name = CATEGORY_LABELS[cat] ?? "Unknown";
       } else if (groupBy === "company") {
         key = (c.company ?? "").trim().toLowerCase() || "__none__";
-        name = c.company?.trim() || "No company";
+        name = c.company?.trim() || "No organisation";
       }
       if (!map.has(key)) map.set(key, { id: key, name, contacts: [] });
       map.get(key)!.contacts.push(c);
@@ -100,8 +102,8 @@ function ContactsIndex() {
     <div className="max-w-7xl mx-auto px-8 py-10">
       <PageHeader
         eyebrow="Relationships"
-        title="Contacts"
-        description="Every founder, investor, ecosystem partner, and vendor in one master list. Meet, capture, and progress to opportunity."
+        title="Organisations"
+        description="Every company we deal with, with its founders, investors, ecosystem partners, and vendors nested underneath as contacts."
         actions={
           <div className="flex gap-2 flex-nowrap items-center">
             <Button variant="outline" onClick={() => setScanOpen(true)}>
@@ -137,10 +139,10 @@ function ContactsIndex() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">No grouping</SelectItem>
+            <SelectItem value="company">By Organisation</SelectItem>
             <SelectItem value="event">Group by Event</SelectItem>
             <SelectItem value="category">Group by Ecosystem</SelectItem>
-            <SelectItem value="company">Group by Company</SelectItem>
+            <SelectItem value="none">Flat list (no grouping)</SelectItem>
           </SelectContent>
         </Select>
         {groupBy === "none" && <div className="ml-auto"><ViewToggle mode={view} onChange={setView} allowSheet /></div>}
@@ -156,7 +158,9 @@ function ContactsIndex() {
             <AccordionItem key={g.id} value={g.id}>
               <AccordionTrigger className="text-sm">
                 <span className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  {groupBy === "company" ? <Building2 className="h-4 w-4 text-muted-foreground" /> :
+                   groupBy === "category" ? <Users className="h-4 w-4 text-muted-foreground" /> :
+                   <CalendarDays className="h-4 w-4 text-muted-foreground" />}
                   <span className="font-serif text-base">{g.name}</span>
                   <Badge variant="outline" className="text-[10px]">{g.contacts.length}</Badge>
                 </span>
