@@ -1850,6 +1850,7 @@ export type Database = {
           interviewer_name: string | null
           is_private: boolean
           meeting_type: string | null
+          opportunity_id: string | null
           organisation_id: string | null
           playbook_id: string | null
           started_at: string | null
@@ -1874,6 +1875,7 @@ export type Database = {
           interviewer_name?: string | null
           is_private?: boolean
           meeting_type?: string | null
+          opportunity_id?: string | null
           organisation_id?: string | null
           playbook_id?: string | null
           started_at?: string | null
@@ -1898,6 +1900,7 @@ export type Database = {
           interviewer_name?: string | null
           is_private?: boolean
           meeting_type?: string | null
+          opportunity_id?: string | null
           organisation_id?: string | null
           playbook_id?: string | null
           started_at?: string | null
@@ -1932,6 +1935,13 @@ export type Database = {
             columns: ["founder_id"]
             isOneToOne: false
             referencedRelation: "founders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
             referencedColumns: ["id"]
           },
           {

@@ -1,0 +1,2 @@
+ALTER TABLE public.interviews ADD COLUMN IF NOT EXISTS opportunity_id uuid REFERENCES public.opportunities(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS interviews_opportunity_id_idx ON public.interviews (opportunity_id);
