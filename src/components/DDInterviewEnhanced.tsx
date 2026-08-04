@@ -16,6 +16,8 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { extractTranscriptText } from '@/lib/extract-transcript-text';
 import { generateAnomalyQuestions } from '@/lib/dd-anomaly-questions.functions';
 import { listExtraQuestions, addExtraQuestion, updateExtraQuestion, deleteExtraQuestion, type ExtraQuestion } from '@/lib/dd-interview-extra-questions';
+import { WorkspaceGrid, GridBlock } from '@/components/WorkspaceGrid';
+import { DEFAULT_LAYOUT } from '@/lib/workspace-layouts';
 import { listCustomQuestions, addCustomQuestion, updateCustomQuestion, deleteCustomQuestion, type CustomQuestion } from '@/lib/dd-interview-custom-questions';
 
 const SPEAKER_COLOR_CLASSES = [
@@ -54,6 +56,18 @@ function renderSpeakerColoredTranscript(text: string) {
     }
     return <p key={i} className="text-sm text-gray-700 whitespace-pre-wrap">{line}</p>;
   });
+}
+
+
+/** The Deal Pipeline Room uses the same 6-column workspace canvas as the Live Workspace.
+ * The stakeholder brief lives in the round page header, so it is not a block here. */
+const DD_LAYOUT = {
+  panels: DEFAULT_LAYOUT.panels.filter((k) => k !== 'stakeholder_brief'),
+  blocks: DEFAULT_LAYOUT.blocks,
+};
+
+function PanelHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-base font-bold text-green-800 pb-2 border-b border-border">{children}</h2>;
 }
 
 export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefChange, onSectorChange }: {
@@ -884,6 +898,7 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
   return (
     <div className="max-w-[1600px] mx-auto px-6">
+    <div className="max-w-[1600px] mx-auto px-6">
       {/* Header -- matches the Live Workspace's eyebrow + serif-title convention */}
       <div className="mb-8">
         <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Round {round}</div>
@@ -892,171 +907,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         <p className="text-sm text-muted-foreground/80 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Steps rendered as accordions, mirroring the admin DD Framework layout: a numbered
-          forest-green badge + bold green title per step, no outer card frame, thin dividers
-          between steps. Frames/shading are only preserved on the accent panels (Transcript,
-          AI Questions, Custom Questions, Red Flags). */}
-      <Accordion type="multiple" defaultValue={[SUB_STEPS[0].key]} className="mb-8">
-        {SUB_STEPS.map((step, idx) => (
-          <AccordionItem key={step.key} value={step.key} className="border-b border-border">
-            <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
-                  {idx + 1}
-                </span>
-                <span className="text-base font-bold text-green-800 text-left">{step.label}</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-6 pl-10 pr-2 space-y-6">
-              {step.key === 'documents' && (
-                <>
-                  {/* Documents Received -- must be reviewed before the meeting/recording starts. */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">📄 {isFirstRound ? 'Documents Required' : 'Documents Received'}</p>
-                      {uploadChannel && (
-                        <button
-                          type="button"
-                          onClick={handleSyncDocuments}
-                          disabled={syncingDocs}
-                          className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
-                        >
-                          {syncingDocs ? 'Checking…' : 'Check for New Documents'}
-                        </button>
-                      )}
-                    </div>
-                    {uploadChannel ? (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">Sent To:</span>
-                        <code className="text-xs bg-muted px-2 py-1 rounded border border-border">{uploadChannel.dedicated_email}</code>
-                        <button
-                          type="button"
-                          onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
-                          className="text-xs text-primary underline"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Loading upload address…</p>
-                    )}
-
-                    {requiredDocuments.data && requiredDocuments.data.length > 0 ? (
-                      <div className="divide-y divide-border border-t border-border">
-                        {requiredDocuments.data.map((doc) => {
-                          const received = isDocumentReceived(doc.name);
-                          return (
-                            <div key={doc.id} className="flex items-start justify-between gap-2 py-2">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                                {doc.purpose && <p className="text-xs text-muted-foreground">{doc.purpose}</p>}
-                              </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${received ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                                {received ? 'Received' : 'Missing'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">No specific documents configured for this round in the DD Framework.</p>
-                    )}
-
-                    {receivedDocs.length > 0 && (
-                      <div className="space-y-1 pt-2">
-                        <p className="text-xs font-semibold text-gray-900">All Files Received:</p>
-                        {receivedDocs.map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => openDocument(doc)}
-                            className="w-full text-left text-xs px-2 py-1.5 border-b border-border hover:bg-muted/40 flex items-center justify-between"
-                          >
-                            <span>{doc.file_name}</span>
-                            <span className="text-primary">View</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* AI-generated document review questions -- not an accent panel, so unshaded. */}
-                  <div className="space-y-3 pt-4 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">🧩 Document Review Questions</p>
-                      <button
-                        type="button"
-                        onClick={runAnomalyDetection}
-                        disabled={!interviewRowId || generatingAnomalyQuestions}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
-                      >
-                        {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-Check Documents'}
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
-                    <div className="space-y-2">
-                      {extraQuestions.map((q) => (
-                        <div key={q.id} className="border-b border-border py-2">
-                          {editingExtraQuestionId === q.id ? (
-                            <div className="flex items-start gap-2">
-                              <textarea
-                                className="flex-1 text-sm border border-border rounded px-2 py-1"
-                                value={editingExtraQuestionText}
-                                onChange={(e) => setEditingExtraQuestionText(e.target.value)}
-                                rows={2}
-                              />
-                              <div className="flex flex-col gap-1">
-                                <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
-                                <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="text-sm text-gray-900">{q.question_text}</p>
-                                {q.rationale && <p className="text-xs text-muted-foreground mt-1">{q.rationale}</p>}
-                                {q.source === 'ai_document_review' && <span className="text-[10px] text-muted-foreground">AI-suggested</span>}
-                              </div>
-                              <div className="flex gap-2 shrink-0">
-                                <button
-                                  onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
-                                  className="text-xs text-gray-500 hover:text-gray-700"
-                                >
-                                  Edit
-                                </button>
-                                <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {!extraQuestions.length && (
-                        <p className="text-xs text-gray-500">No document-review questions yet.</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newExtraQuestion}
-                        onChange={(e) => setNewExtraQuestion(e.target.value)}
-                        placeholder="Add a question to raise this round…"
-                        className="flex-1 text-sm border border-border rounded px-2 py-1.5"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
-                      />
-                      <button
-                        onClick={handleAddExtraQuestion}
-                        disabled={!newExtraQuestion.trim()}
-                        className="px-3 py-1.5 border border-border text-gray-800 text-xs rounded hover:bg-muted disabled:opacity-50"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {step.key === 'questions' && (
-                <>
+      <WorkspaceGrid>
+        <GridBlock panelKey="questions" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Interview Questions</PanelHeading>
                   {/* Round recording controls -- unframed, sits above the transcript block. */}
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-gray-900">🎙️ Round Recording ({questions.length} Questions)</p>
@@ -1246,10 +1099,154 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       </div>
                     )}
                   </div>
-                </>
-              )}
+        </GridBlock>
+        <GridBlock panelKey="docbox" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Documents</PanelHeading>
+                  {/* Documents Received -- must be reviewed before the meeting/recording starts. */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">📄 {isFirstRound ? 'Documents Required' : 'Documents Received'}</p>
+                      {uploadChannel && (
+                        <button
+                          type="button"
+                          onClick={handleSyncDocuments}
+                          disabled={syncingDocs}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
+                        >
+                          {syncingDocs ? 'Checking…' : 'Check for New Documents'}
+                        </button>
+                      )}
+                    </div>
+                    {uploadChannel ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Sent To:</span>
+                        <code className="text-xs bg-muted px-2 py-1 rounded border border-border">{uploadChannel.dedicated_email}</code>
+                        <button
+                          type="button"
+                          onClick={() => { navigator.clipboard.writeText(uploadChannel.dedicated_email); toast.success('Copied'); }}
+                          className="text-xs text-primary underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Loading upload address…</p>
+                    )}
 
-              {step.key === 'software' && (
+                    {requiredDocuments.data && requiredDocuments.data.length > 0 ? (
+                      <div className="divide-y divide-border border-t border-border">
+                        {requiredDocuments.data.map((doc) => {
+                          const received = isDocumentReceived(doc.name);
+                          return (
+                            <div key={doc.id} className="flex items-start justify-between gap-2 py-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                                {doc.purpose && <p className="text-xs text-muted-foreground">{doc.purpose}</p>}
+                              </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${received ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {received ? 'Received' : 'Missing'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No specific documents configured for this round in the DD Framework.</p>
+                    )}
+
+                    {receivedDocs.length > 0 && (
+                      <div className="space-y-1 pt-2">
+                        <p className="text-xs font-semibold text-gray-900">All Files Received:</p>
+                        {receivedDocs.map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            onClick={() => openDocument(doc)}
+                            className="w-full text-left text-xs px-2 py-1.5 border-b border-border hover:bg-muted/40 flex items-center justify-between"
+                          >
+                            <span>{doc.file_name}</span>
+                            <span className="text-primary">View</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI-generated document review questions -- not an accent panel, so unshaded. */}
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">🧩 Document Review Questions</p>
+                      <button
+                        type="button"
+                        onClick={runAnomalyDetection}
+                        disabled={!interviewRowId || generatingAnomalyQuestions}
+                        className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded hover:opacity-90 disabled:opacity-50"
+                      >
+                        {generatingAnomalyQuestions ? 'Reviewing…' : '🔍 Re-Check Documents'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Anomalies or gaps found in the documents above, to raise and evaluate before the meeting.</p>
+                    <div className="space-y-2">
+                      {extraQuestions.map((q) => (
+                        <div key={q.id} className="border-b border-border py-2">
+                          {editingExtraQuestionId === q.id ? (
+                            <div className="flex items-start gap-2">
+                              <textarea
+                                className="flex-1 text-sm border border-border rounded px-2 py-1"
+                                value={editingExtraQuestionText}
+                                onChange={(e) => setEditingExtraQuestionText(e.target.value)}
+                                rows={2}
+                              />
+                              <div className="flex flex-col gap-1">
+                                <button onClick={() => handleSaveExtraQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                                <button onClick={() => setEditingExtraQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm text-gray-900">{q.question_text}</p>
+                                {q.rationale && <p className="text-xs text-muted-foreground mt-1">{q.rationale}</p>}
+                                {q.source === 'ai_document_review' && <span className="text-[10px] text-muted-foreground">AI-suggested</span>}
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <button
+                                  onClick={() => { setEditingExtraQuestionId(q.id); setEditingExtraQuestionText(q.question_text); }}
+                                  className="text-xs text-gray-500 hover:text-gray-700"
+                                >
+                                  Edit
+                                </button>
+                                <button onClick={() => handleDeleteExtraQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {!extraQuestions.length && (
+                        <p className="text-xs text-gray-500">No document-review questions yet.</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newExtraQuestion}
+                        onChange={(e) => setNewExtraQuestion(e.target.value)}
+                        placeholder="Add a question to raise this round…"
+                        className="flex-1 text-sm border border-border rounded px-2 py-1.5"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddExtraQuestion(); }}
+                      />
+                      <button
+                        onClick={handleAddExtraQuestion}
+                        disabled={!newExtraQuestion.trim()}
+                        className="px-3 py-1.5 border border-border text-gray-800 text-xs rounded hover:bg-muted disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+        </GridBlock>
+        <GridBlock panelKey="transcript" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Sector Questions</PanelHeading>
                 sectorModule ? (
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
@@ -1265,10 +1262,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                 ) : (
                   <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
                 )
-              )}
-
-              {step.key === 'verification' && (
-                <>
+        </GridBlock>
+        <GridBlock panelKey="manual_assessment" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Internal Verification</PanelHeading>
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-gray-900">✅ Internal Verification Checklist</p>
                     <div className="space-y-2">
@@ -1320,11 +1316,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       ✅ Every Claim Requires Validation From All 3 Sources
                     </p>
                   </div>
-                </>
-              )}
-
-              {step.key === 'ai_analysis' && (
-                <>
+        </GridBlock>
+        <GridBlock panelKey="report" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>AI Analysis & Expert Input</PanelHeading>
                 {aiAnalysis ? (
                   <>
                     <div className="space-y-3">
@@ -1500,12 +1494,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </div>
                   )}
                 </div>
-                </>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+        </GridBlock>
+      </WorkspaceGrid>
+
 
 
       {/* Round Gates -- accordion exposes every step at once, so the gate panel is always
