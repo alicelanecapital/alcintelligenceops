@@ -51,6 +51,33 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
     const founderName = d.founder?.name ?? d.name;
     const industry = d.company?.industry ?? d.founder?.sector ?? d.industry ?? null;
 
+    // Adopt an existing workspace for this contact rather than spawning a second record —
+    // otherwise the meeting's transcript and DocBox documents stay behind on the old row.
+    if (d.contact_id) {
+      const { data: orphanRows } = await (s.from("interviews") as any)
+        .select("*")
+        .eq("contact_id", d.contact_id)
+        .is("opportunity_id", null)
+        .in("status", ["draft", "live", "paused"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const orphan: any = orphanRows?.[0];
+      if (orphan) {
+        const { data: adopted } = await (s.from("interviews") as any)
+          .update({
+            opportunity_id: d.id,
+            meeting_type: "due_diligence",
+            playbook_id: orphan.playbook_id ?? playbookId,
+            title: `${businessName} · Due Diligence`,
+          } as any)
+          .eq("id", orphan.id)
+          .select("*")
+          .single();
+        return adopted ?? orphan;
+      }
+    }
+
+
     const { data: row, error: insErr } = await (s.from("interviews") as any)
       .insert({
         opportunity_id: d.id,
