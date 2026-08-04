@@ -58,6 +58,33 @@ export async function deleteTemplate(id: string) {
   if (error) throw error;
 }
 
+/** Copies a template plus every section (title, level, order) so a variant can be built
+ * without retyping the outline. */
+export async function duplicateTemplate(id: string): Promise<ReportTemplate> {
+  const { template, sections } = await fetchTemplateDetail(id);
+  const { data, error } = await db
+    .from("report_templates")
+    .insert({
+      name: `${template.name} (copy)`,
+      description: template.description,
+      cover_bg: template.cover_bg,
+      cover_fg: template.cover_fg,
+      logo_url: template.logo_url,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  const copy = data as ReportTemplate;
+  if (sections.length) {
+    const { error: sectionError } = await db.from("report_template_sections").insert(
+      sections.map((s) => ({ template_id: copy.id, title: s.title, level: s.level, sort_order: s.sort_order })),
+    );
+    if (sectionError) throw sectionError;
+  }
+  return copy;
+}
+
+
 /** Uploads the template's sample branding attachment (a past deck, logo, style reference)
  * to a public bucket -- it's a visual reference for the team, not confidential data. */
 export async function uploadTemplateAttachment(templateId: string, file: File): Promise<{ url: string; name: string }> {
