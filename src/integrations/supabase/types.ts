@@ -270,6 +270,7 @@ export type Database = {
           position: string | null
           relationship_score: number | null
           role: string | null
+          sector: string | null
           source_event_id: string | null
           stakeholder_brief: Json | null
           status: string | null
@@ -300,6 +301,7 @@ export type Database = {
           position?: string | null
           relationship_score?: number | null
           role?: string | null
+          sector?: string | null
           source_event_id?: string | null
           stakeholder_brief?: Json | null
           status?: string | null
@@ -330,6 +332,7 @@ export type Database = {
           position?: string | null
           relationship_score?: number | null
           role?: string | null
+          sector?: string | null
           source_event_id?: string | null
           stakeholder_brief?: Json | null
           status?: string | null
