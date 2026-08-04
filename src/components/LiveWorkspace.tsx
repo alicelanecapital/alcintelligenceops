@@ -82,7 +82,7 @@ export function LiveWorkspace({ id, context = "meeting", dealName, backTo, backL
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{iv.industry ?? "—"}</Badge>
-            <Badge className={iv.status === "completed" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}>{iv.status === "live" ? "Paused" : iv.status}</Badge>
+            
             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete meeting" onClick={() => setConfirmDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
