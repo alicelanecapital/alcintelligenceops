@@ -59,6 +59,8 @@ function DDEngine() {
   const navigate = useNavigate();
   const [view, setView] = useState<"active" | "approved" | "rejected" | "archived">("active");
   const [displayMode, setDisplayMode] = useViewMode("dd-engine");
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
 
   const all = q.data ?? [];
   const counts = useMemo(() => {
@@ -75,12 +77,22 @@ function DDEngine() {
 
   const opportunities = useMemo(() => {
     return (all as any[]).filter((opp) => {
-      if (view === "archived") return !!opp.archived;
-      if (opp.archived) return false;
-      const s = opp.pipeline_status ?? "active";
-      return s === view;
+      if (view === "archived") { if (!opp.archived) return false; }
+      else {
+        if (opp.archived) return false;
+        const s = opp.pipeline_status ?? "active";
+        if (s !== view) return false;
+      }
+      if (!term) return true;
+      const fields: (string | null | undefined)[] = [
+        opp.dd_company_name, opp.name, opp.founder?.name, opp.industry, opp.sector,
+        opp.current_stage, opp.pipeline_status,
+        ...((opp.dd_key_contacts ?? []) as any[]).map((c) => c?.name),
+      ];
+      return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(term));
     });
-  }, [all, view]);
+  }, [all, view, term]);
+
 
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
