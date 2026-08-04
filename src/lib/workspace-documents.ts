@@ -67,3 +67,22 @@ export async function readTextSnippet(file: File): Promise<string> {
     return "";
   }
 }
+
+/** Has a required document (by its framework name) actually been provided in DocBox?
+ * Matches loosely on the uploaded file name so "FY24 Audited Financials.pdf" ticks off
+ * "Audited financial statements". */
+export function isDocumentProvided(requiredName: string, uploaded: WorkspaceDocument[]): boolean {
+  const tokens = requiredName
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 3 && !STOPWORDS.has(t));
+  if (tokens.length === 0) return false;
+  return uploaded.some((d) => {
+    const name = (d.file_name ?? "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ");
+    const hits = tokens.filter((t) => name.includes(t)).length;
+    return hits >= Math.max(1, Math.ceil(tokens.length / 2));
+  });
+}
+
+const STOPWORDS = new Set(["with", "from", "that", "this", "your", "their", "current", "latest", "recent", "document", "documents", "copy", "copies"]);

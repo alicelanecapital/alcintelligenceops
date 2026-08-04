@@ -24,7 +24,8 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { fetchContact } from "@/lib/contacts";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, FileText, Mic, Sparkles, StopCircle, FileOutput, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Mic, Sparkles, StopCircle, FileOutput, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { listWorkspaceDocuments, isDocumentProvided } from "@/lib/workspace-documents";
 import { format } from "date-fns";
 import { TemplatePickerDialog } from "@/components/TemplatePickerDialog";
 
@@ -130,6 +131,8 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
   const ana = useQuery({ queryKey: ["iv-ana", id], queryFn: () => getAnalyses(id), refetchInterval: 6000 });
   const docs = useQuery({ queryKey: ["iv-docs", id], queryFn: () => getDocRequests(id), refetchInterval: 8000 });
   const notes = useQuery({ queryKey: ["iv-notes", id], queryFn: () => getNotes(id) });
+  // DocBox uploads — used to tick off required documents that have actually been provided.
+  const workspaceDocs = useQuery({ queryKey: ["docbox", id], queryFn: () => listWorkspaceDocuments(id), refetchInterval: 15000 });
   const contactQ = useQuery({
     queryKey: ["iv-contact", interview.contact_id],
     queryFn: () => fetchContact(interview.contact_id),
@@ -407,6 +410,18 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
 
   // Group risks by category for accordion
   const risksByCategory = groupRisks(risks);
+
+  // Detected red flags on the step in view drive the pulsing alert so it's impossible to
+  // miss mid-interview.
+  const stepFlagCount = (stepDetail.data?.questions ?? []).reduce((n, q) => {
+    const g = gradesByQuestion.get(q.id);
+    return n + (g?.flags ?? []).filter((f) => f.status === "Detected").length;
+  }, 0);
+  const seriousRisks = risks.filter((a: any) => {
+    const r = String(a.payload?.rating ?? "").toLowerCase();
+    return r.startsWith("crit") || r.startsWith("high") || r.startsWith("med");
+  }).length;
+  const providedCount = (stepDetail.data?.documents ?? []).filter((d) => isDocumentProvided(d.name, workspaceDocs.data ?? [])).length;
 
 
   return (
@@ -735,7 +750,9 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
         <GridBlock panelKey="risk_alerts" layout={layout} className="space-y-3 min-w-0">
         <aside className="space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Risk alerts</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2 inline-flex items-center gap-2">
+              Risk alerts {seriousRisks > 0 && <PulsingAlert count={seriousRisks} />}
+            </div>
             {risks.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> : (
               <Accordion type="multiple" defaultValue={[]}>
                 {risksByCategory.map((grp) => (
@@ -895,19 +912,34 @@ function transcriptGroupTitle(d: Date) {
 }
 // A-E grade badge colouring: forest green through amber to red.
 function gradeTone(grade?: string) {
+  // Bright, solid A-E chips so coverage reads at a glance during an interview.
   switch (grade) {
-    case "A": return "bg-green-100 text-green-900 border-green-300";
-    case "B": return "bg-emerald-50 text-emerald-800 border-emerald-200";
-    case "C": return "bg-amber-50 text-amber-800 border-amber-200";
-    case "D": return "bg-orange-50 text-orange-800 border-orange-200";
-    case "E": return "bg-red-50 text-red-800 border-red-300";
+    case "A": return "bg-emerald-600 text-white border-emerald-700 font-bold";
+    case "B": return "bg-green-500 text-white border-green-600 font-bold";
+    case "C": return "bg-amber-500 text-white border-amber-600 font-bold";
+    case "D": return "bg-orange-500 text-white border-orange-600 font-bold";
+    case "E": return "bg-red-600 text-white border-red-700 font-bold";
     default: return "bg-muted text-muted-foreground border-border";
   }
 }
 function flagTone(status: FlagStatus) {
-  if (status === "Detected") return "bg-red-50 text-red-800 border-red-200";
-  if (status === "Clear") return "bg-green-50 text-green-900 border-green-200";
+  if (status === "Detected") return "bg-red-100 text-red-900 border-red-400";
+  if (status === "Clear") return "bg-green-50 text-green-900 border-green-300";
   return "bg-muted/40 text-muted-foreground border-border";
+}
+
+/** Pulsing red alert — shown wherever red flags or serious risks are detected. */
+function PulsingAlert({ count, onDark }: { count: number; onDark?: boolean }) {
+  return (
+    <span
+      title={`${count} flagged`}
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal animate-pulse ${
+        onDark ? "bg-red-500 text-white" : "bg-red-600 text-white"
+      }`}
+    >
+      <AlertTriangle className="h-3 w-3" />{count}
+    </span>
+  );
 }
 
 function scoreTone(value: any) {
