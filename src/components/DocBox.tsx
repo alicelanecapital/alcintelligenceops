@@ -124,37 +124,44 @@ export function DocBox({
           />
         </div>
 
-        <div className="mt-3 space-y-2">
+        <div className="mt-3">
           {docs.isLoading && <div className="text-xs text-muted-foreground italic">Loading documents…</div>}
-          {!docs.isLoading && (docs.data ?? []).length === 0 && (
-            <div className="text-xs text-muted-foreground italic">No documents yet.</div>
-          )}
-          {[...grouped.filter((g) => g.items.length), ...(unfiled.length ? [{ key: -1, title: "Unfiled", items: unfiled }] : [])].map((g) => (
-            <div key={g.key}>
-              <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-1">
-                {g.title} <span className="normal-case tracking-normal">({g.items.length})</span>
-              </div>
-              <ul className="space-y-1">
-                {g.items.map((d: any) => (
-                  <li key={d.id} className="flex items-center gap-2 text-xs border-b border-border/40 pb-1 last:border-0">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <button onClick={() => void openDoc(d)} className="truncate text-left hover:underline text-primary">
-                      {d.file_name}
-                    </button>
-                    {d.drive_file_id && <Badge variant="outline" className="text-[9px]">Drive</Badge>}
-                    <Button
-                      size="icon" variant="ghost"
-                      className="h-6 w-6 ml-auto text-destructive hover:text-destructive"
-                      title="Remove"
-                      onClick={() => removeDoc.mutate(d.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </li>
+          {!docs.isLoading && (
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-3 min-w-full">
+                {[...grouped, ...(unfiled.length ? [{ key: -1, title: "Unfiled", items: unfiled }] : [])].map((g) => (
+                  <div key={g.key} className="flex-1 min-w-[150px] border-l border-border/60 pl-2 first:border-l-0 first:pl-0">
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-forest font-semibold mb-1 leading-tight">
+                      {g.title} <span className="normal-case tracking-normal text-muted-foreground">({g.items.length})</span>
+                    </div>
+                    {g.items.length === 0 ? (
+                      <div className="text-[10px] text-muted-foreground italic">Outstanding</div>
+                    ) : (
+                      <ul className="space-y-1">
+                        {g.items.map((d: any) => (
+                          <li key={d.id} className="flex items-start gap-1 text-xs">
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                            <button onClick={() => void openDoc(d)} className="truncate text-left hover:underline text-primary flex-1">
+                              {d.file_name}
+                            </button>
+                            {d.drive_file_id && <Badge variant="outline" className="text-[9px]">Drive</Badge>}
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-5 w-5 text-destructive hover:text-destructive shrink-0"
+                              title="Remove"
+                              onClick={() => removeDoc.mutate(d.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-          ))}
+          )}
         </div>
       </CardContent>
     </Card>
