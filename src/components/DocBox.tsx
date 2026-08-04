@@ -4,13 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, UploadCloud, Trash2, ExternalLink } from "lucide-react";
+import { FileText, UploadCloud, Trash2, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   listDocBoxDocuments, deleteWorkspaceDocument, uploadDocBoxFile,
   readTextSnippet, getDocBoxSignedUrl,
 } from "@/lib/workspace-documents";
-import { fileWorkspaceDocument } from "@/lib/docbox.functions";
+import { fileWorkspaceDocument, syncPendingDocBoxDocuments } from "@/lib/docbox.functions";
 import { SHARED_DRIVE_FOLDER_URL } from "@/lib/drive-folder";
 
 /** DocBox — drop documents here during a meeting. Each file is stored, then AI decides
@@ -27,6 +27,7 @@ export function DocBox({
 }) {
   const qc = useQueryClient();
   const fileDoc = useServerFn(fileWorkspaceDocument);
+  const syncPending = useServerFn(syncPendingDocBoxDocuments);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -34,6 +35,17 @@ export function DocBox({
   const docs = useQuery({
     queryKey: ["docbox", companyId ?? interviewId],
     queryFn: () => listDocBoxDocuments(interviewId, companyId),
+  });
+
+  const syncDrive = useMutation({
+    mutationFn: () => syncPending({ data: { interviewId, companyId, companyName } }) as any,
+    onSuccess: (r: any) => {
+      if (r?.error) toast.error(r.error);
+      else if (r?.synced) toast.success(`${r.synced} document(s) synced to Drive`);
+      else toast.info("Everything is already synced to Drive");
+      qc.invalidateQueries({ queryKey: ["docbox", companyId ?? interviewId] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Drive sync failed"),
   });
 
   const removeDoc = useMutation({
@@ -95,6 +107,16 @@ export function DocBox({
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">DocBox</div>
+          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => syncDrive.mutate()}
+            disabled={syncDrive.isPending}
+            className="text-[10px] inline-flex items-center gap-1 text-muted-foreground hover:text-forest"
+            title="Push any documents that haven't reached Google Drive yet"
+          >
+            <RefreshCw className={`h-3 w-3 ${syncDrive.isPending ? "animate-spin" : ""}`} /> Sync Drive
+          </button>
           <a
             href={SHARED_DRIVE_FOLDER_URL}
             target="_blank"
@@ -103,6 +125,7 @@ export function DocBox({
           >
             <ExternalLink className="h-3 w-3" /> Drive
           </a>
+          </div>
         </div>
 
         <div

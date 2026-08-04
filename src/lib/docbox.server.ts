@@ -203,3 +203,57 @@ export async function fileDocument(data: FileDocInput) {
 
   return { document: row, driveSynced: !!driveFileId, driveError };
 }
+
+/** Re-attempts the Drive upload for stored documents that have no drive_file_id yet. */
+export async function syncPendingDocuments(input: { interviewId: string; companyId?: string | null; companyName?: string }) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!driveHeaders()) return { synced: 0, failed: 0, error: "Google Drive is not connected" };
+
+  let query = (supabaseAdmin.from("workspace_documents" as any) as any).select("*").is("drive_file_id", null);
+  query = input.companyId ? query.eq("company_id", input.companyId) : query.eq("interview_id", input.interviewId);
+  const { data: pending, error } = await query;
+  if (error) throw error;
+
+  const rows = (pending ?? []) as any[];
+  if (!rows.length) return { synced: 0, failed: 0, error: null as string | null };
+
+  const companyId = input.companyId ?? rows[0]?.company_id ?? null;
+  let cached: string | null = null;
+  let sector: string | null = null;
+  let companyName = input.companyName ?? "Unfiled";
+  if (companyId) {
+    const { data: co } = await supabaseAdmin.from("companies").select("name, drive_folder_id, industry").eq("id", companyId).maybeSingle();
+    cached = (co as any)?.drive_folder_id ?? null;
+    sector = (co as any)?.industry ?? null;
+    companyName = (co as any)?.name ?? companyName;
+    if (!sector) {
+      const { data: c } = await supabaseAdmin
+        .from("contacts").select("sector").eq("company_id", companyId).not("sector", "is", null).limit(1).maybeSingle();
+      sector = (c as any)?.sector ?? null;
+    }
+  }
+
+  const folderId = await ensureCompanyFolder(companyName, sector, cached);
+  if (!folderId) return { synced: 0, failed: rows.length, error: "Could not reach the shared Drive folder" };
+  if (companyId && folderId !== cached) {
+    await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", companyId);
+  }
+
+  let synced = 0;
+  let failed = 0;
+  for (const row of rows) {
+    if (!row.storage_path) { failed++; continue; }
+    const dl = await supabaseAdmin.storage.from(BUCKET).download(row.storage_path);
+    if (!dl.data) { failed++; continue; }
+    const uploaded = await uploadToDrive(folderId, row.file_name, row.mime_type ?? "application/octet-stream", await dl.data.arrayBuffer());
+    if (!uploaded?.id) { failed++; continue; }
+    await (supabaseAdmin.from("workspace_documents" as any) as any)
+      .update({
+        drive_file_id: uploaded.id,
+        drive_web_link: uploaded.webViewLink ?? `https://drive.google.com/file/d/${uploaded.id}/view`,
+      })
+      .eq("id", row.id);
+    synced++;
+  }
+  return { synced, failed, error: null as string | null };
+}
