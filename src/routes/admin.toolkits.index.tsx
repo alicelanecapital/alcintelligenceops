@@ -76,13 +76,13 @@ function ToolkitRow({ t, onDelete, onRename }: { t: Toolkit; onDelete: () => voi
       <div className="h-8 w-8 rounded-md bg-green-100 text-green-800 flex items-center justify-center shrink-0">
         <ShieldCheck className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1">
+      <Link to={designHref} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
         <div className="font-serif text-base leading-tight truncate">
           {t.name}
           {isDD && <Badge variant="outline" className="ml-2 text-[10px] border-green-700 text-green-800">Template</Badge>}
         </div>
         {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
-      </div>
+      </Link>
       <Link to={designHref}>
         <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] gap-1">
           Design <ArrowRight className="h-3 w-3" />
@@ -138,7 +138,7 @@ function NewToolkitButton() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4 mr-2" /> New playbook
+            <Plus className="h-4 w-4 mr-2" /> New Playbook
           </Button>
         </DialogTrigger>
         <DialogContent>
@@ -153,7 +153,7 @@ function NewToolkitButton() {
               <Input value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" placeholder="What is this playbook for?" />
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => { setOpen(false); setUploadOpen(true); }}>
-              <Upload className="h-3.5 w-3.5 mr-1" /> Or upload a template instead
+              <Upload className="h-3.5 w-3.5 mr-1" /> Or Upload A Template Instead
             </Button>
           </div>
           <DialogFooter>

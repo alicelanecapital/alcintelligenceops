@@ -25,6 +25,7 @@ export type ContactRow = {
   company_id: string | null;
   owner_id: string | null;
   photo_url: string | null;
+  sector: string | null;
   stakeholder_brief: { summary?: string; background_points?: string[] } | null;
   created_at: string;
   updated_at: string;
@@ -153,6 +154,19 @@ export async function fetchContactsByCompany(companyId: string) {
     .select("*")
     .eq("company_id", companyId)
     .order("name");
+  if (error) throw error;
+  return (data ?? []) as unknown as ContactRow[];
+}
+
+/** Matches on the free-text company name rather than company_id, so it still finds
+ * siblings for contacts created before company_id existed / was backfilled. Used by the
+ * Edit Contact modal to show "other contacts at this organisation" as you type/edit. */
+export async function fetchContactsByCompanyName(companyName: string, excludeId?: string) {
+  const trimmed = companyName.trim();
+  if (!trimmed) return [] as ContactRow[];
+  let q = supabase.from("contacts").select("*").ilike("company", trimmed).order("name");
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as unknown as ContactRow[];
 }

@@ -629,7 +629,7 @@ function StructuringTab({ opportunity, opportunityId }: { opportunity: any; oppo
               </div>
             ))}
             <Button type="button" size="sm" variant="outline" onClick={() => setAllocations(s => [...s, { use: "", amount: "", evidence: "" }])}>
-              <Plus className="h-3 w-3 mr-1" /> Add allocation
+              <Plus className="h-3 w-3 mr-1" /> Add Allocation
             </Button>
           </div>
 
@@ -897,7 +897,7 @@ function ValueCreationTab({ opportunity, opportunityId }: { opportunity: any; op
               </div>
             ))}
             <Button type="button" size="sm" variant="outline" onClick={() => setInitiatives(s => [...s, { initiative: "", target_impact: "", achieved: false }])}>
-              <Plus className="h-3 w-3 mr-1" /> Add initiative
+              <Plus className="h-3 w-3 mr-1" /> Add Initiative
             </Button>
           </div>
         </CardContent>
@@ -1157,7 +1157,7 @@ function GovernanceTab({ opportunity, opportunityId }: { opportunity: any; oppor
               </div>
             ))}
             <Button type="button" size="sm" variant="outline" onClick={() => setCovenants(s => [...s, { text: "", required: false }])}>
-              <Plus className="h-3 w-3 mr-1" /> Add covenant
+              <Plus className="h-3 w-3 mr-1" /> Add Covenant
             </Button>
           </div>
           <div className="flex justify-end">
@@ -1206,7 +1206,7 @@ function HundredDayPlanTab({ opportunity, opportunityId }: { opportunity: any; o
               </div>
             ))}
             <Button type="button" size="sm" variant="outline" onClick={() => setInitiatives(s => [...s, { day_range: "", initiative: "", owner: "", expected_outcome: "" }])}>
-              <Plus className="h-3 w-3 mr-1" /> Add initiative
+              <Plus className="h-3 w-3 mr-1" /> Add Initiative
             </Button>
           </div>
         </CardContent>
@@ -1225,7 +1225,7 @@ function HundredDayPlanTab({ opportunity, opportunityId }: { opportunity: any; o
               </div>
             ))}
             <Button type="button" size="sm" variant="outline" onClick={() => setMilestones(s => [...s, { milestone: "", target_value: "", target_date: "" }])}>
-              <Plus className="h-3 w-3 mr-1" /> Add milestone
+              <Plus className="h-3 w-3 mr-1" /> Add Milestone
             </Button>
           </div>
         </CardContent>

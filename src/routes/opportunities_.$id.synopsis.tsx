@@ -72,7 +72,7 @@ function SynopsisPage() {
       <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-border">
         <div className="flex items-center gap-3 min-w-0">
           <Button size="sm" variant="ghost" onClick={() => navigate({ to: "/dd-engine" })}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to pipeline
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back To Pipeline
           </Button>
           <div className="min-w-0">
             <div className="font-serif text-xl truncate">Synopsis — {meta.founderName ?? "Opportunity"}</div>

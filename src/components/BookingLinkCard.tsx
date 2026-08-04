@@ -38,7 +38,7 @@ export function BookingLinkCard() {
               variant="outline"
               onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied — paste it into an email or message", { id: "booking-copy" }); }}
             >
-              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy link
+              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link
             </Button>
           </div>
         ) : (

@@ -314,7 +314,7 @@ function Events() {
         }
         actions={
           <Button onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Add event
+            <Plus className="h-4 w-4 mr-2" /> Add Event
           </Button>
         }
       />
@@ -522,9 +522,18 @@ interface EventsByMonthProps {
 }
 
 function EventsByMonth({ events, ...rowProps }: EventsByMonthProps) {
+  // Booked events move out of their month's accordion into a dedicated "Attending"
+  // accordion above it, instead of staying listed alongside the not-yet-booked ones.
+  const attending = useMemo(
+    () => events.filter((e: any) => e.booked).sort((a: any, b: any) => (a.start_date || "").localeCompare(b.start_date || "")),
+    [events],
+  );
+  const attendingTotal = useMemo(() => attending.reduce((s: number, e: any) => s + bookingTotal(e), 0), [attending]);
+  const notAttending = useMemo(() => events.filter((e: any) => !e.booked), [events]);
+
   const groups = useMemo(() => {
     const map = new Map<string, { label: string; events: any[] }>();
-    for (const e of events) {
+    for (const e of notAttending) {
       const { key, label } = monthKey(e.start_date || e.end_date);
       if (!map.has(key)) map.set(key, { label, events: [] });
       map.get(key)!.events.push(e);
@@ -532,33 +541,46 @@ function EventsByMonth({ events, ...rowProps }: EventsByMonthProps) {
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, g]) => ({ key, ...g }));
-  }, [events]);
+  }, [notAttending]);
 
   return (
-    <Accordion type="multiple" className="rounded-lg bg-card px-3">
-      {groups.map((g) => {
-        const monthTotal = g.events.filter((e: any) => e.booked).reduce((s: number, e: any) => s + bookingTotal(e), 0);
-        return (
-          <AccordionItem key={g.key} value={g.key}>
-            <AccordionTrigger className="text-sm">
-              <span className="flex items-center gap-2 flex-1">
-                <span className="text-sm font-semibold">{g.label}</span>
-                <Badge variant="outline" className="text-[10px]">{g.events.length}</Badge>
-                {monthTotal > 0 && (
-                  <span className="ml-auto mr-2 text-xs text-muted-foreground">
-                    Month total: <span className="font-medium text-foreground">{formatZAR(monthTotal)}</span>
-                  </span>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3">
-                {g.events.map((e) => <EventRow key={e.id} e={e} {...rowProps} />)}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        );
-      })}
+    <Accordion type="multiple" defaultValue={attending.length ? ["attending"] : []} className="rounded-lg bg-card px-3">
+      {attending.length > 0 && (
+        <AccordionItem value="attending">
+          <AccordionTrigger className="text-sm">
+            <span className="flex items-center gap-2 flex-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+              <span className="text-sm font-semibold text-green-800">Attending</span>
+              <Badge variant="outline" className="text-[10px]">{attending.length}</Badge>
+              {attendingTotal > 0 && (
+                <span className="ml-auto mr-2 text-xs text-muted-foreground">
+                  Total: <span className="font-medium text-foreground">{formatZAR(attendingTotal)}</span>
+                </span>
+              )}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3">
+              {attending.map((e: any) => <EventRow key={e.id} e={e} {...rowProps} />)}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      )}
+      {groups.map((g) => (
+        <AccordionItem key={g.key} value={g.key}>
+          <AccordionTrigger className="text-sm">
+            <span className="flex items-center gap-2 flex-1">
+              <span className="text-sm font-semibold">{g.label}</span>
+              <Badge variant="outline" className="text-[10px]">{g.events.length}</Badge>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3">
+              {g.events.map((e) => <EventRow key={e.id} e={e} {...rowProps} />)}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
     </Accordion>
   );
 }
@@ -635,10 +657,11 @@ function EventRow({ e, onEdit, onReject, onCapture, onBook, onUnbook, onIntel, f
                     <div>
                       <label className="text-xs font-medium">How many people attending?</label>
                       <Input
-                        type="number"
-                        min={1}
-                        value={qty}
-                        onChange={(ev) => setQty(Number(ev.target.value))}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={qty === 0 ? "" : String(qty)}
+                        onChange={(ev) => setQty(Number(ev.target.value.replace(/\D/g, "")) || 0)}
                         className="mt-1 h-9"
                         autoFocus
                       />
@@ -659,7 +682,7 @@ function EventRow({ e, onEdit, onReject, onCapture, onBook, onUnbook, onIntel, f
             ) : null}
             {e.booked ? (
               <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" title={`Add a contact from ${e.name}`} onClick={() => onCapture(e)}>
-                <UserPlus className="h-3 w-3 mr-1" /> Add contact
+                <UserPlus className="h-3 w-3 mr-1" /> Add Contact
               </Button>
             ) : null}
           </div>

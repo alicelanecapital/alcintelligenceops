@@ -151,7 +151,7 @@ export async function fetchOpportunities() {
 
 export async function fetchOpportunitiesWithDDStatus() {
   const [{ data: opps, error: oppsError }, { data: interviews, error: interviewsError }] = await Promise.all([
-    supabase.from("opportunities").select("*, founder:founders(id, name, contact_id), company:companies(id, name)").order("created_at", { ascending: false }),
+    supabase.from("opportunities").select("*, founder:founders(id, name, contact_id, startup_name), company:companies(id, name)").order("created_at", { ascending: false }),
     supabase.from("dd_interviews").select("opportunity_id, round, status, detected_sector, sector_confidence"),
   ]);
   if (oppsError) throw oppsError;
@@ -241,8 +241,10 @@ export async function fetchOpportunitiesWithDDStatus() {
       // own contact record -- either way, surface whichever photo is actually available.
       dd_photo_url: photoByContactId.get(opp.contact_id) ?? photoByContactId.get(opp.founder?.contact_id) ?? null,
       // Best available company name: the opportunity's own company link, then the primary
-      // contact's free-text company field, then the opportunity name itself.
-      dd_company_name: opp.company?.name ?? primaryContact?.company ?? opp.name,
+      // contact's free-text company field, then the legacy founder's startup_name (founder-
+      // flow opportunities have no contact/company link at all), then the opportunity name
+      // itself as a last resort.
+      dd_company_name: opp.company?.name ?? primaryContact?.company ?? opp.founder?.startup_name ?? opp.name,
       // Every contact sharing that company (if linked via company_id), falling back to just
       // the opportunity's own primary contact so there's always at least one badge.
       dd_key_contacts: resolvedCompanyId

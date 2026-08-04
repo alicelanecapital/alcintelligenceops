@@ -128,8 +128,8 @@ export function PlaybookUploadDialog({ open, onClose, toolkitId, onCreateToolkit
 
         {stage === "preview" && (
           <DialogFooter>
-            <Button variant="outline" onClick={reset}>Start over</Button>
-            <Button onClick={confirm} disabled={onCreateToolkit ? !name.trim() : false}>Save to playbook</Button>
+            <Button variant="outline" onClick={reset}>Start Over</Button>
+            <Button onClick={confirm} disabled={onCreateToolkit ? !name.trim() : false}>Save To Playbook</Button>
           </DialogFooter>
         )}
       </DialogContent>

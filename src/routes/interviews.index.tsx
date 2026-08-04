@@ -164,8 +164,8 @@ function InterviewsIndex() {
         description="Founder engagements recorded, transcribed and analysed in real time. Every conversation builds Alice Lane's institutional knowledge."
         actions={
           <div className="flex items-center gap-2">
-            <Button onClick={() => setAddMeetingOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Meeting</Button>
             <SyncGoogleButton mode="team" className="bg-green-700 hover:bg-green-800 text-white border-green-700 hover:border-green-800" />
+            <Button onClick={() => setAddMeetingOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Meeting</Button>
           </div>
         }
       />
@@ -202,8 +202,10 @@ function InterviewsIndex() {
   );
 }
 
+// "live" has no badge of its own -- opening a meeting now marks it live immediately
+// (there's no separate pre-interview brief stage any more), so a "Live" badge would show
+// on every launched meeting rather than meaning "in progress right now".
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  live: { label: "Live", className: "bg-red-100 text-red-800 border-red-300" },
   draft: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
   paused: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
   completed: { label: "Completed", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },

@@ -73,7 +73,7 @@ function DDInterviewPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate({ to: "/dd-engine" })}>
-        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Opportunities
+        <ChevronLeft className="h-4 w-4 mr-1" /> Back To Opportunities
       </Button>
 
       {opp.data && null}

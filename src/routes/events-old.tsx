@@ -63,10 +63,10 @@ function Events() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setEditingEvent({}); setShowEditModal(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Add event
+              <Plus className="h-4 w-4 mr-2" /> Add Event
             </Button>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => { toast.success("Event discovery initiated. Check back in a few minutes."); }}>
-              <Sparkles className="h-4 w-4 mr-2" /> Run discovery
+              <Sparkles className="h-4 w-4 mr-2" /> Run Discovery
             </Button>
           </div>
         }

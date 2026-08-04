@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchContacts, createContact, updateContact, deleteContact, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
+import { fetchContacts, createContact, updateContact, deleteContact, fetchContactsByCompanyName, CATEGORY_OPTIONS, CATEGORY_LABELS, type ContactRow } from "@/lib/contacts";
 import { fetchEvents } from "@/lib/db";
 import { generateCompanyDescription, enrichContactDetails, previewDuplicateContacts, mergeDuplicateContacts } from "@/lib/contacts.functions";
 import { extractBusinessCard, type ExtractedBusinessCard } from "@/lib/business-card.functions";
@@ -25,7 +25,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, Building2, Users, GitMerge, QrCode, Pencil, X, CalendarPlus, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Mic, ArrowRight, Mail, Phone, Globe, Linkedin as LinkedinIcon, Sparkles, Camera, Upload, RotateCcw, CalendarDays, Building2, Users, User, GitMerge, QrCode, Pencil, X, CalendarPlus, AlertCircle } from "lucide-react";
 import { ScheduleMeetingDialog } from "@/components/ScheduleMeetingDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -107,10 +107,10 @@ function ContactsIndex() {
         actions={
           <div className="flex gap-2 flex-nowrap items-center">
             <Button variant="outline" onClick={() => setScanOpen(true)}>
-              <Camera className="h-4 w-4 mr-1" /> Scan card / QR
+              <Camera className="h-4 w-4 mr-1" /> Scan Card / QR
             </Button>
             <Button onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Add contact
+              <Plus className="h-4 w-4 mr-1" /> Add Contact
             </Button>
           </div>
         }
@@ -637,6 +637,8 @@ function readLastDate(): string | null {
   try { return typeof window !== "undefined" ? window.localStorage.getItem(LAST_DATE_KEY) : null; } catch { return null; }
 }
 
+const blankNewContact = { name: "", position: "", email: "", phone: "", category: "" };
+
 function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open: boolean; onClose: () => void; defaultEventId?: string; initialForm?: any }) {
   const qc = useQueryClient();
 
@@ -660,8 +662,38 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
   const [enriching, setEnriching] = useState(false);
   const lastAutoCompanyRef = useRef<string>("");
 
+  // Other contacts already at this organisation, plus a quick way to add another one to
+  // it without leaving this dialog -- doesn't require the contact being created here to
+  // be saved first, it's keyed purely off the Company field as you type it.
+  const companyName = (form.company ?? "").trim();
+  const siblings = useQuery({
+    queryKey: ["contact-siblings", companyName],
+    queryFn: () => fetchContactsByCompanyName(companyName),
+    enabled: open && companyName.length > 1,
+  });
+  const [addingContact, setAddingContact] = useState(false);
+  const [newContact, setNewContact] = useState(blankNewContact);
+  const addContactMut = useMutation({
+    mutationFn: () => createContact({
+      name: newContact.name.trim(),
+      company: companyName,
+      position: newContact.position.trim() || null,
+      email: newContact.email.trim() || null,
+      phone: newContact.phone.trim() || null,
+      category: newContact.category || form.category || "ecosystem",
+    } as any),
+    onSuccess: () => {
+      toast.success("Contact added to this organisation");
+      qc.invalidateQueries({ queryKey: ["contact-siblings", companyName] });
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      setNewContact(blankNewContact);
+      setAddingContact(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to add contact"),
+  });
+
   useEffect(() => {
-    if (open) { setForm(buildInitial()); lastAutoCompanyRef.current = ""; }
+    if (open) { setForm(buildInitial()); lastAutoCompanyRef.current = ""; setAddingContact(false); setNewContact(blankNewContact); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialForm]);
 
@@ -713,6 +745,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
         position: f.position?.trim() ? f.position : result.position || f.position,
         website: f.website?.trim() ? f.website : result.website || f.website,
         linkedin: f.linkedin?.trim() ? f.linkedin : result.linkedin || f.linkedin,
+        sector: f.sector?.trim() ? f.sector : result.sector || f.sector,
         company_description: f.company_description?.trim() ? f.company_description : result.company_description || f.company_description,
         notes: f.notes?.trim() ? f.notes : result.notes || f.notes,
       }));
@@ -758,7 +791,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
             <DialogTitle>{initialForm ? "Review scanned contact" : "Add contact"}</DialogTitle>
@@ -775,7 +808,8 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
             </Button>
           </div>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid md:grid-cols-[1fr_260px] gap-5">
+        <div className="grid grid-cols-2 gap-3 content-start">
           <Field label="Company">
             <Input
               value={form.company ?? ""}
@@ -791,6 +825,7 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
           </Field>
           <Field label="Name"><Input placeholder="Defaults to company if blank" value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Position"><Input value={form.position ?? ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
+          <Field label="Sector"><Input value={form.sector ?? ""} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder="e.g. Hospitality, Fintech" /></Field>
           <Field label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="LinkedIn"><Input value={form.linkedin ?? ""} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} /></Field>
@@ -836,6 +871,66 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
             <Label className="text-sm">Notes</Label>
             <textarea className="w-full min-h-[80px] px-3 py-2 border rounded-md text-sm bg-background" value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
+        </div>
+
+        {/* Organisation side panel -- see who else is already at this company and add
+            another contact to it right away, without saving this one first. */}
+        <div className="border-l border-border pl-5">
+          <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground mb-2">
+            <Building2 className="h-3.5 w-3.5" /> {companyName || "This organisation"}
+          </div>
+
+          {!companyName ? (
+            <p className="text-xs text-muted-foreground">Enter a company above to see and add other contacts there.</p>
+          ) : (
+            <>
+              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                {siblings.isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+                {!siblings.isLoading && !(siblings.data ?? []).length && (
+                  <p className="text-xs text-muted-foreground">No other contacts at this organisation yet.</p>
+                )}
+                {(siblings.data ?? []).map((s: any) => (
+                  <div key={s.id} className="flex items-start gap-2 rounded-md border border-border px-2.5 py-2">
+                    <User className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm truncate">{s.name}</span>
+                      <span className="flex items-center gap-1 flex-wrap">
+                        {s.position && <span className="text-[11px] text-muted-foreground truncate">{s.position}</span>}
+                        <Badge variant="outline" className="text-[9px] px-1 py-0">{CATEGORY_LABELS[s.category] ?? s.category}</Badge>
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {addingContact ? (
+                <div className="mt-3 space-y-2 border border-border rounded-md p-2.5">
+                  <Input placeholder="Name" className="h-8 text-sm" value={newContact.name} onChange={(e) => setNewContact((f) => ({ ...f, name: e.target.value }))} autoFocus />
+                  <Input placeholder="Position (optional)" className="h-8 text-sm" value={newContact.position} onChange={(e) => setNewContact((f) => ({ ...f, position: e.target.value }))} />
+                  <Input placeholder="Email (optional)" className="h-8 text-sm" value={newContact.email} onChange={(e) => setNewContact((f) => ({ ...f, email: e.target.value }))} />
+                  <Input placeholder="Phone (optional)" className="h-8 text-sm" value={newContact.phone} onChange={(e) => setNewContact((f) => ({ ...f, phone: e.target.value }))} />
+                  <CategorySelect value={newContact.category || form.category} onChange={(v) => setNewContact((f) => ({ ...f, category: v }))} />
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingContact(false); setNewContact(blankNewContact); }}>Cancel</Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => addContactMut.mutate()}
+                      disabled={!newContact.name.trim() || addContactMut.isPending}
+                    >
+                      {addContactMut.isPending ? "Adding…" : "Add"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button type="button" size="sm" variant="outline" className="mt-3 w-full h-8 text-xs" onClick={() => setAddingContact(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add contact to {companyName}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -971,7 +1066,7 @@ function DuplicateBanner({ onReview }: { onReview: () => void }) {
       <AlertCircle className="h-4 w-4 shrink-0" />
       <span className="flex-1">{count} likely duplicate contact{count === 1 ? "" : "s"} detected.</span>
       <Button size="sm" variant="outline" className="h-7" onClick={onReview}>
-        <GitMerge className="h-3.5 w-3.5 mr-1" /> Review & merge
+        <GitMerge className="h-3.5 w-3.5 mr-1" /> Review & Merge
       </Button>
     </div>
   );

@@ -33,7 +33,7 @@ export function AddMeetingDialog({ open, onOpenChange }: { open: boolean; onOpen
   // option any more -- every meeting runs against some playbook, even a free-form one.
   useEffect(() => {
     if (playbookId || !toolkits.data?.length) return;
-    const adHoc = toolkits.data.find((t) => t.name?.trim().toLowerCase() === "ad hoc meeting");
+    const adHoc = toolkits.data.find((t) => t.name?.trim().toLowerCase().replace(/\s+/g, "") === "adhocmeeting");
     setPlaybookId((adHoc ?? toolkits.data[0]).id);
   }, [toolkits.data, playbookId]);
 

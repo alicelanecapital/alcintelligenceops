@@ -130,7 +130,7 @@ function AddTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button><Plus className="h-4 w-4 mr-1" /> Add task</Button>
+        <Button><Plus className="h-4 w-4 mr-1" /> Add Task</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>New task</DialogTitle></DialogHeader>

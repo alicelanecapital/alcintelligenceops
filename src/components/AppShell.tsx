@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   LayoutDashboard, Calendar, CalendarDays, Kanban, Users, Map, BarChart3, MessagesSquare,
-  Building2, Target, ShieldCheck, LogOut, UserCog, LayoutTemplate, FileText, ChevronDown,
+  Building2, ShieldCheck, LogOut, UserCog, LayoutTemplate, FileText, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -43,7 +43,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { to: "/admin/templates", label: "Reports", icon: FileText },
         ],
       },
-      { to: "/admin/dd-framework", label: "DD Intelligence Engine", icon: Target },
       { to: "/admin/accounts", label: "Accounts", icon: UserCog },
     ],
   },

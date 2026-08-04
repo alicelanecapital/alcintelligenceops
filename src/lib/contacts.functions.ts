@@ -70,12 +70,14 @@ phone number, email address, or LinkedIn URL you don't have real knowledge of.`;
     const result = await callAIJson(
       "You are a research analyst enriching a CRM contact record for an investor. Only state facts you're " +
       "reasonably confident about; leave a field as an empty string if unsure. Return strict JSON only.",
-      `${user}\n\nReturn JSON: { "position": "", "website": "", "linkedin": "", "company_description": "", "notes": "" }`,
+      `${user}\n\nReturn JSON: { "position": "", "website": "", "linkedin": "", "sector": "", "company_description": "", "notes": "" }` +
+      `\n\n"sector" is a short human-readable industry/sector label for the company, e.g. "Hospitality", "Fintech", "Healthcare".`,
     );
     return {
       position: result.position || "",
       website: result.website || "",
       linkedin: result.linkedin || "",
+      sector: result.sector || "",
       company_description: result.company_description || "",
       notes: result.notes || "",
     };

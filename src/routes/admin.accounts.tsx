@@ -314,7 +314,7 @@ function AccountsScreen() {
                 {syncAllMut.isPending ? "Syncing all…" : "Sync all"}
               </Button>
             )}
-            <Button size="sm" onClick={() => setDialogState({ open: true, member: null })}><Plus className="h-3.5 w-3.5 mr-1" /> Add account</Button>
+            <Button size="sm" onClick={() => setDialogState({ open: true, member: null })}><Plus className="h-3.5 w-3.5 mr-1" /> Add Account</Button>
           </div>
         }
       />
@@ -339,7 +339,7 @@ function AccountsScreen() {
                 You ({user?.email}) aren't in the list below yet — add yourself to get a colour on the Meetings screen.
               </div>
               <Button size="sm" variant="outline" onClick={() => setDialogState({ open: true, member: { id: "", email: user?.email ?? "", display_name: null, color: "blue", created_at: "" } })}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add me
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Me
               </Button>
             </div>
           )}

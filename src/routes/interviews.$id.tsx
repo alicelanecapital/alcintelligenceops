@@ -522,7 +522,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                       size="sm" variant="outline" className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                       onClick={() => setClearTranscriptOpen(true)}
                     >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear transcript
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear Transcript
                     </Button>
                   )}
                 </div>
@@ -870,7 +870,7 @@ function BehavioralSignalsPanel({ interviewId, analysisId, signals: rawSignals, 
           <div className="text-xs text-amber-900/80 italic">AI-observed, descriptive only — not an assessment of honesty. Flags are prompts to ask more, never a verdict.</div>
         </div>
         <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive shrink-0" onClick={() => del.mutate()} disabled={del.isPending}>
-          <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete video
+          <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Video
         </Button>
       </div>
       {signals.video_path && (

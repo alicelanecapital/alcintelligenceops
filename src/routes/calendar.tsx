@@ -407,7 +407,7 @@ function CalendarScreen() {
             <div className="flex items-center justify-between mb-3">
               <div className="font-serif text-xl">{format(selectedDay, "EEEE, d MMMM yyyy")}</div>
               <Button size="sm" onClick={() => { setEditItem(null); setDialogOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> New event
+                <Plus className="h-4 w-4 mr-1" /> New Event
               </Button>
             </div>
             {selectedItems.length === 0 ? (

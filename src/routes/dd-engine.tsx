@@ -175,7 +175,9 @@ function DDEngine() {
                 >
                   {opp.dd_company_name ?? opp.name}
                 </button>
-                <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">{opp.founder?.name ?? ""}</div>
+                <div className="text-[11px] text-muted-foreground truncate hidden sm:block flex-1">
+                  {opp.founder?.name && opp.founder.name !== opp.dd_company_name ? opp.founder.name : ""}
+                </div>
                 {(opp.dd_key_contacts ?? []).length > 0 && (
                   <div className="hidden md:flex items-center gap-1 flex-wrap shrink-0 max-w-[280px]">
                     {opp.dd_key_contacts.slice(0, 3).map((c: any) => (

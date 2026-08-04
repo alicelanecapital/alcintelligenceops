@@ -11,7 +11,6 @@ import { EditContactDialog } from "@/components/EditContactDialog";
 import { SmartLink } from "@/components/SmartLink";
 import { contactColor } from "@/lib/contact-colors";
 import { supabase } from "@/integrations/supabase/client";
-import { SECTOR_MODULES } from "@/lib/dd-framework-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +145,7 @@ function ContactProfile() {
       {/* Compact fact row */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mb-6 pb-4 border-b border-border">
         <Badge className={cn("border", cat.badge)}>{CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+        {c.sector && <Badge variant="outline" className="text-teal-700 border-teal-200">{c.sector}</Badge>}
         {c.email && <span className="inline-flex items-center gap-1 text-muted-foreground"><Mail className="h-3.5 w-3.5" />{c.email}</span>}
         {c.phone && <span className="inline-flex items-center gap-1 text-muted-foreground"><Phone className="h-3.5 w-3.5" />{c.phone}</span>}
         {c.linkedin && <a href={c.linkedin} target="_blank" className="inline-flex items-center gap-1 text-primary hover:underline"><LinkedinIcon className="h-3.5 w-3.5" />LinkedIn</a>}
@@ -222,9 +222,6 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
   contactId: string; meetings: any[];
   briefPending: boolean; onGenerateBrief: (force: boolean) => void;
 }) {
-  const detectedCode = opportunity?.dd_detected_sector;
-  const detectedConf = opportunity?.dd_sector_confidence ?? 0;
-  const sector = detectedCode && detectedConf >= 50 ? (SECTOR_MODULES as any)[detectedCode]?.name : null;
   const disc = opportunity?.disc_profile as any;
 
   // Auto-generate the stakeholder brief on first Overview view if none exists.
@@ -325,20 +322,6 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
           </section>
         )}
 
-        <section>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 inline-flex items-center gap-1">
-            <Target className="h-3 w-3 text-teal-700" /> Sector
-          </div>
-          {sector ? (
-            <div className="text-sm">
-              {sector}
-              {detectedConf ? <span className="text-xs text-muted-foreground"> ({Math.round(detectedConf)}%)</span> : null}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">Not detected yet — appears once a DD round has been recorded and analysed.</p>
-          )}
-        </section>
-
         {openOpps.length > 0 && (
           <section>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 inline-flex items-center gap-1">
@@ -428,7 +411,7 @@ function LiveWorkspaceTab({ contact, meetings }: { contact: any; meetings: any[]
 
   // Default to the Ad Hoc Meeting playbook — most meetings aren't formal DD rounds.
   // Fall back to the DD Intelligence Engine template if Ad Hoc hasn't been seeded yet.
-  const adHocTemplate = (toolkits.data ?? []).find((t) => (t as any).name?.trim().toLowerCase() === "ad hoc meeting");
+  const adHocTemplate = (toolkits.data ?? []).find((t) => (t as any).name?.trim().toLowerCase().replace(/\s+/g, "") === "adhocmeeting");
   const ddTemplate = (toolkits.data ?? []).find((t) => (t as any).kind === "due_diligence");
   const defaultTemplate = adHocTemplate ?? ddTemplate;
   const [playbookId, setPlaybookId] = useState<string>("");

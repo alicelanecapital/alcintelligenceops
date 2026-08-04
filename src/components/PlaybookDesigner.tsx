@@ -310,7 +310,7 @@ function RoundMetaCard({ round, onSaved }: { round: { round: number; title: stri
           />
         </div>
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save round details</Button>
+          <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save Round Details</Button>
         </div>
       </div>
     </div>
@@ -348,7 +348,7 @@ function QuestionsSection({ round, questions, onChanged }: { round: number; ques
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-serif text-2xl">Questions</h2>
-        <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
+        <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add Question</Button>
       </div>
       <DndContext
         sensors={useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))}
@@ -462,7 +462,7 @@ function QuestionCard({ question, index, onDelete, onSaved, dragHandleProps }: {
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Grading</Label>
-                <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={addFlag}><Plus className="h-3 w-3 mr-1" /> Add grading</Button>
+                <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={addFlag}><Plus className="h-3 w-3 mr-1" /> Add Grading</Button>
               </div>
               <div className="space-y-2 mt-1">
                 {redFlags.map((flag, i) => (
@@ -487,7 +487,7 @@ function QuestionCard({ question, index, onDelete, onSaved, dragHandleProps }: {
           </div>
         </div>
         <div className="flex justify-end mt-3">
-          <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save question</Button>
+          <Button size="sm" onClick={() => m.mutate()} disabled={m.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save Question</Button>
         </div>
       </AccordionContent>
     </AccordionItem>
@@ -522,7 +522,7 @@ function DocumentsSection({ round, documents, onChanged }: { round: number; docu
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-serif text-2xl">Required documents ({documents.length})</h2>
-        <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add document</Button>
+        <Button size="sm" onClick={() => addMut.mutate()} disabled={addMut.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add Document</Button>
       </div>
       <div className="divide-y divide-border border-t border-border">
         {documents.map((doc, idx) => (

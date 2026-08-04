@@ -121,7 +121,7 @@ export function RequestInfoModal({ open, onClose, contactId, contactName, contac
         </div>
         <DialogFooter className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button variant="outline" onClick={saveDraft}>Save draft</Button>
+          <Button variant="outline" onClick={saveDraft}>Save Draft</Button>
           <Button onClick={sendEmail} disabled={!contactEmail || sending}>
             <Mail className="h-4 w-4 mr-1" /> {sending ? "Sending…" : "Send email"}
           </Button>
