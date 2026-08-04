@@ -191,6 +191,16 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     enabled: Boolean(playbook.data),
     queryFn: () => fetchPlaybookStepDetail(playbook.data!, currentStep),
   });
+  // AI grading of this step's questions against the transcript so far.
+  const gradeQuestions = useMutation({
+    mutationFn: () => gradeStepQuestions({ data: { interviewId: id, stepKey: currentStep } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["iv-ana", id] });
+      if (!r?.graded) toast.info("Nothing to grade yet — record or upload a transcript first.");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to grade answers"),
+  });
+
 
   // Elapsed timer
   useEffect(() => {
