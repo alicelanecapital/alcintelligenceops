@@ -52,14 +52,9 @@ ${(snippet ?? "").slice(0, 4000)}`;
   }
 }
 
-/** Returns the company's own Drive subfolder id, creating it on the first upload. */
-export async function ensureCompanyFolder(companyName: string, cachedId: string | null) {
-  const headers = driveHeaders();
-  if (!headers) return null;
-  if (cachedId) return cachedId;
-
-  const safeName = companyName.replace(/'/g, "\\'");
-  const q = `name='${safeName}' and '${SHARED_DRIVE_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+async function findOrCreateFolder(name: string, parentId: string, headers: Record<string, string>) {
+  const safeName = name.replace(/'/g, "\\'");
+  const q = `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const findRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
   if (findRes.ok) {
     const found = await findRes.json();
@@ -71,18 +66,27 @@ export async function ensureCompanyFolder(companyName: string, cachedId: string 
   const createRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?fields=id`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: companyName,
-      mimeType: "application/vnd.google-apps.folder",
-      parents: [SHARED_DRIVE_FOLDER_ID],
-    }),
+    body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] }),
   });
   if (!createRes.ok) {
     console.error(`Drive folder create failed [${createRes.status}]: ${(await createRes.text()).slice(0, 300)}`);
     return null;
   }
-  return (await createRes.json())?.id as string | null;
+  return ((await createRes.json())?.id as string | null) ?? null;
 }
+
+/** Returns the company's own Drive subfolder id, nested under its sector folder,
+ * creating both on the first upload: Shared folder / <Sector> / <Company>. */
+export async function ensureCompanyFolder(companyName: string, sector: string | null, cachedId: string | null) {
+  const headers = driveHeaders();
+  if (!headers) return null;
+  if (cachedId) return cachedId;
+
+  const sectorFolderId = await findOrCreateFolder((sector ?? "").trim() || "Unclassified", SHARED_DRIVE_FOLDER_ID, headers);
+  if (!sectorFolderId) return null;
+  return await findOrCreateFolder(companyName, sectorFolderId, headers);
+}
+
 
 export async function uploadToDrive(folderId: string, fileName: string, mimeType: string, bytes: ArrayBuffer) {
   const headers = driveHeaders();
@@ -131,11 +135,24 @@ export async function fileDocument(data: FileDocInput) {
   if (driveHeaders()) {
     try {
       let cached: string | null = null;
+      let sector: string | null = null;
       if (data.companyId) {
-        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id").eq("id", data.companyId).maybeSingle();
+        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id, industry").eq("id", data.companyId).maybeSingle();
         cached = (co as any)?.drive_folder_id ?? null;
+        sector = (co as any)?.industry ?? null;
       }
-      const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", cached);
+      if (!sector) {
+        // Fall back to the sector recorded on the meeting's contact.
+        const { data: c } = await supabaseAdmin
+          .from("contacts")
+          .select("sector")
+          .eq("company_id", data.companyId ?? "00000000-0000-0000-0000-000000000000")
+          .not("sector", "is", null)
+          .limit(1)
+          .maybeSingle();
+        sector = (c as any)?.sector ?? null;
+      }
+      const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", sector, cached);
       if (folderId) {
         if (data.companyId && folderId !== cached) {
           await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", data.companyId);
