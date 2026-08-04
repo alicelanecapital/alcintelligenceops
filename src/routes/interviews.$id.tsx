@@ -458,8 +458,22 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         <GridBlock panelKey="questions" layout={layout} className="space-y-3 min-w-0">
         <aside className="space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              {stepDetail.data?.step.title ?? "Questions"}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                {stepDetail.data?.step.title ?? "Questions"}
+              </div>
+              <div className="flex items-center gap-2">
+                {lastGradedAt && (
+                  <span className="text-[10px] text-muted-foreground">Graded {format(new Date(lastGradedAt), "HH:mm")}</span>
+                )}
+                <Button
+                  size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                  onClick={() => gradeQuestions.mutate()}
+                  disabled={gradeQuestions.isPending || (stepDetail.data?.questions.length ?? 0) === 0}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />{gradeQuestions.isPending ? "Grading…" : "Grade answers"}
+                </Button>
+              </div>
             </div>
             {stepDetail.isLoading ? (
               <div className="text-xs text-muted-foreground italic">Loading questions…</div>
@@ -471,26 +485,70 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               </div>
             ) : (
               <Accordion type="multiple" className="rounded-md border border-teal-100">
-                {(stepDetail.data?.questions ?? []).map((q, i) => (
+                {(stepDetail.data?.questions ?? []).map((q, i) => {
+                  const grade = gradesByQuestion.get(q.id);
+                  // Fall back to the question's own configured scorecard so the flags are
+                  // visible before the AI has heard anything.
+                  const flags = grade?.flags?.length
+                    ? grade.flags
+                    : (q.red_flags ?? []).map((f) => ({ text: f.text, severity: f.severity as string | null, status: "Unknown" as const }));
+                  return (
                   <AccordionItem key={q.id} value={q.id} className="border-teal-100 last:border-b-0">
                     <AccordionTrigger className="text-sm px-2 py-1.5 hover:no-underline bg-teal-50">
-                      <span className="text-left font-medium text-foreground/90">Q{i + 1}. {q.question_text}</span>
+                      <span className="flex items-start gap-2 w-full pr-2">
+                        <span className="text-left font-medium text-foreground/90 flex-1">Q{i + 1}. {q.question_text}</span>
+                        <Badge className={`shrink-0 text-[10px] border ${gradeTone(grade?.grade)}`}>{grade?.grade ?? "Ungraded"}</Badge>
+                      </span>
                     </AccordionTrigger>
-                    {(q.why_text || q.internal_guideline) && (
-                      <AccordionContent className="px-2 pb-1.5 space-y-1.5">
-                        {q.why_text && <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>}
-                        {q.internal_guideline && (
-                          <div className="text-[11px] text-amber-800 not-italic bg-amber-50 border border-amber-100 rounded px-1.5 py-1">
-                            <span className="font-medium">Internal guideline:</span> {q.internal_guideline}
+                    <AccordionContent className="px-2 pb-2 space-y-1.5">
+                      {q.why_text && <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>}
+                      {q.internal_guideline && (
+                        <div className="text-[11px] text-amber-800 not-italic bg-amber-50 border border-amber-100 rounded px-1.5 py-1">
+                          <span className="font-medium">Internal guideline:</span> {q.internal_guideline}
+                        </div>
+                      )}
+                      {grade ? (
+                        <div className="text-[11px] not-italic border-t border-teal-100 pt-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="uppercase tracking-[0.15em] text-[9px] text-muted-foreground">AI grade</span>
+                            <Badge className={`text-[10px] border ${gradeTone(grade.grade)}`}>{grade.grade}</Badge>
                           </div>
-                        )}
-                      </AccordionContent>
-                    )}
+                          {grade.rationale && <div className="text-muted-foreground mt-1">{grade.rationale}</div>}
+                          {grade.evidence && <div className="italic text-foreground/80 mt-1">"{grade.evidence}"</div>}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground italic border-t border-teal-100 pt-1.5">
+                          Not graded yet — grading runs as the transcript builds up.
+                        </div>
+                      )}
+                      {flags.length > 0 && (
+                        <div className="border-t border-teal-100 pt-1.5">
+                          <div className="uppercase tracking-[0.15em] text-[9px] text-muted-foreground mb-1">Grading scorecard</div>
+                          <ul className="space-y-1">
+                            {flags.map((f, fi) => (
+                              <li key={fi} className={`text-[11px] rounded px-1.5 py-1 border ${flagTone(f.status)}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span>{f.text}</span>
+                                  <span className="shrink-0 font-medium">{f.status}</span>
+                                </div>
+                                {f.severity && (
+                                  <div className="text-[9px] uppercase tracking-[0.15em] opacity-70 mt-0.5">
+                                    {String(f.severity).replace(/_/g, " ")}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </AccordionContent>
                   </AccordionItem>
-                ))}
+                  );
+                })}
               </Accordion>
             )}
           </CardContent></Card>
+
 
           {(stepDetail.data?.documents.length ?? 0) > 0 && (
             <Card><CardContent className="p-4">
