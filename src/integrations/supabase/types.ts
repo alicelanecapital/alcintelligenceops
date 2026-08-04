@@ -222,6 +222,27 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_categories: {
+        Row: {
+          created_at: string
+          label: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           ai_summary: string | null
@@ -363,6 +384,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      dd_expert_reviews: {
+        Row: {
+          consultant_name: string | null
+          created_at: string
+          file_name: string | null
+          id: string
+          interview_id: string
+          new_flags: Json
+          open_questions: Json
+          transcript: string
+          validations: Json
+        }
+        Insert: {
+          consultant_name?: string | null
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          interview_id: string
+          new_flags?: Json
+          open_questions?: Json
+          transcript: string
+          validations?: Json
+        }
+        Update: {
+          consultant_name?: string | null
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          interview_id?: string
+          new_flags?: Json
+          open_questions?: Json
+          transcript?: string
+          validations?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dd_expert_reviews_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "dd_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dd_framework_documents: {
         Row: {
@@ -2652,6 +2717,7 @@ export type Database = {
           name: string
           sort_order: number
           updated_at: string
+          workspace_layout: Json | null
         }
         Insert: {
           created_at?: string
@@ -2661,6 +2727,7 @@ export type Database = {
           name: string
           sort_order?: number
           updated_at?: string
+          workspace_layout?: Json | null
         }
         Update: {
           created_at?: string
@@ -2670,6 +2737,7 @@ export type Database = {
           name?: string
           sort_order?: number
           updated_at?: string
+          workspace_layout?: Json | null
         }
         Relationships: []
       }
