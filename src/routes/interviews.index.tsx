@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { AddMeetingDialog } from "@/components/AddMeetingDialog";
 import { useMemo, useState } from "react";
-import { Plus, CalendarClock, MapPin, Video } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, CalendarClock, MapPin, Video, Search } from "lucide-react";
+
 import {
   format, startOfDay, endOfDay, startOfWeek, endOfWeek, addWeeks, subYears,
 } from "date-fns";
