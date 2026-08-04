@@ -3,8 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { fetchOpportunitiesWithDDStatus, createOpportunity, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
-import { fetchFounders } from "@/lib/db";
+import { fetchOpportunitiesWithDDStatus, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
 import { fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from "@/lib/dd-framework-admin";
 import { fetchContacts } from "@/lib/contacts";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
@@ -99,9 +98,9 @@ function DDEngine() {
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) => updateOpportunity(id, { archived }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });
-      toast.success(vars.archived ? "Opportunity archived" : "Opportunity restored");
+      toast.success(vars.archived ? "Deal archived" : "Deal restored");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to update opportunity"),
+    onError: (e: any) => toast.error(e.message ?? "Failed to update deal"),
   });
 
   const statusMut = useMutation({
@@ -121,9 +120,9 @@ function DDEngine() {
     mutationFn: (id: string) => deleteOpportunity(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });
-      toast.success("Opportunity deleted");
+      toast.success("Deal deleted");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to delete opportunity"),
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete deal"),
   });
 
   return (
@@ -215,20 +214,20 @@ function DDEngine() {
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6"
-                  title={opp.archived ? "Restore opportunity" : "Archive opportunity"}
+                  title={opp.archived ? "Restore deal" : "Archive deal"}
                   onClick={() => archiveMut.mutate({ id: opp.id, archived: !opp.archived })}
                 >
                   {opp.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete opportunity">
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete deal">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this opportunity?</AlertDialogTitle>
+                      <AlertDialogTitle>Delete this deal?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This permanently deletes "{opp.dd_company_name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
                       </AlertDialogDescription>
@@ -247,13 +246,13 @@ function DDEngine() {
         {q.isSuccess && !opportunities.length && (
           <div className="p-12 text-center">
             <div className="font-serif text-xl">
-              {view === "archived" ? "No archived opportunities" :
+              {view === "archived" ? "No archived deals" :
                view === "approved" ? "No approved deals yet" :
                view === "rejected" ? "No rejected deals" :
-               "No opportunities yet"}
+               "No deals yet"}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {view === "active" ? "Add an opportunity to start the due diligence framework." : "They will show up here when marked."}
+              {view === "active" ? "Add a deal to start the due diligence framework." : "They will show up here when marked."}
             </p>
           </div>
         )}
