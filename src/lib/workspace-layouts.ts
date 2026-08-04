@@ -75,9 +75,12 @@ function clamp(n: number, min: number, max: number) {
  * Layouts saved before the grid existed keep their panel list and get default geometry. */
 export function resolveWorkspaceLayout(stored: unknown): WorkspaceLayout {
   const raw = stored as Partial<WorkspaceLayout> | null;
-  const panels = Array.isArray(raw?.panels) && raw!.panels!.length
+  const storedPanels = Array.isArray(raw?.panels) && raw!.panels!.length
     ? (raw!.panels as WorkspacePanelKey[])
     : DEFAULT_WORKSPACE_LAYOUT;
+  // Panels introduced after this template was saved default to on.
+  const panels = [...storedPanels, ...BACKFILLED_PANELS.filter((k) => !storedPanels.includes(k))];
+
 
   const storedBlocks = Array.isArray(raw?.blocks) ? (raw!.blocks as WorkspaceBlock[]) : [];
   const blocks: WorkspaceBlock[] = DEFAULT_WORKSPACE_BLOCKS.map((def) => {
