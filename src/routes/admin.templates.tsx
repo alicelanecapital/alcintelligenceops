@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchTemplates, fetchTemplateDetail, createTemplate, updateTemplate, deleteTemplate,
+  fetchTemplates, fetchTemplateDetail, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate,
   uploadTemplateAttachment, uploadTemplateLogo, replaceSections,
   createSection, updateSection, deleteSection, reorderSections,
   type ReportTemplate, type ReportTemplateSection,
@@ -17,9 +17,11 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SortableTemplateSections } from "@/components/SortableTemplateSections";
 import { RegenerateSectionsDialog } from "@/components/RegenerateSectionsDialog";
-import { Plus, Trash2, Paperclip, Upload, FileText, WandSparkles, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Paperclip, Upload, FileText, WandSparkles, Image as ImageIcon, Pencil, Copy } from "lucide-react";
+
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +30,9 @@ export const Route = createFileRoute("/admin/templates")({ component: () => <App
 function TemplatesAdmin() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
   const templates = useQuery({ queryKey: ["report-templates"], queryFn: fetchTemplates });
   const detail = useQuery({
     queryKey: ["report-template", selectedId],
@@ -64,6 +69,26 @@ function TemplatesAdmin() {
     onError: (e: any) => toast.error(e.message ?? "Failed to delete template"),
   });
 
+  const duplicateTemplateMut = useMutation({
+    mutationFn: (id: string) => duplicateTemplate(id),
+    onSuccess: (t) => {
+      qc.invalidateQueries({ queryKey: ["report-templates"] });
+      setSelectedId(t.id);
+      toast.success("Template duplicated with all its sections");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to duplicate template"),
+  });
+
+  const renameTemplateMut = useMutation({
+    mutationFn: () => updateTemplate(renaming!.id, { name: renameValue.trim() }),
+    onSuccess: () => {
+      invalidate();
+      setRenaming(null);
+      toast.success("Template renamed");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to rename template"),
+  });
+
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
       <PageHeader
@@ -75,20 +100,53 @@ function TemplatesAdmin() {
       <div className="grid grid-cols-[220px_1fr] gap-6 items-start mt-6">
         <aside className="sticky top-4 shrink-0 space-y-1.5">
           {(templates.data ?? []).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedId(t.id)}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm truncate transition-colors ${
-                t.id === selectedId ? "bg-primary text-primary-foreground" : "hover:bg-muted text-foreground"
-              }`}
-            >
-              {t.name}
-            </button>
+            <div key={t.id} className="group flex items-center gap-1">
+              <button
+                onClick={() => setSelectedId(t.id)}
+                className={`flex-1 min-w-0 text-left px-3 py-2 rounded-md text-sm truncate transition-colors ${
+                  t.id === selectedId ? "bg-primary text-primary-foreground" : "hover:bg-muted text-foreground"
+                }`}
+              >
+                {t.name}
+              </button>
+              <button
+                type="button"
+                title="Rename template"
+                className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
+                onClick={() => { setRenaming({ id: t.id }); setRenameValue(t.name); }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Duplicate template with its sections"
+                className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground disabled:opacity-40"
+                disabled={duplicateTemplateMut.isPending}
+                onClick={() => duplicateTemplateMut.mutate(t.id)}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ))}
           <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => addTemplateMut.mutate()} disabled={addTemplateMut.isPending}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Template
           </Button>
         </aside>
+
+        <Dialog open={renaming !== null} onOpenChange={(o) => !o && setRenaming(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Rename template</DialogTitle></DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="tpl-name">Name</Label>
+              <Input id="tpl-name" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRenaming(null)}>Cancel</Button>
+              <Button disabled={!renameValue.trim() || renameTemplateMut.isPending} onClick={() => renameTemplateMut.mutate()}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         <div className="min-w-0">
           {detail.data && (
