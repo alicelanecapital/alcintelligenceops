@@ -158,7 +158,23 @@ function DDEngine() {
         <ViewToggle mode={displayMode} onChange={setDisplayMode} />
       </div>
 
+      <div className="flex items-center gap-3 mt-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search deals by company, contact, sector or stage…"
+            className="pl-9"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap">
+          {opportunities.length} {opportunities.length === 1 ? "deal" : "deals"}
+        </div>
+      </div>
+
       <div className="mt-6 border-t border-border">
+
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
           const status = opp.pipeline_status ?? "active";
