@@ -165,6 +165,10 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   const workspacePanels = playbook.data?.workspacePanels ?? DEFAULT_WORKSPACE_LAYOUT;
   // Panel geometry on the 6-column x 10-row canvas, designed in Admin > Workspaces.
   const layout = playbook.data?.workspaceLayout ?? DEFAULT_LAYOUT;
+  // The workspace is headed by the company, not the person -- DocBox files documents into
+  // that company's Google Drive folder.
+  const companyName = contactQ.data?.company ?? interview.business_name ?? interview.title ?? "Meeting";
+  const companyId = contactQ.data?.company_id ?? null;
   // Lets a completed meeting be re-viewed against a different playbook's questions --
   // its own transcript/video/analyses are unaffected, this only changes which reference
   // question set is shown alongside them.
@@ -380,7 +384,11 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
       <div className="mb-4">
         <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Playbook</div>
+            <h1 className="font-serif text-2xl text-green-900">{companyName}</h1>
+            {contactQ.data?.name && (
+              <div className="text-xs text-muted-foreground -mt-0.5">{contactQ.data.name}{contactQ.data.position ? ` · ${contactQ.data.position}` : ""}</div>
+            )}
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2">Playbook</div>
             <select
               value={interview.playbook_id ?? ""}
               onChange={(e) => e.target.value && changePlaybook.mutate(e.target.value)}
