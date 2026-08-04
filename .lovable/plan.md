@@ -1,21 +1,40 @@
-## Accounts row tidy-up (`src/routes/admin.accounts.tsx`)
+## Workspace builder, DocBox, and Drive links
 
-### 1. Connection details on separate rows
-Today the meta line under each account name is one long string: email · Connected date · Last synced date/time.
+### 1. Drag-and-drop workspace designer (Admin > Workspaces)
+Replace the fixed 12-column preview with a real canvas: 6 columns x 10 rows.
 
-Change to stacked lines under the account label:
-- Line 1: the email address (when a display name is shown)
-- Line 2: `Connected 13 Jul 2026` (or `Not connected yet`)
-- Line 3: `Last synced 29 Jul 2026, 14:32` (or `Never synced`)
+- Each enabled panel becomes a draggable block on the grid with a stored position and span (col, row, colSpan, rowSpan).
+- Drag to move; a small handle on the right/bottom edge resizes the span. Blocks snap to grid cells.
+- Panels toggled off drop out of the canvas and sit in an "available panels" tray you can drag back in.
+- Reset To Default restores the current layout (questions left, transcript/scoring centre, risk alerts right, full-width panels below) expressed on the 6x10 grid.
+- Save writes the grid positions into the playbook's existing `workspace_layout` JSON, extended from `{ panels: [...] }` to `{ panels: [...], blocks: [{ key, col, row, colSpan, rowSpan }] }`. Old rows without `blocks` keep working via the default layout.
+- The Live Workspace (`interviews/$id` and the DD round page) renders from those blocks instead of hardcoded column spans.
 
-Same small muted text size, no truncation of the dates.
+### 2. Live Workspace header
+Show the company name as the main title, top left; the contact/founder name moves to the smaller secondary position (or drops when it duplicates the company).
 
-### 2. Colour dropdown shows swatches only
-Replace the native `<select>` listing colour names with a compact swatch picker:
-- Trigger shows just the colour dot (no text), narrow fixed width
-- Opening it shows a small grid of colour dots; clicking one saves immediately (same `updateColorMut` call)
-- Each dot carries the colour name as a tooltip/`title` for accessibility
+### 3. Stakeholder Brief
+Bold the contact name inside the Stakeholder Brief panel.
 
-The freed horizontal space goes back to the name/email column, so the row grid widths are adjusted accordingly.
+### 4. DocBox (all playbooks, under the Questions panel)
+A new workspace panel: an upload/drag-and-drop dropzone plus the list of documents filed against this meeting.
 
-No backend or data changes.
+- Drop or browse files; each upload goes to backend storage first so nothing is lost.
+- AI classification: the file name and extracted text are sent to a server function that decides which step/round of the *active playbook* the document belongs to (for Due Diligence that is Round 1-5; for other playbooks it is that playbook's own steps). The result is stored with the document, and the doc is listed under that step even if it was dropped while a different step was open.
+- Classified documents feed the existing analysis inputs, so a Round 4 document dropped during Round 1 still contributes.
+- Documents are also pushed to the shared Google Drive folder (one flat folder, no subfolders); the round/step lives in our database, and the Drive link is stored on the document row.
+- DocBox appears in the Admin > Workspaces panel list so it can be positioned or switched off per playbook.
+
+### 5. Documents tab -> Drive
+Every company/contact Documents tab gets an "Open Google Drive folder" button linking to the shared folder:
+`https://drive.google.com/drive/u/0/folders/1_AGnJIRYZYvTrdonrql2bcsuWX3Gn9XH`
+The existing per-round list stays below it.
+
+### 6. Fix Report template loading
+Report templates currently fail to load after the recent access-policy tightening. Confirm the exact failure (permission vs missing rows) with a direct query, then fix the policy/grant so admins can read and edit templates and their sections again.
+
+### Technical notes
+- Grid layout: `src/lib/workspace-layouts.ts` gains block geometry + resolver; `src/routes/admin.workspaces.index.tsx` becomes a 6x10 drag/resize canvas; `src/routes/interviews.$id.tsx` and `src/components/DDInterviewEnhanced.tsx` render `grid-cols-6` / `grid-rows-10` from stored blocks.
+- DocBox uses the existing `dd_interview_documents` table (add `drive_file_id`, `classified_step`, `classification_confidence`) and a private storage bucket for the raw file.
+- Drive access needs the Google Drive connector linked to this project — I'll open the connect card during implementation; until it's connected, DocBox stores files in our backend and shows the Drive push as pending.
+- Classification runs through a new server function using Lovable AI (no extra key).
