@@ -17,9 +17,11 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SortableTemplateSections } from "@/components/SortableTemplateSections";
 import { RegenerateSectionsDialog } from "@/components/RegenerateSectionsDialog";
-import { Plus, Trash2, Paperclip, Upload, FileText, WandSparkles, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Paperclip, Upload, FileText, WandSparkles, Image as ImageIcon, Pencil, Copy } from "lucide-react";
+
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
