@@ -51,12 +51,18 @@ function score(ev: any): number {
 
 /** Collapses the same real-world meeting appearing on several teammates' accounts
  *  (and as stripped mirror copies) down to one row, keeping the richest copy. */
-export function dedupeAcrossAccounts<T extends Record<string, any>>(events: T[]): T[] {
+export function dedupeAcrossAccounts<T extends Record<string, any>>(
+  events: T[],
+  // Pass "perOwner" for views that render one pill per teammate (team calendar):
+  // collapsing across user_email would hide the meeting for every other attendee.
+  scope: "acrossOwners" | "perOwner" = "acrossOwners",
+): T[] {
   const byKey = new Map<string, T>();
   const order: string[] = [];
   for (const ev of events) {
     const start = String(ev.start_time ?? "");
-    const key = `${normalisedTitle(ev.title)}|${start}`;
+    const ownerPart = scope === "perOwner" ? `${String(ev.user_email ?? "").toLowerCase()}|` : "";
+    const key = `${ownerPart}${normalisedTitle(ev.title)}|${start}`;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, ev);
