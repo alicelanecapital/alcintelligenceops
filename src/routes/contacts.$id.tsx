@@ -20,12 +20,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useRef, useState, useEffect } from "react";
-import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare } from "lucide-react";
+import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { cn } from "@/lib/utils";
 import { highlightRiskText } from "@/lib/highlight-risk-text";
+import { listCompanyWorkspaceDocuments } from "@/lib/workspace-documents";
+import { companyDriveFolderUrl } from "@/lib/drive-folder";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
@@ -633,6 +635,7 @@ function DocumentsTab({ opportunities, companyId }: { opportunities: any[]; comp
         );
       })}
     </Accordion>
+    </div>
   );
 }
 
