@@ -195,9 +195,19 @@ function InterviewsIndex() {
       />
       <AddMeetingDialog open={addMeetingOpen} onOpenChange={setAddMeetingOpen} />
 
+      <div className="relative mt-6 max-w-md">
+        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search meetings by name, company or attendee…"
+          className="pl-9"
+        />
+      </div>
+
       <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-8 mb-3">Planned Meetings</h2>
-      <Accordion type="multiple" defaultValue={["today"]} className="space-y-2">
-        {plannedGroups.map((g) => (
+      <Accordion key={`planned-${term}`} type="multiple" defaultValue={openPlanned} className="space-y-2">
+        {visibleGroups.map((g) => (
           <AccordionItem key={g.key} value={g.key} className="border-none">
             <AccordionTrigger className={triggerClass}>
               <span>
@@ -208,10 +218,14 @@ function InterviewsIndex() {
             <AccordionContent className="pt-1">{renderRows(g.items)}</AccordionContent>
           </AccordionItem>
         ))}
+        {term && visibleGroups.length === 0 && (
+          <div className="text-sm text-muted-foreground italic px-1 py-2">No planned meetings match "{search}".</div>
+        )}
       </Accordion>
 
       <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-10 mb-3">Past Meetings</h2>
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion key={`past-${term}`} type="multiple" defaultValue={term && past.length ? ["past"] : []} className="space-y-2">
+
         <AccordionItem value="past" className="border-none">
           <AccordionTrigger className={triggerClass}>
             <span>
