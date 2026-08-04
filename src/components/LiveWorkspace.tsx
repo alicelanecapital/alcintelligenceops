@@ -537,7 +537,8 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
         {/* Playbook questions for the current step */}
         <GridBlock panelKey="questions" layout={layout} className="space-y-3 min-w-0">
         <aside className="space-y-3">
-          <Card className="border-green-900/30"><CardContent className="p-0">
+          <Card><CardContent className="p-0">
+
             <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-green-900 text-white">
               <div className="text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-2">
                 {stepDetail.data?.step.title ?? "Questions"}
