@@ -20,12 +20,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useRef, useState, useEffect } from "react";
-import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare } from "lucide-react";
+import { Mic, FileText, Mail, Phone, Globe, Linkedin as LinkedinIcon, Pencil, Trash2, Calendar, Building2, Camera, User, Sparkles, RefreshCw, Flag, BrainCircuit, Target, StickyNote, FolderOpen, History, CheckCircle2, PlaySquare, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { cn } from "@/lib/utils";
 import { highlightRiskText } from "@/lib/highlight-risk-text";
+import { listCompanyWorkspaceDocuments } from "@/lib/workspace-documents";
+import { companyDriveFolderUrl } from "@/lib/drive-folder";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
@@ -180,7 +182,7 @@ function ContactProfile() {
         </TabsContent>
 
         <TabsContent value="docs" className="pt-6">
-          <DocumentsTab opportunities={opps.data ?? []} />
+          <DocumentsTab opportunities={opps.data ?? []} companyId={c.company_id ?? null} />
         </TabsContent>
 
         <TabsContent value="deals" className="pt-6">
@@ -354,6 +356,7 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
           </div>
           {c.stakeholder_brief ? (
             <div className="space-y-2 text-sm text-sky-900">
+              <p className="font-bold">{c.name}</p>
               {c.stakeholder_brief.summary && <p className="leading-relaxed">{c.stakeholder_brief.summary}</p>}
               {c.stakeholder_brief.background_points?.length > 0 && (
                 <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
@@ -506,8 +509,26 @@ function LiveWorkspaceTab({ contact, meetings }: { contact: any; meetings: any[]
 
 /* ============ Documents tab (grouped by round) ============ */
 
-function DocumentsTab({ opportunities }: { opportunities: any[] }) {
+function DocumentsTab({ opportunities, companyId }: { opportunities: any[]; companyId: string | null }) {
   const oppIds = opportunities.map((o) => o.id);
+  // Company folder inside the shared Alice Lane Drive folder, created on the first DocBox upload.
+  const drive = useQuery({
+    queryKey: ["company-drive-folder", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("companies") as any)
+        .select("drive_folder_id")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.drive_folder_id ?? null) as string | null;
+    },
+  });
+  const workspaceDocs = useQuery({
+    queryKey: ["company-workspace-docs", companyId],
+    enabled: !!companyId,
+    queryFn: () => listCompanyWorkspaceDocuments(companyId!),
+  });
   const q = useQuery({
     queryKey: ["contact-docs", oppIds.join(",")],
     enabled: oppIds.length > 0,
@@ -527,7 +548,46 @@ function DocumentsTab({ opportunities }: { opportunities: any[] }) {
     },
   });
 
-  if (!oppIds.length) return <p className="text-sm text-muted-foreground">No opportunities yet — documents will appear here once the contact enters a DD round.</p>;
+  const driveHeader = (
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="text-xs text-muted-foreground">Documents dropped into a meeting's DocBox are filed here and synced to Google Drive.</div>
+      <a
+        href={companyDriveFolderUrl(drive.data)}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs inline-flex items-center gap-1 text-primary hover:underline shrink-0"
+      >
+        <ExternalLink className="h-3.5 w-3.5" /> Open Google Drive folder
+      </a>
+    </div>
+  );
+
+  const docboxList = (workspaceDocs.data ?? []).length > 0 && (
+    <div className="mb-4">
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">DocBox uploads</div>
+      <ul className="space-y-1">
+        {(workspaceDocs.data ?? []).map((d) => (
+          <li key={d.id} className="text-sm flex items-center gap-2 border-b border-border/40 py-1.5 last:border-0">
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            {d.drive_web_link ? (
+              <a href={d.drive_web_link} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">{d.file_name}</a>
+            ) : (
+              <span className="truncate">{d.file_name}</span>
+            )}
+            {d.step_title && <span className="text-xs text-muted-foreground shrink-0">· {d.step_title}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  if (!oppIds.length) return (
+    <div>
+      {driveHeader}
+      {docboxList}
+      <p className="text-sm text-muted-foreground">No opportunities yet — round documents will appear here once the contact enters a DD round.</p>
+    </div>
+  );
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading documents…</p>;
 
   const rounds = [1, 2, 3, 4, 5];
@@ -539,6 +599,9 @@ function DocumentsTab({ opportunities }: { opportunities: any[] }) {
   });
 
   return (
+    <div>
+    {driveHeader}
+    {docboxList}
     <Accordion type="multiple" defaultValue={["r1"]} className="w-full">
       {rounds.map((r) => {
         const items = byRound.get(r) ?? [];
@@ -573,6 +636,7 @@ function DocumentsTab({ opportunities }: { opportunities: any[] }) {
         );
       })}
     </Accordion>
+    </div>
   );
 }
 

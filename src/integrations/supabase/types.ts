@@ -141,6 +141,7 @@ export type Database = {
           created_at: string
           current_funding: string | null
           customers: string | null
+          drive_folder_id: string | null
           employees: number | null
           founded_year: number | null
           id: string
@@ -170,6 +171,7 @@ export type Database = {
           created_at?: string
           current_funding?: string | null
           customers?: string | null
+          drive_folder_id?: string | null
           employees?: number | null
           founded_year?: number | null
           id?: string
@@ -199,6 +201,7 @@ export type Database = {
           created_at?: string
           current_funding?: string | null
           customers?: string | null
+          drive_folder_id?: string | null
           employees?: number | null
           founded_year?: number | null
           id?: string
@@ -2758,6 +2761,85 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workspace_documents: {
+        Row: {
+          classification_confidence: number | null
+          classification_reason: string | null
+          company_id: string | null
+          drive_file_id: string | null
+          drive_web_link: string | null
+          extracted_text: string | null
+          file_name: string
+          file_size_bytes: number | null
+          id: string
+          interview_id: string
+          mime_type: string | null
+          playbook_id: string | null
+          step_key: number | null
+          step_title: string | null
+          storage_path: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          classification_confidence?: number | null
+          classification_reason?: string | null
+          company_id?: string | null
+          drive_file_id?: string | null
+          drive_web_link?: string | null
+          extracted_text?: string | null
+          file_name: string
+          file_size_bytes?: number | null
+          id?: string
+          interview_id: string
+          mime_type?: string | null
+          playbook_id?: string | null
+          step_key?: number | null
+          step_title?: string | null
+          storage_path?: string | null
+          uploaded_at?: string
+        }
+        Update: {
+          classification_confidence?: number | null
+          classification_reason?: string | null
+          company_id?: string | null
+          drive_file_id?: string | null
+          drive_web_link?: string | null
+          extracted_text?: string | null
+          file_name?: string
+          file_size_bytes?: number | null
+          id?: string
+          interview_id?: string
+          mime_type?: string | null
+          playbook_id?: string | null
+          step_key?: number | null
+          step_title?: string | null
+          storage_path?: string | null
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_playbook_id_fkey"
+            columns: ["playbook_id"]
+            isOneToOne: false
+            referencedRelation: "toolkits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
