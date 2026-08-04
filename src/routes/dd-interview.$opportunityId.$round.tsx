@@ -8,8 +8,8 @@ import { DDInterviewEnhanced } from "@/components/DDInterviewEnhanced";
 // dialog, not above every round.
 import { RoundStepper } from "@/components/RoundStepper";
 import { fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from "@/lib/dd-framework-admin";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/dd-interview/$opportunityId/$round")({
@@ -71,30 +71,50 @@ function DDInterviewPage() {
   const description = opp.data?.description;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate({ to: "/dd-engine" })}>
-        <ChevronLeft className="h-4 w-4 mr-1" /> Back To Opportunities
-      </Button>
-
-      {opp.data && null}
-
-      {/* Horizontal stepper — no outer frame, individual round cards carry a hairline border. */}
-      <div className="mb-6">
-        <RoundStepper
-          rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: (r.title ?? '').replace(/Due Diligence/gi, 'DD'), subtitle: (r.subtitle ?? null)?.replace?.(/Due Diligence/gi, 'DD') ?? r.subtitle }))}
-          current={roundNumber}
-          onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
-          orientation="horizontal"
-          completedRounds={completedRounds.data}
-        />
+    <div className="min-h-screen">
+      {/* Sticky header -- same convention as the generic Live Workspace (interviews/$id):
+          back arrow, uppercase eyebrow, serif title, badges on the right. */}
+      <div className="border-b border-border bg-white sticky top-0 z-10">
+        <div className="max-w-[1600px] mx-auto px-8 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button onClick={() => navigate({ to: "/dd-engine" })} className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live Workspace</div>
+              <div className="font-serif text-2xl truncate">
+                {companyName}
+                {founderName && founderName !== companyName && <><span className="text-muted-foreground"> · </span><span className="text-foreground/70">{founderName}</span></>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs shrink-0">
+            {sector && <Badge variant="outline" className="uppercase tracking-widest text-[10px]">{sector}</Badge>}
+          </div>
+        </div>
       </div>
 
-      <DDInterviewEnhanced
-        opportunityId={opportunityId}
-        round={roundNumber}
-        onStakeholderBriefChange={setStakeholderBrief}
-        onSectorChange={(s, c) => { setDetectedSector(s); setDetectedSectorConfidence(c); }}
-      />
+      <div className="max-w-[1600px] mx-auto px-8 py-6">
+        {opp.data && null}
+
+        {/* Horizontal stepper — no outer frame, individual round cards carry a hairline border. */}
+        <div className="mb-6">
+          <RoundStepper
+            rounds={(frameworkRounds.data ?? [1, 2, 3, 4, 5].map((r) => ({ round: r, title: `Round ${r}`, subtitle: null }))).map((r: any) => ({ round: r.round, title: (r.title ?? '').replace(/Due Diligence/gi, 'DD'), subtitle: (r.subtitle ?? null)?.replace?.(/Due Diligence/gi, 'DD') ?? r.subtitle }))}
+            current={roundNumber}
+            onSelect={(r) => navigate({ to: `/dd-interview/${opportunityId}/${r}` })}
+            orientation="horizontal"
+            completedRounds={completedRounds.data}
+          />
+        </div>
+
+        <DDInterviewEnhanced
+          opportunityId={opportunityId}
+          round={roundNumber}
+          onStakeholderBriefChange={setStakeholderBrief}
+          onSectorChange={(s, c) => { setDetectedSector(s); setDetectedSectorConfidence(c); }}
+        />
+      </div>
     </div>
   );
 }

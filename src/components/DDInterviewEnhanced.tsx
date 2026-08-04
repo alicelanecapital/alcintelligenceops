@@ -864,14 +864,17 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
 
   if (framework.isLoading || !roundData) {
-    return <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">Loading round…</div>;
+    return <div className="max-w-[1600px] mx-auto px-6 py-10 text-center text-muted-foreground">Loading round…</div>;
   }
 
   if (!questions.length) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg">
-        <h1 className="text-3xl font-bold mb-2">{roundData.title}</h1>
-        <p className="text-gray-600 mb-6">{roundData.subtitle}</p>
+      <div className="max-w-[1600px] mx-auto px-6">
+        <div className="mb-8">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Round {round}</div>
+          <h1 className="font-serif text-2xl mt-1">{roundData.title}</h1>
+          <p className="text-muted-foreground mt-1">{roundData.subtitle}</p>
+        </div>
         <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
           No questions are configured for this round yet. Add some from <span className="font-semibold">Admin → DD Framework</span>.
         </div>
@@ -880,12 +883,13 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg">
-      {/* Header */}
+    <div className="max-w-[1600px] mx-auto px-6">
+      {/* Header -- matches the Live Workspace's eyebrow + serif-title convention */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{roundData.title}</h1>
-        <p className="text-gray-600">{roundData.subtitle}</p>
-        <p className="text-sm text-gray-500 mt-2">{roundData.purpose}</p>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Round {round}</div>
+        <h1 className="font-serif text-2xl mt-1">{roundData.title}</h1>
+        <p className="text-muted-foreground mt-1">{roundData.subtitle}</p>
+        <p className="text-sm text-muted-foreground/80 mt-2">{roundData.purpose}</p>
       </div>
 
       {/* Steps rendered as accordions, mirroring the admin DD Framework layout: a numbered
