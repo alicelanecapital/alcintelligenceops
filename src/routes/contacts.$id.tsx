@@ -356,6 +356,7 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
           </div>
           {c.stakeholder_brief ? (
             <div className="space-y-2 text-sm text-sky-900">
+              <p className="font-bold">{c.name}</p>
               {c.stakeholder_brief.summary && <p className="leading-relaxed">{c.stakeholder_brief.summary}</p>}
               {c.stakeholder_brief.background_points?.length > 0 && (
                 <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">

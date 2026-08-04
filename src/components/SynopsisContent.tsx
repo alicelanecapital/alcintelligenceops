@@ -122,6 +122,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
 
         <div id="syn-brief" className="p-3 bg-sky-50 border border-sky-200 rounded">
           <p className="text-sm font-semibold text-sky-900 mb-2">🧭 Stakeholder Brief</p>
+          <p className="text-sm font-bold text-sky-900 mb-1">{founderName}</p>
           {stakeholderBrief ? (
             <div className="space-y-2">
               {stakeholderBrief.relationship_history && (

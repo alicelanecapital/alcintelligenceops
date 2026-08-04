@@ -437,6 +437,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : contactQ.data?.stakeholder_brief ? (
                 <div className="space-y-2 text-sm text-sky-900">
+                  {contactQ.data.name && <p className="font-bold">{contactQ.data.name}</p>}
                   {contactQ.data.stakeholder_brief.summary && <p className="leading-relaxed">{contactQ.data.stakeholder_brief.summary}</p>}
                   {(contactQ.data.stakeholder_brief.background_points?.length ?? 0) > 0 && (
                     <ul className="list-disc list-inside text-xs text-sky-800 space-y-0.5">
