@@ -22,7 +22,7 @@ A new workspace panel: an upload/drag-and-drop dropzone plus the list of documen
 - Drop or browse files; each upload goes to backend storage first so nothing is lost.
 - AI classification: the file name and extracted text are sent to a server function that decides which step/round of the *active playbook* the document belongs to (for Due Diligence that is Round 1-5; for other playbooks it is that playbook's own steps). The result is stored with the document, and the doc is listed under that step even if it was dropped while a different step was open.
 - Classified documents feed the existing analysis inputs, so a Round 4 document dropped during Round 1 still contributes.
-- Documents are also pushed to the shared Google Drive folder (one flat folder, no subfolders); the round/step lives in our database, and the Drive link is stored on the document row.
+- Documents are also pushed to Google Drive. On the first upload for a company, a subfolder named after the company is created inside the shared Drive folder and every later file for that company goes into it (the folder id is cached on the company record so it is created once, not per upload). No round subfolders — the round/step lives in our database, and the Drive link is stored on the document row.
 - DocBox appears in the Admin > Workspaces panel list so it can be positioned or switched off per playbook.
 
 ### 5. Documents tab -> Drive
