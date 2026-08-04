@@ -19,7 +19,7 @@ export const Route = createFileRoute("/opportunities_/$id/synopsis")({
   notFoundComponent: () => (
     <AppShell>
       <div className="max-w-3xl mx-auto px-8 py-10">
-        <p className="text-sm text-muted-foreground">Opportunity not found.</p>
+        <p className="text-sm text-muted-foreground">Deal not found.</p>
       </div>
     </AppShell>
   ),
@@ -75,7 +75,7 @@ function SynopsisPage() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Back To Pipeline
           </Button>
           <div className="min-w-0">
-            <div className="font-serif text-xl truncate">Synopsis — {meta.founderName ?? "Opportunity"}</div>
+            <div className="font-serif text-xl truncate">Synopsis — {meta.founderName ?? "Deal"}</div>
             {meta.companyName && <div className="text-xs text-muted-foreground truncate">{meta.companyName}</div>}
           </div>
         </div>

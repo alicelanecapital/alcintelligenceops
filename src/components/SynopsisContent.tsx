@@ -77,7 +77,7 @@ export const SynopsisContent = forwardRef<HTMLDivElement, { opportunityId: strin
 
     if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading synopsis…</p>;
     if (q.error) return <p className="text-sm text-destructive">Failed to load synopsis: {(q.error as Error).message}</p>;
-    if (!opp) return <p className="text-sm text-muted-foreground">Opportunity not found.</p>;
+    if (!opp) return <p className="text-sm text-muted-foreground">Deal not found.</p>;
 
     const scrollTo = (id: string) => {
       const el = document.getElementById(id);

@@ -39,7 +39,7 @@ function OpportunitiesList() {
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-10">
-      <PageHeader eyebrow="Pipeline" title="Opportunities" description="Discrete investment opportunities. A founder can have several over time." />
+      <PageHeader eyebrow="Pipeline" title="Deals" description="Discrete investment deals. A founder can have several over time." />
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Button size="sm" variant={outcomeFilter === null ? "default" : "outline"} onClick={() => setOutcomeFilter(null)}>All</Button>
@@ -88,9 +88,9 @@ export function OpportunityProfile() {
   const opportunity = opportunityRaw as any;
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <Link to="/opportunities" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4"><ArrowLeft className="h-3 w-3" />Opportunities</Link>
+      <Link to="/opportunities" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4"><ArrowLeft className="h-3 w-3" />Deals</Link>
       <Card><CardContent className="p-6">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Opportunity</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Deal</div>
         <h1 className="font-serif text-3xl">{opportunity.name}</h1>
         <div className="text-sm text-muted-foreground mt-1">{opportunity.founder?.name} · {opportunity.company?.name}</div>
         <div className="flex flex-wrap gap-2 mt-3">
@@ -157,7 +157,7 @@ const SCREENING_STEPS = [
   "Founder test — honest, forthcoming, coachable",
   "Mess classification — acceptable, conditional, fatal, criminal",
   "Capital fit — can R100k–R500k move the business?",
-  "Opportunity sizing — value, dividend or exit potential",
+  "Deal sizing — value, dividend or exit potential",
 ] as const;
 
 function ScreeningTab({ opportunity, opportunityId }: { opportunity: any; opportunityId: string }) {
