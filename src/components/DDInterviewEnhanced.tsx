@@ -909,40 +909,6 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
       <WorkspaceGrid>
         <GridBlock panelKey="questions" layout={DD_LAYOUT} className="space-y-6 min-w-0">
           <PanelHeading>Interview Questions</PanelHeading>
-                  {/* Round recording controls -- unframed, sits above the transcript block. */}
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">🎙️ Round Recording ({questions.length} Questions)</p>
-                    <div className="flex items-center gap-4">
-                      {isRecording ? (
-                        <>
-                          <button
-                            onClick={stopRecording}
-                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                          >
-                            ⏹ End Recording
-                          </button>
-                          <span className="text-lg font-mono font-semibold text-red-600">
-                            {formatTime(recordingTime)}
-                          </span>
-                        </>
-                      ) : (
-                        <button
-                          onClick={startRecording}
-                          className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-                        >
-                          🎤 Start Recording
-                        </button>
-                      )}
-                      <button
-                        onClick={generateAnalysis}
-                        disabled={!interviewRowId || !transcript || analyzing || isRecording}
-                        className="ml-auto px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {analyzing ? 'Analysing…' : 'Analyze Recording'}
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Questions to cover -- reference material, unframed outer wrapper. */}
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
@@ -1033,72 +999,24 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </div>
                   </div>
 
-                  {/* AI Questions -- pastel teal per style guide. */}
-                  <div className="p-4 bg-teal-50 border border-teal-200 rounded">
-                    <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
-                    {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
-                      aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
-                        <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
-                      ))
-                    ) : (
-                      <p className="text-sm text-teal-700">
-                        {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
-                      </p>
-                    )}
+          <PanelHeading>Sector Questions</PanelHeading>
+          {
+                sectorModule ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
+                    <ul className="space-y-2">
+                      {sectorModule.additionalQuestions.map((q, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex gap-2">
+                          <span>•</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-
-                  {/* Red Flags -- severity-coloured accent panel, kept. */}
-                  <div className="p-4 bg-red-50 border border-red-200 rounded">
-                    <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
-                    {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
-                      <ul className="space-y-1">
-                        {aiAnalysis.redFlags.map((flag: any, idx: number) => {
-                          const text = typeof flag === "string" ? flag : flag?.text ?? "";
-                          const severity = typeof flag === "string" ? null : flag?.severity ?? null;
-                          return (
-                            <li key={idx} className="text-sm text-red-800">
-                              • {severity ? <span className="font-semibold">[{severity}] </span> : null}{text}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-red-700">
-                        {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Transcript -- grey accent panel, kept. */}
-                  <div className="p-4 bg-gray-100 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
-                      <button
-                        onClick={() => transcriptFileInputRef.current?.click()}
-                        disabled={uploadingTranscript}
-                        className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {uploadingTranscript ? 'Reading…' : countTranscriptUploads(transcript) > 0 ? '📄 Add Another Transcript' : '📄 Upload Transcript'}
-                      </button>
-                      <input
-                        ref={transcriptFileInputRef}
-                        type="file"
-                        accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) — you can upload more than one for this round, each is added and clearly labelled rather than replacing the last.</p>
-                    {transcript && (
-                      <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">
-                          Transcript (Auto-Updating){countTranscriptUploads(transcript) > 1 ? ` — ${countTranscriptUploads(transcript)} uploads combined` : ''}:
-                        </p>
-                        {renderSpeakerColoredTranscript(transcript)}
-                      </div>
-                    )}
-                  </div>
-        </GridBlock>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
+                )
+          }
         <GridBlock panelKey="docbox" layout={DD_LAYOUT} className="space-y-6 min-w-0">
           <PanelHeading>Documents</PanelHeading>
                   {/* Documents Received -- must be reviewed before the meeting/recording starts. */}
@@ -1245,22 +1163,110 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                   </div>
         </GridBlock>
         <GridBlock panelKey="transcript" layout={DD_LAYOUT} className="space-y-6 min-w-0">
-          <PanelHeading>Sector Questions</PanelHeading>
-                sectorModule ? (
+          <PanelHeading>Recording & Transcript</PanelHeading>
+                  {/* Round recording controls -- unframed, sits above the transcript block. */}
                   <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
-                    <ul className="space-y-2">
-                      {sectorModule.additionalQuestions.map((q, idx) => (
-                        <li key={idx} className="text-sm text-gray-700 flex gap-2">
-                          <span>•</span>
-                          <span>{q}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-sm font-semibold text-gray-900">🎙️ Round Recording ({questions.length} Questions)</p>
+                    <div className="flex items-center gap-4">
+                      {isRecording ? (
+                        <>
+                          <button
+                            onClick={stopRecording}
+                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            ⏹ End Recording
+                          </button>
+                          <span className="text-lg font-mono font-semibold text-red-600">
+                            {formatTime(recordingTime)}
+                          </span>
+                        </>
+                      ) : (
+                        <button
+                          onClick={startRecording}
+                          className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+                        >
+                          🎤 Start Recording
+                        </button>
+                      )}
+                      <button
+                        onClick={generateAnalysis}
+                        disabled={!interviewRowId || !transcript || analyzing || isRecording}
+                        className="ml-auto px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {analyzing ? 'Analysing…' : 'Analyze Recording'}
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
-                )
+
+                  {/* Transcript -- grey accent panel, kept. */}
+                  <div className="p-4 bg-gray-100 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
+                      <button
+                        onClick={() => transcriptFileInputRef.current?.click()}
+                        disabled={uploadingTranscript}
+                        className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {uploadingTranscript ? 'Reading…' : countTranscriptUploads(transcript) > 0 ? '📄 Add Another Transcript' : '📄 Upload Transcript'}
+                      </button>
+                      <input
+                        ref={transcriptFileInputRef}
+                        type="file"
+                        accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) — you can upload more than one for this round, each is added and clearly labelled rather than replacing the last.</p>
+                    {transcript && (
+                      <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">
+                          Transcript (Auto-Updating){countTranscriptUploads(transcript) > 1 ? ` — ${countTranscriptUploads(transcript)} uploads combined` : ''}:
+                        </p>
+                        {renderSpeakerColoredTranscript(transcript)}
+                      </div>
+                    )}
+                  </div>
+        </GridBlock>
+        </GridBlock>
+        <GridBlock panelKey="risk_alerts" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>AI Questions & Red Flags</PanelHeading>
+                  {/* AI Questions -- pastel teal per style guide. */}
+                  <div className="p-4 bg-teal-50 border border-teal-200 rounded">
+                    <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
+                    {aiAnalysis?.followUpQuestions && aiAnalysis.followUpQuestions.length > 0 ? (
+                      aiAnalysis.followUpQuestions.map((q: string, idx: number) => (
+                        <p key={idx} className="text-sm text-teal-800 mb-2">• {q}</p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-teal-700">
+                        {transcript ? 'No suggested follow-up questions for this round.' : "Fills in once this round's recording has been analysed."}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Red Flags -- severity-coloured accent panel, kept. */}
+                  <div className="p-4 bg-red-50 border border-red-200 rounded">
+                    <p className="text-sm font-semibold text-red-900 mb-3">🚩 Red Flags</p>
+                    {aiAnalysis?.redFlags && aiAnalysis.redFlags.length > 0 ? (
+                      <ul className="space-y-1">
+                        {aiAnalysis.redFlags.map((flag: any, idx: number) => {
+                          const text = typeof flag === "string" ? flag : flag?.text ?? "";
+                          const severity = typeof flag === "string" ? null : flag?.severity ?? null;
+                          return (
+                            <li key={idx} className="text-sm text-red-800">
+                              • {severity ? <span className="font-semibold">[{severity}] </span> : null}{text}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-red-700">
+                        {transcript ? 'No red flags detected in this round.' : "Fills in once this round's recording has been analysed — watch here for missing or anomalous data uncovered by AI."}
+                      </p>
+                    )}
+                  </div>
+
         </GridBlock>
         <GridBlock panelKey="manual_assessment" layout={DD_LAYOUT} className="space-y-6 min-w-0">
           <PanelHeading>Internal Verification</PanelHeading>
