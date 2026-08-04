@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type WorkspacePanelKey =
   | "questions"
+  | "required_documents"
   | "docbox"
   | "transcript"
   | "scoring"
@@ -15,7 +16,8 @@ export type WorkspacePanel = { key: WorkspacePanelKey; label: string; descriptio
 /** Every panel ("webpart") the Live Workspace can show. This list IS the default layout
  * every playbook uses until someone customises it from Admin > Workspaces. */
 export const WORKSPACE_PANELS: WorkspacePanel[] = [
-  { key: "questions", label: "Playbook Questions", description: "The current step's questions and required documents." },
+  { key: "questions", label: "Playbook Questions", description: "The current step's questions, AI grades and grading scorecards." },
+  { key: "required_documents", label: "Required Documents", description: "The documents the current step requires, ticked off as they're provided." },
   { key: "docbox", label: "DocBox", description: "Drag-and-drop document upload — AI files each document against the right step and syncs it to Google Drive." },
   { key: "transcript", label: "Live Transcript", description: "Recording controls and the streaming transcript." },
   { key: "scoring", label: "Live Scoring", description: "AI confidence/consistency/specificity scores." },
@@ -26,6 +28,10 @@ export const WORKSPACE_PANELS: WorkspacePanel[] = [
 ];
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspacePanelKey[] = WORKSPACE_PANELS.map((p) => p.key);
+
+/** Panels added after templates were already being saved. A stored layout that predates
+ * them has no opinion about them, so they're treated as enabled rather than hidden. */
+const BACKFILLED_PANELS: WorkspacePanelKey[] = ["required_documents"];
 
 /** The Live Workspace canvas is a fixed 6-column x 10-row grid; every panel is a block
  * placed on it (1-indexed col/row, plus how many columns/rows it spans). */
@@ -43,13 +49,15 @@ export type WorkspaceBlock = {
 export const DEFAULT_WORKSPACE_BLOCKS: WorkspaceBlock[] = [
   { key: "stakeholder_brief", col: 1, row: 1, colSpan: 6, rowSpan: 1 },
   { key: "questions", col: 1, row: 2, colSpan: 2, rowSpan: 2 },
-  { key: "docbox", col: 1, row: 4, colSpan: 2, rowSpan: 1 },
+  { key: "required_documents", col: 1, row: 4, colSpan: 2, rowSpan: 1 },
+  { key: "docbox", col: 1, row: 5, colSpan: 2, rowSpan: 1 },
   { key: "transcript", col: 3, row: 2, colSpan: 2, rowSpan: 2 },
   { key: "scoring", col: 3, row: 4, colSpan: 2, rowSpan: 1 },
   { key: "risk_alerts", col: 5, row: 2, colSpan: 2, rowSpan: 3 },
-  { key: "manual_assessment", col: 1, row: 5, colSpan: 6, rowSpan: 1 },
-  { key: "report", col: 1, row: 6, colSpan: 6, rowSpan: 1 },
+  { key: "manual_assessment", col: 1, row: 6, colSpan: 6, rowSpan: 1 },
+  { key: "report", col: 1, row: 7, colSpan: 6, rowSpan: 1 },
 ];
+
 
 export type WorkspaceLayout = { panels: WorkspacePanelKey[]; blocks: WorkspaceBlock[] };
 
