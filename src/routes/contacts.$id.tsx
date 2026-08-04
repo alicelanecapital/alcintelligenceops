@@ -182,7 +182,7 @@ function ContactProfile() {
         </TabsContent>
 
         <TabsContent value="docs" className="pt-6">
-          <DocumentsTab opportunities={opps.data ?? []} companyId={contact.company_id ?? null} />
+          <DocumentsTab opportunities={opps.data ?? []} companyId={c.company_id ?? null} />
         </TabsContent>
 
         <TabsContent value="deals" className="pt-6">
