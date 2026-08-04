@@ -30,6 +30,9 @@ export const Route = createFileRoute("/admin/templates")({ component: () => <App
 function TemplatesAdmin() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
   const templates = useQuery({ queryKey: ["report-templates"], queryFn: fetchTemplates });
   const detail = useQuery({
     queryKey: ["report-template", selectedId],
