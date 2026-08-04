@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
