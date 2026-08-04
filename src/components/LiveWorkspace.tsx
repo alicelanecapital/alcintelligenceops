@@ -181,16 +181,49 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
   const companyId = contactQ.data?.company_id ?? null;
   // Lets a completed meeting be re-viewed against a different playbook's questions --
   // its own transcript/video/analyses are unaffected, this only changes which reference
-  // question set is shown alongside them.
+  // question set is shown alongside them. Choosing the Due Diligence template, however,
+  // means this is a deal we must run due diligence on, so the record moves into the
+  // Deal Pipeline and reopens as a Deal Pipeline Room.
   const changePlaybook = useMutation({
-    mutationFn: (newPlaybookId: string) => setInterviewPlaybook(id, newPlaybookId),
-    onSuccess: () => {
+    mutationFn: async (newPlaybookId: string) => {
+      await setInterviewPlaybook(id, newPlaybookId);
+      const kind = (toolkits.data ?? []).find((t) => t.id === newPlaybookId)?.kind;
+      if (kind === "due_diligence" && !isDeal && !interview.opportunity_id && interview.contact_id) {
+        const opp: any = await createOpp({ data: { contactId: interview.contact_id } });
+        return { dealId: opp?.id as string | undefined };
+      }
+      return {};
+    },
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["iv", id] });
       qc.invalidateQueries({ queryKey: ["iv-playbook"] });
       qc.invalidateQueries({ queryKey: ["iv-playbook-step"] });
+      if (res?.dealId) {
+        toast.success("Moved to Deal Pipeline");
+        nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: res.dealId, round: "1" } });
+      }
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to change playbook"),
   });
+  // A meeting already started against the DD template but never placed in the pipeline
+  // (no deal linked) gets its deal created the next time it's opened.
+  const backfilledRef = useRef(false);
+  useEffect(() => {
+    if (backfilledRef.current) return;
+    if (isDeal || interview.opportunity_id || !interview.contact_id) return;
+    const kind = (toolkits.data ?? []).find((t) => t.id === interview.playbook_id)?.kind;
+    if (kind !== "due_diligence") return;
+    backfilledRef.current = true;
+    (async () => {
+      try {
+        const opp: any = await createOpp({ data: { contactId: interview.contact_id } });
+        if (opp?.id) nav({ to: "/dd-interview/$opportunityId/$round", params: { opportunityId: opp.id, round: "1" } });
+      } catch (e: any) {
+        console.error("Deal backfill failed", e?.message);
+      }
+    })();
+  }, [toolkits.data, interview.playbook_id, interview.opportunity_id, interview.contact_id, isDeal, createOpp, nav]);
+
   const steps = playbook.data?.steps ?? [];
   const [currentStep, setCurrentStep] = useState<number>(1);
   useEffect(() => {
