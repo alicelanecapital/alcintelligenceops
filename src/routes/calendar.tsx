@@ -205,6 +205,7 @@ function CalendarScreen() {
         // conferencing link — mirrored copies arrive with their guest list stripped.
         return isMeetingRow(g);
       }),
+      "perOwner",
     );
     gcalRows.forEach((g: any) => {
       const owner = String(g.user_email ?? "").toLowerCase();
