@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, UploadCloud, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import {
-  listWorkspaceDocuments, deleteWorkspaceDocument, uploadDocBoxFile,
+  listDocBoxDocuments, deleteWorkspaceDocument, uploadDocBoxFile,
   readTextSnippet, getDocBoxSignedUrl,
 } from "@/lib/workspace-documents";
 import { fileWorkspaceDocument } from "@/lib/docbox.functions";
@@ -31,11 +31,14 @@ export function DocBox({
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const docs = useQuery({ queryKey: ["docbox", interviewId], queryFn: () => listWorkspaceDocuments(interviewId) });
+  const docs = useQuery({
+    queryKey: ["docbox", companyId ?? interviewId],
+    queryFn: () => listDocBoxDocuments(interviewId, companyId),
+  });
 
   const removeDoc = useMutation({
     mutationFn: (id: string) => deleteWorkspaceDocument(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["docbox", interviewId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["docbox", companyId ?? interviewId] }),
     onError: (e: any) => toast.error(e.message ?? "Failed to remove document"),
   });
 
@@ -62,12 +65,13 @@ export function DocBox({
         });
         const stepTitle = res?.document?.step_title ?? "the playbook";
         toast.success(`${file.name} filed under ${stepTitle}${res?.driveSynced ? " · synced to Drive" : ""}`);
+        if (!res?.driveSynced && res?.driveError) toast.warning(`Drive sync skipped: ${res.driveError}`);
       } catch (e: any) {
         toast.error(`${file.name}: ${e.message ?? "upload failed"}`);
       }
     }
     setBusy(false);
-    qc.invalidateQueries({ queryKey: ["docbox", interviewId] });
+    qc.invalidateQueries({ queryKey: ["docbox", companyId ?? interviewId] });
   }
 
   async function openDoc(d: any) {

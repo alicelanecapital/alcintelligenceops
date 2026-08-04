@@ -37,6 +37,21 @@ export async function listCompanyWorkspaceDocuments(companyId: string): Promise<
   return (data ?? []) as WorkspaceDocument[];
 }
 
+/** DocBox is company-scoped so documents stay visible even when a company ends up with more
+ * than one workspace record (e.g. a meeting that later became a Deal). Falls back to the
+ * workspace record when the meeting has no company linked yet. */
+export async function listDocBoxDocuments(
+  interviewId: string,
+  companyId: string | null,
+): Promise<WorkspaceDocument[]> {
+  if (companyId) {
+    const byCompany = await listCompanyWorkspaceDocuments(companyId);
+    if (byCompany.length) return byCompany;
+  }
+  return listWorkspaceDocuments(interviewId);
+}
+
+
 export async function deleteWorkspaceDocument(id: string) {
   const { error } = await (supabase.from("workspace_documents" as any) as any).delete().eq("id", id);
   if (error) throw error;

@@ -131,8 +131,11 @@ export async function fileDocument(data: FileDocInput) {
 
   let driveFileId: string | null = null;
   let driveWebLink: string | null = null;
+  let driveError: string | null = null;
 
-  if (driveHeaders()) {
+  if (!driveHeaders()) {
+    driveError = "Google Drive is not connected";
+  } else {
     try {
       let cached: string | null = null;
       let sector: string | null = null;
@@ -153,21 +156,28 @@ export async function fileDocument(data: FileDocInput) {
         sector = (c as any)?.sector ?? null;
       }
       const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", sector, cached);
-      if (folderId) {
+      if (!folderId) {
+        driveError = "the connected Google account can't reach the shared Drive folder";
+      } else {
         if (data.companyId && folderId !== cached) {
           await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", data.companyId);
         }
         const dl = await supabaseAdmin.storage.from(BUCKET).download(data.storagePath);
-        if (dl.data) {
+        if (!dl.data) {
+          driveError = "stored file could not be read back for upload";
+        } else {
           const uploaded = await uploadToDrive(folderId, data.fileName, data.mimeType, await dl.data.arrayBuffer());
           driveFileId = uploaded?.id ?? null;
           driveWebLink = uploaded?.webViewLink ?? (driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : null);
+          if (!driveFileId) driveError = "Google Drive rejected the upload";
         }
       }
     } catch (e: any) {
       console.error("Drive sync failed", e?.message);
+      driveError = e?.message ?? "Drive sync failed";
     }
   }
+
 
   const { data: row, error } = await supabaseAdmin
     .from("workspace_documents" as any)
@@ -191,5 +201,5 @@ export async function fileDocument(data: FileDocInput) {
     .single();
   if (error) throw error;
 
-  return { document: row, driveSynced: !!driveFileId };
+  return { document: row, driveSynced: !!driveFileId, driveError };
 }
