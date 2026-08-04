@@ -1,30 +1,33 @@
-# All 9 workspace panels on every playbook, Required Documents under the questions
+# Lock in the current workspace layout as the default, and match the panel frames
 
-## What's wrong today
+## Current state
 
-- Of the three playbooks, only **Due Diligence** has all 9 panels saved. **Adhoc Meeting** and **Front Door Questionnaire** were saved with 8 panels (before Required Documents existed), so their stored layouts still describe the old 8-panel canvas.
-- Required Documents has no saved position on those two playbooks, so it falls back to a default slot that can land on top of the Questions panel instead of sitting neatly beneath it.
-- The Playbook Questions and Required Documents panels are drawn with a dark green outline, while every other panel (Transcript, Scoring, Risk Alerts, DocBox, Report) uses the standard light card outline — so those two frames look heavier than the rest.
+All three playbooks (Due Diligence, Front Door Questionnaire, Adhoc Meeting) now have all **9 panels enabled** and the **same saved geometry**, with Required Documents sitting directly under Playbook Questions. That is the layout you just edited and saved.
+
+Two things still don't match it:
+
+- The code's built-in default layout differs from what you saved, so any new playbook — or a playbook whose layout is ever reset — comes up with the old arrangement.
+- The Playbook Questions and Required Documents panels are drawn with a heavy dark-green outline, while Transcript, Scoring, Risk Alerts, DocBox and Report use the standard thin card outline.
 
 ## What will change
 
-1. **9 panels enabled everywhere.** Every playbook's Live Workspace and the Admin > Workspaces designer will show all 9 panels switched on, including the two playbooks saved with only 8.
-2. **Required Documents sits directly under Playbook Questions**, in the same column and width as the questions panel, with the DocBox and the panels below shifted down so nothing overlaps.
-3. **Matching frames.** Playbook Questions and Required Documents get the same thin card outline as the other panels. Their forest-green title bars stay as they are — only the heavy green outer border goes.
-
-## Resulting default canvas (6 columns)
+1. **Your saved arrangement becomes the default.** The built-in default layout is updated to exactly the layout currently saved on your playbooks, so new playbooks and the "Reset to default" button both produce this canvas:
 
 ```text
-row 1   Stakeholder Brief (full width)
-rows 2-4  Playbook Questions   | Transcript (rows 2-3)  | Risk Alerts
-row 5   Required Documents     | Live Scoring (row 4)   | (rows 2-4)
-row 6   DocBox (full width)
-row 7   Manual Assessment (full width)
-row 8   Report (full width)
+row 1     Stakeholder Brief (full width)
+rows 2-3  Playbook Questions | Transcript          | Risk Alerts
+row 4     Required Documents | Live Scoring        | (rows 2-4)
+row 5     DocBox (full width)
+row 6     Manual Assessment (full width)
+row 7     Report (full width)
 ```
+
+2. **All 9 panels stay enabled by default**, with Required Documents in the slot under the Playbook Questions panel.
+
+3. **Matching frames.** Playbook Questions and Required Documents get the same thin card outline as every other panel. Their forest-green title bars stay exactly as they are — only the heavy green outer border goes.
 
 ## Technical notes
 
-- `src/lib/workspace-layouts.ts`: update `DEFAULT_WORKSPACE_BLOCKS` to the geometry above (required_documents directly below questions, docbox moved to its own full-width row, manual_assessment/report shifted down). Extend the existing backfill so a stored layout missing a newer panel gets both the panel key **and** a sane block position rather than only the panel key.
-- Database: one migration updating `public.toolkits.workspace_layout` for the Adhoc Meeting and Front Door Questionnaire playbooks so their saved panel list and blocks include `required_documents` at the position above — this is what makes the Admin designer show 9 of 9 for them, not just the runtime workspace.
-- `src/components/LiveWorkspace.tsx`: drop `border-green-900/30` from the questions and required-documents `Card`s so they inherit the default border used by the other panels.
+- `src/lib/workspace-layouts.ts`: set `DEFAULT_WORKSPACE_BLOCKS` to the geometry saved on the playbooks today (questions 1/2 span 2x2, required_documents 1/4 span 2x1, docbox 1/5 full width, transcript 3/2 span 2x2, scoring 3/4, risk_alerts 5/2 span 2x3, manual_assessment 1/6, report 1/7, stakeholder_brief 1/1). Keep `DEFAULT_WORKSPACE_LAYOUT` as all 9 keys and keep the `required_documents` backfill so any older stored layout still resolves with the panel on.
+- `src/components/LiveWorkspace.tsx`: remove `border-green-900/30` from the questions and required-documents `Card`s so they inherit the default card border.
+- No database change is needed — the stored layouts already match and stay untouched.
