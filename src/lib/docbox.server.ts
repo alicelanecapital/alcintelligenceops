@@ -5,6 +5,13 @@ const MODEL = "google/gemini-3-flash-preview";
 const DRIVE_GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const BUCKET = "dd-documents";
 
+class DriveSyncError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DriveSyncError";
+  }
+}
+
 export type DocBoxStep = { key: number; title: string };
 
 export function driveHeaders() {
@@ -55,24 +62,49 @@ ${(snippet ?? "").slice(0, 4000)}`;
 async function findOrCreateFolder(name: string, parentId: string, headers: Record<string, string>) {
   const safeName = name.replace(/'/g, "\\'");
   const q = `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const findRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const findParams = new URLSearchParams({
+    q,
+    fields: "files(id,name)",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
+  });
+  const findRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?${findParams.toString()}`, { headers });
   if (findRes.ok) {
     const found = await findRes.json();
     if (found?.files?.[0]?.id) return found.files[0].id as string;
   } else {
-    console.error(`Drive search failed [${findRes.status}]: ${(await findRes.text()).slice(0, 300)}`);
+    const body = (await findRes.text()).slice(0, 300);
+    console.error(`Drive search failed [${findRes.status}]: ${body}`);
+    throw new DriveSyncError(`Google Drive folder search failed (${findRes.status})`);
   }
 
-  const createRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?fields=id`, {
+  const createParams = new URLSearchParams({ fields: "id", supportsAllDrives: "true" });
+  const createRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files?${createParams.toString()}`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] }),
   });
   if (!createRes.ok) {
-    console.error(`Drive folder create failed [${createRes.status}]: ${(await createRes.text()).slice(0, 300)}`);
-    return null;
+    const body = (await createRes.text()).slice(0, 300);
+    console.error(`Drive folder create failed [${createRes.status}]: ${body}`);
+    throw new DriveSyncError(`Google Drive rejected folder creation (${createRes.status})`);
   }
   return ((await createRes.json())?.id as string | null) ?? null;
+}
+
+async function assertRootFolderAccess(headers: Record<string, string>) {
+  const params = new URLSearchParams({ fields: "id,name,mimeType", supportsAllDrives: "true" });
+  const res = await fetch(`${DRIVE_GATEWAY}/drive/v3/files/${SHARED_DRIVE_FOLDER_ID}?${params.toString()}`, { headers });
+  if (res.ok) return;
+
+  const body = (await res.text()).slice(0, 300);
+  console.error(`Drive root folder access failed [${res.status}]: ${body}`);
+  if (res.status === 404 || res.status === 403) {
+    throw new DriveSyncError(
+      "The connected Google account cannot access the existing Alice Lane shared folder. Share that folder with georgia@alicelanecapital.com as Editor, then select Sync Drive again.",
+    );
+  }
+  throw new DriveSyncError(`Google Drive could not validate the shared folder (${res.status})`);
 }
 
 /** Returns the company's own Drive subfolder id, nested under its sector folder,
@@ -80,7 +112,14 @@ async function findOrCreateFolder(name: string, parentId: string, headers: Recor
 export async function ensureCompanyFolder(companyName: string, sector: string | null, cachedId: string | null) {
   const headers = driveHeaders();
   if (!headers) return null;
-  if (cachedId) return cachedId;
+  await assertRootFolderAccess(headers);
+
+  if (cachedId) {
+    const params = new URLSearchParams({ fields: "id", supportsAllDrives: "true" });
+    const cachedRes = await fetch(`${DRIVE_GATEWAY}/drive/v3/files/${cachedId}?${params.toString()}`, { headers });
+    if (cachedRes.ok) return cachedId;
+    console.warn(`Cached company Drive folder is no longer reachable [${cachedRes.status}]; resolving it again`);
+  }
 
   const sectorFolderId = await findOrCreateFolder((sector ?? "").trim() || "Unclassified", SHARED_DRIVE_FOLDER_ID, headers);
   if (!sectorFolderId) return null;
@@ -97,14 +136,16 @@ export async function uploadToDrive(folderId: string, fileName: string, mimeType
   const tail = `\r\n--${boundary}--`;
   const body = new Blob([head, bytes, tail]);
 
-  const res = await fetch(`${DRIVE_GATEWAY}/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`, {
+  const uploadParams = new URLSearchParams({ uploadType: "multipart", fields: "id,webViewLink", supportsAllDrives: "true" });
+  const res = await fetch(`${DRIVE_GATEWAY}/upload/drive/v3/files?${uploadParams.toString()}`, {
     method: "POST",
     headers: { ...headers, "Content-Type": `multipart/related; boundary=${boundary}` },
     body,
   });
   if (!res.ok) {
-    console.error(`Drive upload failed [${res.status}]: ${(await res.text()).slice(0, 300)}`);
-    return null;
+    const responseBody = (await res.text()).slice(0, 300);
+    console.error(`Drive upload failed [${res.status}]: ${responseBody}`);
+    throw new DriveSyncError(`Google Drive rejected the document upload (${res.status})`);
   }
   return (await res.json()) as { id: string; webViewLink?: string };
 }
@@ -157,7 +198,7 @@ export async function fileDocument(data: FileDocInput) {
       }
       const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", sector, cached);
       if (!folderId) {
-        driveError = "the connected Google account can't reach the shared Drive folder";
+        driveError = "Google Drive did not return a company folder";
       } else {
         if (data.companyId && folderId !== cached) {
           await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", data.companyId);
@@ -169,7 +210,7 @@ export async function fileDocument(data: FileDocInput) {
           const uploaded = await uploadToDrive(folderId, data.fileName, data.mimeType, await dl.data.arrayBuffer());
           driveFileId = uploaded?.id ?? null;
           driveWebLink = uploaded?.webViewLink ?? (driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : null);
-          if (!driveFileId) driveError = "Google Drive rejected the upload";
+          if (!driveFileId) driveError = "Google Drive did not return an uploaded file";
         }
       }
     } catch (e: any) {
@@ -233,7 +274,13 @@ export async function syncPendingDocuments(input: { interviewId: string; company
     }
   }
 
-  const folderId = await ensureCompanyFolder(companyName, sector, cached);
+  let folderId: string | null = null;
+  try {
+    folderId = await ensureCompanyFolder(companyName, sector, cached);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not reach the shared Drive folder";
+    return { synced: 0, failed: rows.length, error: message };
+  }
   if (!folderId) return { synced: 0, failed: rows.length, error: "Could not reach the shared Drive folder" };
   if (companyId && folderId !== cached) {
     await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", companyId);
@@ -245,7 +292,14 @@ export async function syncPendingDocuments(input: { interviewId: string; company
     if (!row.storage_path) { failed++; continue; }
     const dl = await supabaseAdmin.storage.from(BUCKET).download(row.storage_path);
     if (!dl.data) { failed++; continue; }
-    const uploaded = await uploadToDrive(folderId, row.file_name, row.mime_type ?? "application/octet-stream", await dl.data.arrayBuffer());
+    let uploaded: Awaited<ReturnType<typeof uploadToDrive>> = null;
+    try {
+      uploaded = await uploadToDrive(folderId, row.file_name, row.mime_type ?? "application/octet-stream", await dl.data.arrayBuffer());
+    } catch (error) {
+      console.error("Pending Drive upload failed", error instanceof Error ? error.message : error);
+      failed++;
+      continue;
+    }
     if (!uploaded?.id) { failed++; continue; }
     await (supabaseAdmin.from("workspace_documents" as any) as any)
       .update({
