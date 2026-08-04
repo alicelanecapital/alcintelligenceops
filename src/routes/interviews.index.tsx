@@ -120,6 +120,8 @@ function InterviewsIndex() {
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
   const graduatedMap = graduated.data ?? new Map<string, string>();
   const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
 
   const { plannedGroups, past } = useMemo(() => {
     const items: Item[] = [];
@@ -130,6 +132,7 @@ function InterviewsIndex() {
     const planned: Item[] = [];
     const past: Item[] = [];
     for (const it of items) {
+      if (term && !matchesSearch(it, term)) continue;
       // Graduated meetings (moved to the Deal Pipeline) never sit in the Planned queue --
       // they're done as an Engagement, only their history remains.
       if (it.kind === "interview" && graduatedMap.has(it.data.id)) { past.push(it); continue; }
@@ -140,7 +143,13 @@ function InterviewsIndex() {
     planned.sort((a, b) => a.when.getTime() - b.when.getTime());
     past.sort((a, b) => b.when.getTime() - a.when.getTime());
     return { plannedGroups: groupPlanned(planned), past };
-  }, [q.data, upcoming.data, graduatedMap]);
+  }, [q.data, upcoming.data, graduatedMap, term]);
+
+  // While searching, hide empty groups and open the ones that matched so results aren't
+  // buried inside a collapsed accordion.
+  const visibleGroups = term ? plannedGroups.filter((g) => g.items.length > 0) : plannedGroups;
+  const openPlanned = term ? visibleGroups.map((g) => g.key) : ["today"];
+
 
   const renderRows = (items: Item[]) =>
     items.length === 0 ? (
