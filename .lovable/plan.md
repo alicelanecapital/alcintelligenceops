@@ -1,8 +1,8 @@
-# Playbook picker cleanup, DD → Deal, and sector-based Drive folders
+# DD → Deal, sector-based Drive folders, status chips, DocBox columns
 
-## 1. Remove the sector entry from the Playbook dropdown
+## 1. Remove meeting status chips
 
-The Playbook dropdown (New meeting dialog and the picker at the top of the Live Workspace) currently lists a sector value such as "Retail" alongside the real playbooks. Playbooks are only the templates defined in Admin > Playbooks (Adhoc Meeting, Due Diligence, Front Door Questionnaire). The sector-derived option gets filtered out of both dropdowns so only real playbooks are selectable; sector stays where it belongs, on the contact/company record and the DD sector detection.
+Drop the Live / Paused / Stopped / Draft status chips from the interface — meeting lists, the Live Workspace header, and the Deal Pipeline Room. The underlying status still drives behaviour (resume, past vs planned grouping); it just isn't shown as a badge.
 
 ## 2. Selecting the DD playbook makes the meeting a Deal
 
