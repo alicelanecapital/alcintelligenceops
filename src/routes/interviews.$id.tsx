@@ -10,6 +10,7 @@ import {
 } from "@/lib/interviews";
 import { listToolkits } from "@/lib/toolkits";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
+import { gradeStepQuestions, type QuestionGradePayload, type FlagStatus } from "@/lib/interview-grading.functions";
 import { getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
 import { DEFAULT_WORKSPACE_LAYOUT, DEFAULT_LAYOUT } from "@/lib/workspace-layouts";
@@ -191,6 +192,16 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     enabled: Boolean(playbook.data),
     queryFn: () => fetchPlaybookStepDetail(playbook.data!, currentStep),
   });
+  // AI grading of this step's questions against the transcript so far.
+  const gradeQuestions = useMutation({
+    mutationFn: () => gradeStepQuestions({ data: { interviewId: id, stepKey: currentStep } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["iv-ana", id] });
+      if (!r?.graded) toast.info("Nothing to grade yet — record or upload a transcript first.");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to grade answers"),
+  });
+
 
   // Elapsed timer
   useEffect(() => {
@@ -225,11 +236,13 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     if (items.length >= lastAnalyzedCount.current + 3 && !busyRef.current) {
       busyRef.current = true;
       analyzeInterview({ data: { interviewId: id } })
+        .then(() => gradeStepQuestions({ data: { interviewId: id, stepKey: currentStep } }).catch(() => {}))
         .then(() => { lastAnalyzedCount.current = items.length; qc.invalidateQueries({ queryKey: ["iv-ana", id] }); qc.invalidateQueries({ queryKey: ["iv-docs", id] }); })
         .catch(() => {})
         .finally(() => { busyRef.current = false; });
     }
-  }, [utt.data, id, qc]);
+  }, [utt.data, id, qc, currentStep]);
+
 
   async function startRec() {
     try {
@@ -320,6 +333,21 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
 
   const analyses: any[] = ana.data ?? [];
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
+  // Newest AI grade per question for the step on screen (see interview-grading.functions.ts).
+  const gradesByQuestion = new Map<string, QuestionGradePayload>();
+  for (const a of analyses) {
+    if (a.kind !== "question_grade") continue;
+    const p = a.payload as QuestionGradePayload | undefined;
+    if (!p?.question_id) continue;
+    const prev = gradesByQuestion.get(p.question_id);
+    if (!prev || String(p.graded_at ?? "") > String(prev.graded_at ?? "")) gradesByQuestion.set(p.question_id, p);
+  }
+  const lastGradedAt = [...gradesByQuestion.values()]
+    .map((g) => g.graded_at)
+    .filter(Boolean)
+    .sort()
+    .pop();
+
   const behavioralSignalsRow: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals");
   const behavioralSignals: any = behavioralSignalsRow?.payload;
   const transcriptSummary: string | undefined = analyses.find(a => a.kind === "transcript_summary")?.payload?.summary;
@@ -458,8 +486,22 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         <GridBlock panelKey="questions" layout={layout} className="space-y-3 min-w-0">
         <aside className="space-y-3">
           <Card><CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              {stepDetail.data?.step.title ?? "Questions"}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                {stepDetail.data?.step.title ?? "Questions"}
+              </div>
+              <div className="flex items-center gap-2">
+                {lastGradedAt && (
+                  <span className="text-[10px] text-muted-foreground">Graded {format(new Date(lastGradedAt), "HH:mm")}</span>
+                )}
+                <Button
+                  size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                  onClick={() => gradeQuestions.mutate()}
+                  disabled={gradeQuestions.isPending || (stepDetail.data?.questions.length ?? 0) === 0}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />{gradeQuestions.isPending ? "Grading…" : "Grade answers"}
+                </Button>
+              </div>
             </div>
             {stepDetail.isLoading ? (
               <div className="text-xs text-muted-foreground italic">Loading questions…</div>
@@ -471,26 +513,70 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               </div>
             ) : (
               <Accordion type="multiple" className="rounded-md border border-teal-100">
-                {(stepDetail.data?.questions ?? []).map((q, i) => (
+                {(stepDetail.data?.questions ?? []).map((q, i) => {
+                  const grade = gradesByQuestion.get(q.id);
+                  // Fall back to the question's own configured scorecard so the flags are
+                  // visible before the AI has heard anything.
+                  const flags = grade?.flags?.length
+                    ? grade.flags
+                    : (q.red_flags ?? []).map((f) => ({ text: f.text, severity: f.severity as string | null, status: "Unknown" as const }));
+                  return (
                   <AccordionItem key={q.id} value={q.id} className="border-teal-100 last:border-b-0">
                     <AccordionTrigger className="text-sm px-2 py-1.5 hover:no-underline bg-teal-50">
-                      <span className="text-left font-medium text-foreground/90">Q{i + 1}. {q.question_text}</span>
+                      <span className="flex items-start gap-2 w-full pr-2">
+                        <span className="text-left font-medium text-foreground/90 flex-1">Q{i + 1}. {q.question_text}</span>
+                        <Badge className={`shrink-0 text-[10px] border ${gradeTone(grade?.grade)}`}>{grade?.grade ?? "Ungraded"}</Badge>
+                      </span>
                     </AccordionTrigger>
-                    {(q.why_text || q.internal_guideline) && (
-                      <AccordionContent className="px-2 pb-1.5 space-y-1.5">
-                        {q.why_text && <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>}
-                        {q.internal_guideline && (
-                          <div className="text-[11px] text-amber-800 not-italic bg-amber-50 border border-amber-100 rounded px-1.5 py-1">
-                            <span className="font-medium">Internal guideline:</span> {q.internal_guideline}
+                    <AccordionContent className="px-2 pb-2 space-y-1.5">
+                      {q.why_text && <div className="text-[11px] text-muted-foreground not-italic">{q.why_text}</div>}
+                      {q.internal_guideline && (
+                        <div className="text-[11px] text-amber-800 not-italic bg-amber-50 border border-amber-100 rounded px-1.5 py-1">
+                          <span className="font-medium">Internal guideline:</span> {q.internal_guideline}
+                        </div>
+                      )}
+                      {grade ? (
+                        <div className="text-[11px] not-italic border-t border-teal-100 pt-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="uppercase tracking-[0.15em] text-[9px] text-muted-foreground">AI grade</span>
+                            <Badge className={`text-[10px] border ${gradeTone(grade.grade)}`}>{grade.grade}</Badge>
                           </div>
-                        )}
-                      </AccordionContent>
-                    )}
+                          {grade.rationale && <div className="text-muted-foreground mt-1">{grade.rationale}</div>}
+                          {grade.evidence && <div className="italic text-foreground/80 mt-1">"{grade.evidence}"</div>}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground italic border-t border-teal-100 pt-1.5">
+                          Not graded yet — grading runs as the transcript builds up.
+                        </div>
+                      )}
+                      {flags.length > 0 && (
+                        <div className="border-t border-teal-100 pt-1.5">
+                          <div className="uppercase tracking-[0.15em] text-[9px] text-muted-foreground mb-1">Grading scorecard</div>
+                          <ul className="space-y-1">
+                            {flags.map((f, fi) => (
+                              <li key={fi} className={`text-[11px] rounded px-1.5 py-1 border ${flagTone(f.status)}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span>{f.text}</span>
+                                  <span className="shrink-0 font-medium">{f.status}</span>
+                                </div>
+                                {f.severity && (
+                                  <div className="text-[9px] uppercase tracking-[0.15em] opacity-70 mt-0.5">
+                                    {String(f.severity).replace(/_/g, " ")}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </AccordionContent>
                   </AccordionItem>
-                ))}
+                  );
+                })}
               </Accordion>
             )}
           </CardContent></Card>
+
 
           {(stepDetail.data?.documents.length ?? 0) > 0 && (
             <Card><CardContent className="p-4">
@@ -812,6 +898,23 @@ function transcriptGroups(utterances: any[], interview: any) {
 function transcriptGroupTitle(d: Date) {
   return `TRANSCRIPT · ${format(d, "MMM d, yyyy").toUpperCase()} · ${format(d, "HH:mm")}`;
 }
+// A-E grade badge colouring: forest green through amber to red.
+function gradeTone(grade?: string) {
+  switch (grade) {
+    case "A": return "bg-green-100 text-green-900 border-green-300";
+    case "B": return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    case "C": return "bg-amber-50 text-amber-800 border-amber-200";
+    case "D": return "bg-orange-50 text-orange-800 border-orange-200";
+    case "E": return "bg-red-50 text-red-800 border-red-300";
+    default: return "bg-muted text-muted-foreground border-border";
+  }
+}
+function flagTone(status: FlagStatus) {
+  if (status === "Detected") return "bg-red-50 text-red-800 border-red-200";
+  if (status === "Clear") return "bg-green-50 text-green-900 border-green-200";
+  return "bg-muted/40 text-muted-foreground border-border";
+}
+
 function scoreTone(value: any) {
   const n = typeof value === "number" ? value : parseFloat(String(value));
   if (!isFinite(n)) {
