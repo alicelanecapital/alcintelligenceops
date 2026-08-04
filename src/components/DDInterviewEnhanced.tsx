@@ -898,7 +898,6 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
 
   return (
     <div className="max-w-[1600px] mx-auto px-6">
-    <div className="max-w-[1600px] mx-auto px-6">
       {/* Header -- matches the Live Workspace's eyebrow + serif-title convention */}
       <div className="mb-8">
         <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Round {round}</div>
