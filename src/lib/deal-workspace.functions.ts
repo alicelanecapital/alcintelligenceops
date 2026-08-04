@@ -12,7 +12,7 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
     const { data: existingRows, error: exErr } = await s
       .from("interviews")
       .select("*")
-      .eq("deal_id", data.dealId)
+      .eq("opportunity_id", data.dealId)
       .order("created_at", { ascending: false })
       .limit(1);
     if (exErr) throw exErr;
@@ -56,7 +56,7 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
     const { data: row, error: insErr } = await s
       .from("interviews")
       .insert({
-        deal_id: d.id,
+        opportunity_id: d.id,
         contact_id: d.contact_id ?? null,
         founder_id: d.founder_id ?? null,
         title: `${businessName} · Due Diligence`,
