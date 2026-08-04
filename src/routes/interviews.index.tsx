@@ -111,6 +111,19 @@ function groupPlanned(items: Item[]): Group[] {
   return groups;
 }
 
+/** Free-text search across the fields a user would recognise on a meeting row. */
+function matchesSearch(it: Item, term: string): boolean {
+  const parts: (string | null | undefined)[] = [];
+  if (it.kind === "interview") {
+    parts.push(it.data.founder_name, it.data.business_name, it.data.industry, it.data.title);
+  } else {
+    parts.push(it.data.title, it.data.location, it.data.user_email);
+    const attendees = Array.isArray(it.data.attendees) ? it.data.attendees : [];
+    for (const a of attendees) parts.push(a?.displayName ?? a?.name, a?.email);
+  }
+  return parts.some((p) => typeof p === "string" && p.toLowerCase().includes(term));
+}
+
 
 function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
