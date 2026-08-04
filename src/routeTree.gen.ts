@@ -30,6 +30,7 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminDdFrameworkRouteImport } from './routes/admin.dd-framework'
 import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
+import { Route as AdminWorkspacesIndexRouteImport } from './routes/admin.workspaces.index'
 import { Route as AdminToolkitsIndexRouteImport } from './routes/admin.toolkits.index'
 import { Route as OpportunitiesIdSynopsisRouteImport } from './routes/opportunities_.$id.synopsis'
 import { Route as InterviewsIdBoardReportRouteImport } from './routes/interviews_.$id.board-report'
@@ -143,6 +144,11 @@ const AdminAccountsRoute = AdminAccountsRouteImport.update({
   path: '/admin/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWorkspacesIndexRoute = AdminWorkspacesIndexRouteImport.update({
+  id: '/admin/workspaces/',
+  path: '/admin/workspaces/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminToolkitsIndexRoute = AdminToolkitsIndexRouteImport.update({
   id: '/admin/toolkits/',
   path: '/admin/toolkits/',
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/interviews/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits/': typeof AdminToolkitsIndexRoute
+  '/admin/workspaces/': typeof AdminWorkspacesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/interviews/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits': typeof AdminToolkitsIndexRoute
+  '/admin/workspaces': typeof AdminWorkspacesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/interviews_/$id/board-report': typeof InterviewsIdBoardReportRoute
   '/opportunities_/$id/synopsis': typeof OpportunitiesIdSynopsisRoute
   '/admin/toolkits/': typeof AdminToolkitsIndexRoute
+  '/admin/workspaces/': typeof AdminWorkspacesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/interviews/$id/board-report'
     | '/opportunities/$id/synopsis'
     | '/admin/toolkits/'
+    | '/admin/workspaces/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/interviews/$id/board-report'
     | '/opportunities/$id/synopsis'
     | '/admin/toolkits'
+    | '/admin/workspaces'
   id:
     | '__root__'
     | '/'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/interviews_/$id/board-report'
     | '/opportunities_/$id/synopsis'
     | '/admin/toolkits/'
+    | '/admin/workspaces/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -393,6 +405,7 @@ export interface RootRouteChildren {
   InterviewsIdBoardReportRoute: typeof InterviewsIdBoardReportRoute
   OpportunitiesIdSynopsisRoute: typeof OpportunitiesIdSynopsisRoute
   AdminToolkitsIndexRoute: typeof AdminToolkitsIndexRoute
+  AdminWorkspacesIndexRoute: typeof AdminWorkspacesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -544,6 +557,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/workspaces/': {
+      id: '/admin/workspaces/'
+      path: '/admin/workspaces'
+      fullPath: '/admin/workspaces/'
+      preLoaderRoute: typeof AdminWorkspacesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/toolkits/': {
       id: '/admin/toolkits/'
       path: '/admin/toolkits'
@@ -634,7 +654,18 @@ const rootRouteChildren: RootRouteChildren = {
   InterviewsIdBoardReportRoute: InterviewsIdBoardReportRoute,
   OpportunitiesIdSynopsisRoute: OpportunitiesIdSynopsisRoute,
   AdminToolkitsIndexRoute: AdminToolkitsIndexRoute,
+  AdminWorkspacesIndexRoute: AdminWorkspacesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
