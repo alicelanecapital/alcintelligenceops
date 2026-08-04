@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchTemplates, fetchTemplateDetail, createTemplate, updateTemplate, deleteTemplate,
+  fetchTemplates, fetchTemplateDetail, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate,
   uploadTemplateAttachment, uploadTemplateLogo, replaceSections,
   createSection, updateSection, deleteSection, reorderSections,
   type ReportTemplate, type ReportTemplateSection,
