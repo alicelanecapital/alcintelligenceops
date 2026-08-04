@@ -201,5 +201,5 @@ export async function fileDocument(data: FileDocInput) {
     .single();
   if (error) throw error;
 
-  return { document: row, driveSynced: !!driveFileId };
+  return { document: row, driveSynced: !!driveFileId, driveError };
 }
