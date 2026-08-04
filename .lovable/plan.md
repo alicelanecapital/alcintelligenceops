@@ -19,3 +19,12 @@ A second reason it can look missing in a workspace: the card only renders when t
 - `src/lib/workspace-layouts.ts`: add `"required_documents"` to `WorkspacePanelKey`, `WORKSPACE_PANELS`, and `DEFAULT_WORKSPACE_BLOCKS`; `resolveWorkspaceLayout` already backfills defaults for keys missing from stored blocks, and panel lists saved earlier fall through to the full default set only when empty — so also treat an unknown/missing key in a stored `panels` array as enabled for this new panel.
 - `src/components/LiveWorkspace.tsx`: extract the required-documents `Card` (currently inside the `questions` `GridBlock`) into `<GridBlock panelKey="required_documents">`, reusing `stepDetail.data.documents`, `providedCount` and `isDocumentProvided`.
 - No database or schema changes; required documents continue to come from `dd_framework_documents` for the active round.
+
+## Also: search in Meetings and Deal Pipeline
+
+Neither list has a search box today.
+
+- **Meetings** (`src/routes/interviews.index.tsx`): add a single search input under the page header. It filters both Planned and Past Meetings across contact/company name, meeting title, and attendee names, case-insensitive. Group accordions (Today / This Week / Next Week / This Month / Past) keep their structure; empty groups hide while a search is active, and matching groups auto-expand so results aren't buried in a collapsed section. Clearing the box restores the normal view.
+- **Deal Pipeline** (`src/routes/dd-engine.tsx`): add a search input in the same style at the top of the list. It filters rows on deal/company name, contact name, sector, and stage. Row count in the header reflects the filtered set.
+- Both are client-side filters over data already loaded — no new queries, no changes to how records are fetched or stored. Search text is local UI state and not persisted between visits.
+
