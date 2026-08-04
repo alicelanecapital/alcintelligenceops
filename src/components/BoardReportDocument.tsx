@@ -34,7 +34,7 @@ export const BoardReportDocument = forwardRef<HTMLDivElement, {
   redactScores?: boolean;
 }>(function BoardReportDocument({ template, sections, report, meta, redactScores }, ref) {
   const brand = template.name.replace(/\s*Template$/i, "");
-  const dealTitle = meta.businessName || meta.founderName || "Opportunity";
+  const dealTitle = meta.businessName || meta.founderName || "Deal";
   const pages = useMemo(() => groupIntoPages(sections), [sections]);
   const hasCoverTheme = !!(template.cover_bg && template.cover_fg);
   const accent = template.cover_bg || "#0F766E";

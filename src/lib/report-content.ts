@@ -198,7 +198,7 @@ const MATCHERS: Matcher[] = [
   },
   {
     test: (t) => t.includes("impact thesis") || t.includes("impact framework") || t.includes("impact assessment"),
-    build: () => [{ type: "note", text: "Not yet assessed for this opportunity — add manually." }],
+    build: () => [{ type: "note", text: "Not yet assessed for this deal — add manually." }],
   },
   {
     test: (t) => t.includes("outstanding question"),

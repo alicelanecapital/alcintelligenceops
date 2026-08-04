@@ -74,7 +74,7 @@ export function RequestInfoModal({ open, onClose, contactId, contactName, contac
         const opp: any = await createOppFn({ data: { contactId } });
         onOpportunityCreated?.(opp);
       } catch (e: any) {
-        toast.error(e.message ?? "Could not link opportunity");
+        toast.error(e.message ?? "Could not link deal");
       }
       onClose();
     } catch (e: any) {

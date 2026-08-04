@@ -587,7 +587,7 @@ function DocumentsTab({ opportunities, companyId }: { opportunities: any[]; comp
     <div>
       {driveHeader}
       {docboxList}
-      <p className="text-sm text-muted-foreground">No opportunities yet — round documents will appear here once the contact enters a DD round.</p>
+      <p className="text-sm text-muted-foreground">No deals yet — round documents will appear here once the contact enters a DD round.</p>
     </div>
   );
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading documents…</p>;
