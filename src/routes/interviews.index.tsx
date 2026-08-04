@@ -202,20 +202,8 @@ function InterviewsIndex() {
   );
 }
 
-// "live" has no badge of its own -- opening a meeting now marks it live immediately
-// (there's no separate pre-interview brief stage any more), so a "Live" badge would show
-// on every launched meeting rather than meaning "in progress right now".
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  draft: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
-  paused: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-300" },
-  completed: { label: "Completed", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-};
-
-function MeetingStatusBadge({ status }: { status?: string | null }) {
-  const meta = status ? STATUS_STYLES[status] : undefined;
-  if (!meta) return null;
-  return <Badge variant="outline" className={`text-[10px] ${meta.className}`}>{meta.label}</Badge>;
-}
+// Status chips (Live / Paused / Stopped / Draft) are deliberately not shown -- status still
+// drives behaviour (resume, planned vs past grouping) but isn't surfaced as a badge.
 
 function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | null }) {
   const target = opportunityId
@@ -228,7 +216,7 @@ function InterviewRow({ i, opportunityId }: { i: any; opportunityId: string | nu
         <div className="font-serif text-base leading-tight truncate">{i.founder_name}</div>
         <div className="text-xs text-muted-foreground truncate">{i.business_name} · {i.industry ?? "—"} · {new Date(i.created_at).toLocaleDateString()}</div>
       </div>
-      <MeetingStatusBadge status={i.status} />
+
       {opportunityId && <Badge className="bg-primary text-primary-foreground">Deal Pipeline</Badge>}
     </Link>
   );
