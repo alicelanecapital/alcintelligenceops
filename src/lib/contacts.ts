@@ -148,6 +148,20 @@ export async function uploadContactPhoto(contactId: string, file: File): Promise
   return data?.signedUrl ?? null;
 }
 
+/** Every distinct company name already in use across contacts, for the Company combobox's
+ * "pick an existing one" suggestions. Sourced from the free-text field itself (not just the
+ * companies table) so it also surfaces legacy names never formally linked via company_id. */
+export async function fetchCompanyNameSuggestions(): Promise<string[]> {
+  const { data, error } = await supabase.from("contacts").select("company").not("company", "is", null);
+  if (error) throw error;
+  const names = new Set<string>();
+  for (const row of (data ?? []) as any[]) {
+    const c = (row.company ?? "").trim();
+    if (c) names.add(c);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
 export async function fetchContactsByCompany(companyId: string) {
   const { data, error } = await supabase
     .from("contacts")

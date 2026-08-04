@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   LayoutDashboard, Calendar, CalendarDays, Kanban, Users, Map, BarChart3, MessagesSquare,
-  Building2, ShieldCheck, LogOut, UserCog, LayoutTemplate, FileText, ChevronDown,
+  Building2, ShieldCheck, LogOut, UserCog, LayoutTemplate, LayoutGrid, FileText, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -40,6 +40,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         icon: LayoutTemplate,
         children: [
           { to: "/admin/toolkits", label: "Playbooks", icon: ShieldCheck },
+          { to: "/admin/workspaces", label: "Workspaces", icon: LayoutGrid },
           { to: "/admin/templates", label: "Reports", icon: FileText },
         ],
       },

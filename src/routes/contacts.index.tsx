@@ -12,6 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { EditContactDialog } from "@/components/EditContactDialog";
 import { EventSelect } from "@/components/EventSelect";
 import { CategorySelect } from "@/components/CategorySelect";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -811,9 +812,9 @@ function AddContactDialog({ open, onClose, defaultEventId, initialForm }: { open
         <div className="grid md:grid-cols-[1fr_260px] gap-5">
         <div className="grid grid-cols-2 gap-3 content-start">
           <Field label="Company">
-            <Input
+            <CompanyCombobox
               value={form.company ?? ""}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onChange={(v) => setForm({ ...form, company: v })}
               onBlur={() => {
                 setForm((f: any) => (f.name?.trim() ? f : { ...f, name: f.company ?? "" }));
                 autoGenerateIfEmpty();

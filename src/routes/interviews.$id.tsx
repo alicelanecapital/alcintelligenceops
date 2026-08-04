@@ -12,6 +12,7 @@ import { listToolkits } from "@/lib/toolkits";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
+import { DEFAULT_WORKSPACE_LAYOUT } from "@/lib/workspace-layouts";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -159,6 +160,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     queryFn: () => fetchPlaybookShape(interview.playbook_id ?? null),
   });
   const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
+  const workspacePanels = playbook.data?.workspacePanels ?? DEFAULT_WORKSPACE_LAYOUT;
   // Lets a completed meeting be re-viewed against a different playbook's questions --
   // its own transcript/video/analyses are unaffected, this only changes which reference
   // question set is shown alongside them.
@@ -412,7 +414,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         )}
       </div>
 
-      {interview.contact_id && (
+      {workspacePanels.includes("stakeholder_brief") && interview.contact_id && (
         <Accordion type="single" collapsible className="mb-4 rounded-md border border-sky-200 bg-sky-50 overflow-hidden">
           <AccordionItem value="stakeholder-brief" className="border-0">
             <AccordionTrigger className="px-4 py-2.5 hover:no-underline">
@@ -440,6 +442,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
 
       <div className="grid grid-cols-12 gap-4">
         {/* Col 1 — playbook questions for the current step */}
+        {workspacePanels.includes("questions") && (
         <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
@@ -493,10 +496,13 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             </CardContent></Card>
           )}
         </aside>
+        )}
 
 
         {/* Cols 2–3 — transcript on top, live scoring below */}
         <section className="col-span-6 space-y-3">
+          {workspacePanels.includes("transcript") && (
+          <>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
@@ -573,8 +579,10 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
               </AccordionItem>
             </Accordion>
           )}
+          </>
+          )}
 
-          {scores && (
+          {workspacePanels.includes("scoring") && scores && (
             <Card><CardContent className="p-4">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Live scoring</div>
               <div className="space-y-2">
@@ -593,6 +601,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         </section>
 
         {/* Col 4 — Risk alerts (top), then rest */}
+        {workspacePanels.includes("risk_alerts") && (
         <aside className="col-span-3 space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Risk alerts</div>
@@ -676,11 +685,13 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             ))}
           </CollapsedListCard>
         </aside>
+        )}
       </div>
 
 
       {/* Manual assessment forms -- orange border marks them as human-supplied,
        * collapsed by default so AI panels dominate the workspace. */}
+      {workspacePanels.includes("manual_assessment") && (
       <div className="grid grid-cols-12 gap-4 mt-4">
         <div className="col-span-8">
           <Accordion type="single" collapsible className="rounded-md border border-amber-300 bg-white overflow-hidden">
@@ -721,6 +732,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
           </Accordion>
         </div>
       </div>
+      )}
 
       {behavioralSignals && (
         <BehavioralSignalsPanel
@@ -731,7 +743,7 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         />
       )}
 
-      {reportAvailable && playbook.data?.kind === "due_diligence" && (
+      {workspacePanels.includes("report") && reportAvailable && playbook.data?.kind === "due_diligence" && (
         <div className="mt-6 pt-6 border-t border-border">
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-4">Summary</div>
           <ReportContent interviewId={id} />

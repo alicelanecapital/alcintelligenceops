@@ -14,6 +14,7 @@ import {
   type FrameworkDocument,
   type FrameworkRound,
 } from "@/lib/dd-framework-admin";
+import { resolveWorkspaceLayout, DEFAULT_WORKSPACE_LAYOUT, type WorkspacePanelKey } from "@/lib/workspace-layouts";
 
 export type PlaybookStep = {
   key: number;
@@ -33,6 +34,7 @@ export type PlaybookShape = {
   playbookName: string;
   kind: "due_diligence" | "custom" | "none";
   steps: PlaybookStep[];
+  workspacePanels: WorkspacePanelKey[];
 };
 
 const FALLBACK_STEP: PlaybookStep = {
@@ -53,23 +55,32 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
     try {
       const ddToolkitId = await fetchDueDiligenceToolkitId();
       const rounds = ddToolkitId ? await fetchAllFrameworkRounds(ddToolkitId) : [];
-      if (rounds.length) return { playbookId: null, playbookName: "DD Intelligence Engine", kind: "due_diligence", steps: stepsFromDDRounds(rounds) };
+      if (rounds.length) return { playbookId: null, playbookName: "DD Intelligence Engine", kind: "due_diligence", steps: stepsFromDDRounds(rounds), workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
     } catch {}
-    return { playbookId: null, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP] };
+    return { playbookId: null, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
   }
-  const { data: tk, error } = await (supabase as any)
-    .from("toolkits")
-    .select("id, name, kind")
-    .eq("id", playbookId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!tk) return { playbookId, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP] };
+  // Falls back to selecting without workspace_layout if that column hasn't been migrated
+  // in yet on this database -- the Live Workspace should never hard-fail to load a meeting
+  // just because a cosmetic layout-customisation column is missing.
+  let tk: any;
+  {
+    const { data, error } = await (supabase as any).from("toolkits").select("id, name, kind, workspace_layout").eq("id", playbookId).maybeSingle();
+    if (error) {
+      const fallback = await (supabase as any).from("toolkits").select("id, name, kind").eq("id", playbookId).maybeSingle();
+      if (fallback.error) throw fallback.error;
+      tk = fallback.data;
+    } else {
+      tk = data;
+    }
+  }
+  if (!tk) return { playbookId, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
   const rounds = await fetchAllFrameworkRounds(playbookId);
   return {
     playbookId,
     playbookName: tk.name,
     kind: (tk.kind as string) === "due_diligence" ? "due_diligence" : "custom",
     steps: rounds.length ? stepsFromDDRounds(rounds) : [FALLBACK_STEP],
+    workspacePanels: resolveWorkspaceLayout(tk.workspace_layout).panels,
   };
 }
 

@@ -6,6 +6,7 @@ import { updateContact, createContact, fetchContactsByCompanyName, CATEGORY_LABE
 import { generateCompanyDescription, enrichContactDetails } from "@/lib/contacts.functions";
 import { EventSelect } from "@/components/EventSelect";
 import { CategorySelect } from "@/components/CategorySelect";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,7 +159,7 @@ export function EditContactDialog({ open, onClose, contact }: { open: boolean; o
         <div className="grid md:grid-cols-[1fr_260px] gap-5">
           <div className="grid grid-cols-2 gap-3 content-start">
             <F label="Company">
-              <Input value={form.company ?? ""} onChange={(e) => setForm({ ...form, company: e.target.value })} onBlur={onCompanyBlur} />
+              <CompanyCombobox value={form.company ?? ""} onChange={(v) => setForm({ ...form, company: v })} onBlur={onCompanyBlur} />
             </F>
             <F label="Category">
               <CategorySelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} />
