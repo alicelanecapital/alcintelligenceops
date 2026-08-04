@@ -329,7 +329,7 @@ function OverviewTab({ contact: c, opportunity, openOpps, opportunities, contact
         {openOpps.length > 0 && (
           <section>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 inline-flex items-center gap-1">
-              <Target className="h-3 w-3" /> Opportunities in workflow ({openOpps.length})
+              <Target className="h-3 w-3" /> Deals in workflow ({openOpps.length})
             </div>
             <div className="space-y-2">
               {openOpps.map((o: any) => (
@@ -587,7 +587,7 @@ function DocumentsTab({ opportunities, companyId }: { opportunities: any[]; comp
     <div>
       {driveHeader}
       {docboxList}
-      <p className="text-sm text-muted-foreground">No opportunities yet — round documents will appear here once the contact enters a DD round.</p>
+      <p className="text-sm text-muted-foreground">No deals yet — round documents will appear here once the contact enters a DD round.</p>
     </div>
   );
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading documents…</p>;

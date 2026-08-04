@@ -55,7 +55,7 @@ function Dashboard() {
             <Badge variant="outline" className="uppercase tracking-widest text-[10px]">Generated</Badge>
           </div>
           <div className="text-[15px] text-foreground/80 leading-relaxed space-y-3">
-            <p>The pipeline is anchored by <strong>{active} live opportunities</strong> — the majority sourced from the recent MSME selection list. Beauty, Automotive and Architecture are the deepest verticals; each has 3+ founders ready to progress from screening.</p>
+            <p>The pipeline is anchored by <strong>{active} live deals</strong> — the majority sourced from the recent MSME selection list. Beauty, Automotive and Architecture are the deepest verticals; each has 3+ founders ready to progress from screening.</p>
             <p>On the ecosystem side, <strong>{highFit} partners scored “High fit”</strong> including SAB Foundation, TechnoServe, The Hope Factory and Endeavor South Africa — prioritise a warm intro to two of these this week to unlock structured referral pipelines.</p>
             <p>Once the AI event-discovery job is enabled, this briefing will also surface the top three events worth attending in the next 30 days.</p>
           </div>

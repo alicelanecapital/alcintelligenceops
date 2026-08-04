@@ -54,7 +54,7 @@ function TaskList() {
       <PageHeader
         eyebrow="Planning"
         title="Tasks"
-        description="Everything the team needs to follow up on — across founders, companies, and opportunities."
+        description="Everything the team needs to follow up on — across founders, companies, and deals."
         actions={<AddTaskDialog open={addOpen} onOpenChange={setAddOpen} />}
       />
 

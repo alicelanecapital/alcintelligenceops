@@ -3,8 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { fetchOpportunitiesWithDDStatus, createOpportunity, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
-import { fetchFounders } from "@/lib/db";
+import { fetchOpportunitiesWithDDStatus, updateOpportunity, deleteOpportunity } from "@/lib/founders-data";
 import { fetchAllFrameworkRounds, fetchDueDiligenceToolkitId } from "@/lib/dd-framework-admin";
 import { fetchContacts } from "@/lib/contacts";
 import { createOpportunityFromContact } from "@/lib/contacts.functions";
@@ -99,9 +98,9 @@ function DDEngine() {
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) => updateOpportunity(id, { archived }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });
-      toast.success(vars.archived ? "Opportunity archived" : "Opportunity restored");
+      toast.success(vars.archived ? "Deal archived" : "Deal restored");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to update opportunity"),
+    onError: (e: any) => toast.error(e.message ?? "Failed to update deal"),
   });
 
   const statusMut = useMutation({
@@ -121,9 +120,9 @@ function DDEngine() {
     mutationFn: (id: string) => deleteOpportunity(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });
-      toast.success("Opportunity deleted");
+      toast.success("Deal deleted");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to delete opportunity"),
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete deal"),
   });
 
   return (
@@ -215,20 +214,20 @@ function DDEngine() {
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6"
-                  title={opp.archived ? "Restore opportunity" : "Archive opportunity"}
+                  title={opp.archived ? "Restore deal" : "Archive deal"}
                   onClick={() => archiveMut.mutate({ id: opp.id, archived: !opp.archived })}
                 >
                   {opp.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete opportunity">
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Delete deal">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this opportunity?</AlertDialogTitle>
+                      <AlertDialogTitle>Delete this deal?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This permanently deletes "{opp.dd_company_name ?? opp.name}" and its due diligence progress. This can't be undone — consider archiving instead if you might need it again.
                       </AlertDialogDescription>
@@ -247,13 +246,13 @@ function DDEngine() {
         {q.isSuccess && !opportunities.length && (
           <div className="p-12 text-center">
             <div className="font-serif text-xl">
-              {view === "archived" ? "No archived opportunities" :
+              {view === "archived" ? "No archived deals" :
                view === "approved" ? "No approved deals yet" :
                view === "rejected" ? "No rejected deals" :
-               "No opportunities yet"}
+               "No deals yet"}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {view === "active" ? "Add an opportunity to start the due diligence framework." : "They will show up here when marked."}
+              {view === "active" ? "Add a deal to start the due diligence framework." : "They will show up here when marked."}
             </p>
           </div>
         )}
@@ -266,88 +265,63 @@ function AddOpportunity() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [contactId, setContactId] = useState<string>("");
-  const [founderId, setFounderId] = useState<string>("");
-  const [name, setName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const founders = useQuery({ queryKey: ["founders"], queryFn: fetchFounders, enabled: open });
   const contacts = useQuery({ queryKey: ["contacts"], queryFn: () => fetchContacts(), enabled: open });
   const createOppFromContact = useServerFn(createOpportunityFromContact);
 
+  // Company-first options, sorted by company then contact name, so the picker reads as a
+  // company list (the deal is with a business, the contact is just who we speak to).
+  const options = useMemo(() => {
+    const rows = ((contacts.data ?? []) as any[]).map((c) => ({
+      id: c.id,
+      label: c.company ? `${c.company} · ${c.name}` : c.name,
+      sortKey: `${(c.company ?? "\uffff").toLowerCase()}|${(c.name ?? "").toLowerCase()}`,
+    }));
+    return rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [contacts.data]);
+
   const createMut = useMutation({
-    mutationFn: () =>
-      contactId
-        ? createOppFromContact({ data: { contactId } })
-        : createOpportunity({ name, founder_id: founderId || null, industry: industry || null }),
+    mutationFn: () => createOppFromContact({ data: { contactId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });
-      toast.success("Opportunity added");
+      toast.success("Deal added");
       setOpen(false);
       setContactId("");
-      setFounderId("");
-      setName("");
-      setIndustry("");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to add opportunity"),
+    onError: (e: any) => toast.error(e.message ?? "Failed to add deal"),
   });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" /> Add Opportunity
+          <Plus className="h-4 w-4 mr-2" /> Add Deal
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif text-2xl">New opportunity</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">New Deal</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label>From a contact (optional)</Label>
+            <Label>Company</Label>
             <select
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">— Start blank —</option>
-              {(contacts.data ?? []).map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}{c.company ? ` · ${c.company}` : ""}</option>
+              <option value="">Choose a company…</option>
+              {options.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
               ))}
             </select>
           </div>
-          <fieldset disabled={!!contactId} className={contactId ? "opacity-50 pointer-events-none space-y-4" : "space-y-4"}>
-            <div>
-              <Label>Existing founder (optional)</Label>
-              <select
-                value={founderId}
-                onChange={(e) => {
-                  setFounderId(e.target.value);
-                  const f = (founders.data ?? []).find((x: any) => x.id === e.target.value);
-                  if (f && !name) { setName(f.startup_name ?? f.name ?? ""); setIndustry(f.sector ?? ""); }
-                }}
-                className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">— Start blank —</option>
-                {(founders.data ?? []).map((f: any) => (
-                  <option key={f.id} value={f.id}>{f.name} · {f.startup_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Opportunity name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" placeholder="e.g. Acme Software" />
-            </div>
-            <div>
-              <Label>Industry</Label>
-              <Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="mt-1" />
-            </div>
-          </fieldset>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || (!contactId && !name.trim())}>
-            {createMut.isPending ? "Adding…" : "Add opportunity"}
+          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !contactId}>
+            {createMut.isPending ? "Adding…" : "Add Deal"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+

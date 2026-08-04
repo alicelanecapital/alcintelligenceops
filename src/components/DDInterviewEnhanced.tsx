@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -16,6 +16,8 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { extractTranscriptText } from '@/lib/extract-transcript-text';
 import { generateAnomalyQuestions } from '@/lib/dd-anomaly-questions.functions';
 import { listExtraQuestions, addExtraQuestion, updateExtraQuestion, deleteExtraQuestion, type ExtraQuestion } from '@/lib/dd-interview-extra-questions';
+import { WorkspaceGrid, GridBlock } from '@/components/WorkspaceGrid';
+import { DEFAULT_LAYOUT } from '@/lib/workspace-layouts';
 import { listCustomQuestions, addCustomQuestion, updateCustomQuestion, deleteCustomQuestion, type CustomQuestion } from '@/lib/dd-interview-custom-questions';
 
 const SPEAKER_COLOR_CLASSES = [
@@ -54,6 +56,18 @@ function renderSpeakerColoredTranscript(text: string) {
     }
     return <p key={i} className="text-sm text-gray-700 whitespace-pre-wrap">{line}</p>;
   });
+}
+
+
+/** The Deal Pipeline Room uses the same 6-column workspace canvas as the Live Workspace.
+ * The stakeholder brief lives in the round page header, so it is not a block here. */
+const DD_LAYOUT = {
+  panels: DEFAULT_LAYOUT.panels.filter((k) => k !== 'stakeholder_brief'),
+  blocks: DEFAULT_LAYOUT.blocks,
+};
+
+function PanelHeading({ children }: { children: ReactNode }) {
+  return <h2 className="text-base font-bold text-green-800 pb-2 border-b border-border">{children}</h2>;
 }
 
 export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefChange, onSectorChange }: {
@@ -892,24 +906,119 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
         <p className="text-sm text-muted-foreground/80 mt-2">{roundData.purpose}</p>
       </div>
 
-      {/* Steps rendered as accordions, mirroring the admin DD Framework layout: a numbered
-          forest-green badge + bold green title per step, no outer card frame, thin dividers
-          between steps. Frames/shading are only preserved on the accent panels (Transcript,
-          AI Questions, Custom Questions, Red Flags). */}
-      <Accordion type="multiple" defaultValue={[SUB_STEPS[0].key]} className="mb-8">
-        {SUB_STEPS.map((step, idx) => (
-          <AccordionItem key={step.key} value={step.key} className="border-b border-border">
-            <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
-                  {idx + 1}
-                </span>
-                <span className="text-base font-bold text-green-800 text-left">{step.label}</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-6 pl-10 pr-2 space-y-6">
-              {step.key === 'documents' && (
-                <>
+      <WorkspaceGrid>
+        <GridBlock panelKey="questions" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Interview Questions</PanelHeading>
+                  {/* Questions to cover -- reference material, unframed outer wrapper. */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
+                    <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
+                      {questions.map((q, idx) => (
+                        <AccordionItem key={idx} value={String(idx)}>
+                          <AccordionTrigger className="text-sm">
+                            <span className="text-left">Q{idx + 1}. {q.question}</span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3 text-sm">
+                              {q.why && (
+                                <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                  <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why This Matters:</p>
+                                  <p className="text-xs text-blue-800">{q.why}</p>
+                                </div>
+                              )}
+                              {q.redFlags.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">Grading:</p>
+                                  <ul className="text-xs text-gray-600 space-y-0.5">
+                                    {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+
+                  {/* Custom questions -- pastel orange, kept per style guide. */}
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+                    <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
+                    <div className="space-y-2 mb-3">
+                      {customQuestions.map((q) => (
+                        <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
+                          {editingCustomQuestionId === q.id ? (
+                            <div className="flex items-start gap-2">
+                              <textarea
+                                className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
+                                value={editingCustomQuestionText}
+                                onChange={(e) => setEditingCustomQuestionText(e.target.value)}
+                                rows={2}
+                              />
+                              <div className="flex flex-col gap-1">
+                                <button onClick={() => handleSaveCustomQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
+                                <button onClick={() => setEditingCustomQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm text-gray-900">{q.question_text}</p>
+                              <div className="flex gap-2 shrink-0">
+                                <button
+                                  onClick={() => { setEditingCustomQuestionId(q.id); setEditingCustomQuestionText(q.question_text); }}
+                                  className="text-xs text-gray-500 hover:text-gray-700"
+                                >
+                                  Edit
+                                </button>
+                                <button onClick={() => handleDeleteCustomQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {!customQuestions.length && (
+                        <p className="text-xs text-gray-500">No custom questions added for this interview yet.</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newCustomQuestion}
+                        onChange={(e) => setNewCustomQuestion(e.target.value)}
+                        placeholder="Add a question specific to this interview…"
+                        className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
+                      />
+                      <button
+                        onClick={handleAddCustomQuestion}
+                        disabled={!newCustomQuestion.trim()}
+                        className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+          <PanelHeading>Sector Questions</PanelHeading>
+          {
+                sectorModule ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
+                    <ul className="space-y-2">
+                      {sectorModule.additionalQuestions.map((q, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex gap-2">
+                          <span>•</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
+                )
+          }
+        <GridBlock panelKey="docbox" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Documents</PanelHeading>
                   {/* Documents Received -- must be reviewed before the meeting/recording starts. */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -1052,11 +1161,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       </button>
                     </div>
                   </div>
-                </>
-              )}
-
-              {step.key === 'questions' && (
-                <>
+        </GridBlock>
+        <GridBlock panelKey="transcript" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Recording & Transcript</PanelHeading>
                   {/* Round recording controls -- unframed, sits above the transcript block. */}
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-gray-900">🎙️ Round Recording ({questions.length} Questions)</p>
@@ -1091,96 +1198,39 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </div>
                   </div>
 
-                  {/* Questions to cover -- reference material, unframed outer wrapper. */}
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-3">📋 Questions to Cover This Round</p>
-                    <Accordion type="multiple" className="rounded-lg border border-emerald-300 px-3">
-                      {questions.map((q, idx) => (
-                        <AccordionItem key={idx} value={String(idx)}>
-                          <AccordionTrigger className="text-sm">
-                            <span className="text-left">Q{idx + 1}. {q.question}</span>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-3 text-sm">
-                              {q.why && (
-                                <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-                                  <p className="text-xs font-semibold text-blue-900 mb-1">💡 Why This Matters:</p>
-                                  <p className="text-xs text-blue-800">{q.why}</p>
-                                </div>
-                              )}
-                              {q.redFlags.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-semibold text-gray-700 mb-1">Grading:</p>
-                                  <ul className="text-xs text-gray-600 space-y-0.5">
-                                    {q.redFlags.map((f: any, i: number) => <li key={i}>• [{f.severity}] {f.text}</li>)}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </div>
-
-                  {/* Custom questions -- pastel orange, kept per style guide. */}
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded">
-                    <p className="text-sm font-semibold text-gray-900 mb-3">✏️ Custom Questions for This Interview</p>
-                    <div className="space-y-2 mb-3">
-                      {customQuestions.map((q) => (
-                        <div key={q.id} className="bg-white rounded border border-orange-200 p-2">
-                          {editingCustomQuestionId === q.id ? (
-                            <div className="flex items-start gap-2">
-                              <textarea
-                                className="flex-1 text-sm border border-orange-200 rounded px-2 py-1"
-                                value={editingCustomQuestionText}
-                                onChange={(e) => setEditingCustomQuestionText(e.target.value)}
-                                rows={2}
-                              />
-                              <div className="flex flex-col gap-1">
-                                <button onClick={() => handleSaveCustomQuestionEdit(q.id)} className="text-xs text-teal-700 font-medium">Save</button>
-                                <button onClick={() => setEditingCustomQuestionId(null)} className="text-xs text-gray-500">Cancel</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm text-gray-900">{q.question_text}</p>
-                              <div className="flex gap-2 shrink-0">
-                                <button
-                                  onClick={() => { setEditingCustomQuestionId(q.id); setEditingCustomQuestionText(q.question_text); }}
-                                  className="text-xs text-gray-500 hover:text-gray-700"
-                                >
-                                  Edit
-                                </button>
-                                <button onClick={() => handleDeleteCustomQuestion(q.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {!customQuestions.length && (
-                        <p className="text-xs text-gray-500">No custom questions added for this interview yet.</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newCustomQuestion}
-                        onChange={(e) => setNewCustomQuestion(e.target.value)}
-                        placeholder="Add a question specific to this interview…"
-                        className="flex-1 text-sm border border-orange-200 rounded px-2 py-1.5"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomQuestion(); }}
-                      />
+                  {/* Transcript -- grey accent panel, kept. */}
+                  <div className="p-4 bg-gray-100 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
                       <button
-                        onClick={handleAddCustomQuestion}
-                        disabled={!newCustomQuestion.trim()}
-                        className="px-3 py-1.5 bg-white border border-orange-200 text-gray-800 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+                        onClick={() => transcriptFileInputRef.current?.click()}
+                        disabled={uploadingTranscript}
+                        className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
                       >
-                        Add
+                        {uploadingTranscript ? 'Reading…' : countTranscriptUploads(transcript) > 0 ? '📄 Add Another Transcript' : '📄 Upload Transcript'}
                       </button>
+                      <input
+                        ref={transcriptFileInputRef}
+                        type="file"
+                        accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
+                      />
                     </div>
+                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) — you can upload more than one for this round, each is added and clearly labelled rather than replacing the last.</p>
+                    {transcript && (
+                      <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">
+                          Transcript (Auto-Updating){countTranscriptUploads(transcript) > 1 ? ` — ${countTranscriptUploads(transcript)} uploads combined` : ''}:
+                        </p>
+                        {renderSpeakerColoredTranscript(transcript)}
+                      </div>
+                    )}
                   </div>
-
+        </GridBlock>
+        </GridBlock>
+        <GridBlock panelKey="risk_alerts" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>AI Questions & Red Flags</PanelHeading>
                   {/* AI Questions -- pastel teal per style guide. */}
                   <div className="p-4 bg-teal-50 border border-teal-200 rounded">
                     <p className="text-sm font-semibold text-teal-900 mb-3">🎯 AI Questions</p>
@@ -1217,58 +1267,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     )}
                   </div>
 
-                  {/* Transcript -- grey accent panel, kept. */}
-                  <div className="p-4 bg-gray-100 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-gray-900">📝 Transcript</p>
-                      <button
-                        onClick={() => transcriptFileInputRef.current?.click()}
-                        disabled={uploadingTranscript}
-                        className="px-3 py-2 bg-white border border-emerald-300 text-gray-700 text-sm rounded hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {uploadingTranscript ? 'Reading…' : countTranscriptUploads(transcript) > 0 ? '📄 Add Another Transcript' : '📄 Upload Transcript'}
-                      </button>
-                      <input
-                        ref={transcriptFileInputRef}
-                        type="file"
-                        accept=".txt,.md,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-gray-500 mb-2">Didn't record live? Upload a transcript file (.txt, .pdf, .doc, .docx) — you can upload more than one for this round, each is added and clearly labelled rather than replacing the last.</p>
-                    {transcript && (
-                      <div className="p-3 bg-white rounded border border-emerald-300 max-h-64 overflow-y-auto space-y-1">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">
-                          Transcript (Auto-Updating){countTranscriptUploads(transcript) > 1 ? ` — ${countTranscriptUploads(transcript)} uploads combined` : ''}:
-                        </p>
-                        {renderSpeakerColoredTranscript(transcript)}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {step.key === 'software' && (
-                sectorModule ? (
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">🏭 {sectorModule.name} — Sector-Specific Questions:</p>
-                    <ul className="space-y-2">
-                      {sectorModule.additionalQuestions.map((q, idx) => (
-                        <li key={idx} className="text-sm text-gray-700 flex gap-2">
-                          <span>•</span>
-                          <span>{q}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No sector detected yet — this fills in automatically once a round has been recorded and analysed.</p>
-                )
-              )}
-
-              {step.key === 'verification' && (
-                <>
+        </GridBlock>
+        <GridBlock panelKey="manual_assessment" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>Internal Verification</PanelHeading>
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-gray-900">✅ Internal Verification Checklist</p>
                     <div className="space-y-2">
@@ -1320,11 +1321,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                       ✅ Every Claim Requires Validation From All 3 Sources
                     </p>
                   </div>
-                </>
-              )}
-
-              {step.key === 'ai_analysis' && (
-                <>
+        </GridBlock>
+        <GridBlock panelKey="report" layout={DD_LAYOUT} className="space-y-6 min-w-0">
+          <PanelHeading>AI Analysis & Expert Input</PanelHeading>
                 {aiAnalysis ? (
                   <>
                     <div className="space-y-3">
@@ -1500,12 +1499,9 @@ export function DDInterviewEnhanced({ opportunityId, round, onStakeholderBriefCh
                     </div>
                   )}
                 </div>
-                </>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+        </GridBlock>
+      </WorkspaceGrid>
+
 
 
       {/* Round Gates -- accordion exposes every step at once, so the gate panel is always

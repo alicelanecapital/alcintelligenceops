@@ -334,7 +334,7 @@ function Events() {
       <div className="space-y-4">
         <div className="flex gap-4 items-end">
           <div>
-            <label className="text-sm font-medium block mb-1">Opportunity</label>
+            <label className="text-sm font-medium block mb-1">Deal</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48"><SelectValue placeholder="All levels" /></SelectTrigger>
               <SelectContent>
@@ -458,7 +458,7 @@ function Events() {
               <Input value={editingEvent?.website ?? ""} onChange={e => setEditingEvent((s: any) => ({ ...s, website: e.target.value }))} placeholder="https://" />
             </div>
             <div>
-              <label className="text-sm font-medium">Opportunity</label>
+              <label className="text-sm font-medium">Deal</label>
               <Select value={editingEvent?.status ?? "Medium"} onValueChange={v => setEditingEvent((s: any) => ({ ...s, status: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
