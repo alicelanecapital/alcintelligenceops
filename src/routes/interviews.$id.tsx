@@ -320,6 +320,21 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
 
   const analyses: any[] = ana.data ?? [];
   const scores: any = analyses.find(a => a.kind === "score")?.payload;
+  // Newest AI grade per question for the step on screen (see interview-grading.functions.ts).
+  const gradesByQuestion = new Map<string, QuestionGradePayload>();
+  for (const a of analyses) {
+    if (a.kind !== "question_grade") continue;
+    const p = a.payload as QuestionGradePayload | undefined;
+    if (!p?.question_id) continue;
+    const prev = gradesByQuestion.get(p.question_id);
+    if (!prev || String(p.graded_at ?? "") > String(prev.graded_at ?? "")) gradesByQuestion.set(p.question_id, p);
+  }
+  const lastGradedAt = [...gradesByQuestion.values()]
+    .map((g) => g.graded_at)
+    .filter(Boolean)
+    .sort()
+    .pop();
+
   const behavioralSignalsRow: any = [...analyses].reverse().find(a => a.kind === "behavioral_signals");
   const behavioralSignals: any = behavioralSignalsRow?.payload;
   const transcriptSummary: string | undefined = analyses.find(a => a.kind === "transcript_summary")?.payload?.summary;
