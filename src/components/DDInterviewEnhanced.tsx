@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -66,7 +66,7 @@ const DD_LAYOUT = {
   blocks: DEFAULT_LAYOUT.blocks,
 };
 
-function PanelHeading({ children }: { children: React.ReactNode }) {
+function PanelHeading({ children }: { children: ReactNode }) {
   return <h2 className="text-base font-bold text-green-800 pb-2 border-b border-border">{children}</h2>;
 }
 
