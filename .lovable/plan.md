@@ -31,9 +31,14 @@ Shared folder
 - The "Open Google Drive folder" button on a company/contact opens that company's own folder when it exists, otherwise the shared root.
 - KickFat has no Drive folder yet because no document has been filed for it; the first DocBox upload will now create `Retail/KickFat`. If you want it created before any upload, say so and the folder will be created when the deal is opened instead.
 
+## 4. DocBox: documents laid out in round columns
+
+The DocBox panel changes from a single list to one column per round/step of the active playbook (Round 1-5 for Due Diligence, that playbook's own steps otherwise). Each column shows its round title and the documents classified into it, so outstanding rounds read as empty columns at a glance. The dropzone stays above the columns and the columns scroll horizontally on narrow layouts.
+
 ## Technical notes
 
-- `src/components/AddMeetingDialog.tsx` and `src/components/LiveWorkspace.tsx`: filter the playbook options to real toolkit rows only.
+- Status chips: remove the badge renders in `src/routes/interviews.index.tsx`, `src/components/LiveWorkspace.tsx`, and the Deal Pipeline Room header; keep status fields and logic intact.
 - DD routing: reuse `createOpportunityFromContact` in `src/lib/contacts.functions.ts` plus `resolveDealWorkspace` in `src/lib/deal-workspace.functions.ts` so both the dialog path and the in-workspace playbook switch converge on one deal per contact.
 - `src/lib/docbox.server.ts`: `ensureCompanyFolder` gains a sector argument and resolves/creates the sector folder first, then the company folder under it; sector is read from `companies`/`contacts` in `fileDocument`.
+- `src/components/DocBox.tsx`: group `workspace_documents` by `step_key` and render a grid of round columns.
 - `src/lib/drive-folder.ts` keeps the shared root constant and the per-company URL helper.
