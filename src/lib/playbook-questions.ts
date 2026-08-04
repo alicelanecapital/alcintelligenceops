@@ -14,7 +14,7 @@ import {
   type FrameworkDocument,
   type FrameworkRound,
 } from "@/lib/dd-framework-admin";
-import { resolveWorkspaceLayout, DEFAULT_WORKSPACE_LAYOUT, type WorkspacePanelKey } from "@/lib/workspace-layouts";
+import { resolveWorkspaceLayout, DEFAULT_WORKSPACE_LAYOUT, DEFAULT_LAYOUT, type WorkspaceLayout, type WorkspacePanelKey } from "@/lib/workspace-layouts";
 
 export type PlaybookStep = {
   key: number;
@@ -35,6 +35,8 @@ export type PlaybookShape = {
   kind: "due_diligence" | "custom" | "none";
   steps: PlaybookStep[];
   workspacePanels: WorkspacePanelKey[];
+  /** Panel geometry on the 6x10 Live Workspace canvas (Admin > Workspaces). */
+  workspaceLayout: WorkspaceLayout;
 };
 
 const FALLBACK_STEP: PlaybookStep = {
@@ -55,9 +57,9 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
     try {
       const ddToolkitId = await fetchDueDiligenceToolkitId();
       const rounds = ddToolkitId ? await fetchAllFrameworkRounds(ddToolkitId) : [];
-      if (rounds.length) return { playbookId: null, playbookName: "DD Intelligence Engine", kind: "due_diligence", steps: stepsFromDDRounds(rounds), workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
+      if (rounds.length) return { playbookId: null, playbookName: "DD Intelligence Engine", kind: "due_diligence", steps: stepsFromDDRounds(rounds), workspacePanels: DEFAULT_WORKSPACE_LAYOUT, workspaceLayout: DEFAULT_LAYOUT };
     } catch {}
-    return { playbookId: null, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
+    return { playbookId: null, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT, workspaceLayout: DEFAULT_LAYOUT };
   }
   // Falls back to selecting without workspace_layout if that column hasn't been migrated
   // in yet on this database -- the Live Workspace should never hard-fail to load a meeting
@@ -73,7 +75,7 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
       tk = data;
     }
   }
-  if (!tk) return { playbookId, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT };
+  if (!tk) return { playbookId, playbookName: "Meeting", kind: "none", steps: [FALLBACK_STEP], workspacePanels: DEFAULT_WORKSPACE_LAYOUT, workspaceLayout: DEFAULT_LAYOUT };
   const rounds = await fetchAllFrameworkRounds(playbookId);
   return {
     playbookId,
@@ -81,6 +83,7 @@ export async function fetchPlaybookShape(playbookId: string | null): Promise<Pla
     kind: (tk.kind as string) === "due_diligence" ? "due_diligence" : "custom",
     steps: rounds.length ? stepsFromDDRounds(rounds) : [FALLBACK_STEP],
     workspacePanels: resolveWorkspaceLayout(tk.workspace_layout).panels,
+    workspaceLayout: resolveWorkspaceLayout(tk.workspace_layout),
   };
 }
 
