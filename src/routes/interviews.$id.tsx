@@ -896,6 +896,23 @@ function transcriptGroups(utterances: any[], interview: any) {
 function transcriptGroupTitle(d: Date) {
   return `TRANSCRIPT · ${format(d, "MMM d, yyyy").toUpperCase()} · ${format(d, "HH:mm")}`;
 }
+// A-E grade badge colouring: forest green through amber to red.
+function gradeTone(grade?: string) {
+  switch (grade) {
+    case "A": return "bg-green-100 text-green-900 border-green-300";
+    case "B": return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    case "C": return "bg-amber-50 text-amber-800 border-amber-200";
+    case "D": return "bg-orange-50 text-orange-800 border-orange-200";
+    case "E": return "bg-red-50 text-red-800 border-red-300";
+    default: return "bg-muted text-muted-foreground border-border";
+  }
+}
+function flagTone(status: FlagStatus) {
+  if (status === "Detected") return "bg-red-50 text-red-800 border-red-200";
+  if (status === "Clear") return "bg-green-50 text-green-900 border-green-200";
+  return "bg-muted/40 text-muted-foreground border-border";
+}
+
 function scoreTone(value: any) {
   const n = typeof value === "number" ? value : parseFloat(String(value));
   if (!isFinite(n)) {
