@@ -236,11 +236,13 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
     if (items.length >= lastAnalyzedCount.current + 3 && !busyRef.current) {
       busyRef.current = true;
       analyzeInterview({ data: { interviewId: id } })
+        .then(() => gradeStepQuestions({ data: { interviewId: id, stepKey: currentStep } }).catch(() => {}))
         .then(() => { lastAnalyzedCount.current = items.length; qc.invalidateQueries({ queryKey: ["iv-ana", id] }); qc.invalidateQueries({ queryKey: ["iv-docs", id] }); })
         .catch(() => {})
         .finally(() => { busyRef.current = false; });
     }
-  }, [utt.data, id, qc]);
+  }, [utt.data, id, qc, currentStep]);
+
 
   async function startRec() {
     try {
