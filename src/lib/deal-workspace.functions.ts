@@ -9,8 +9,7 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const s = context.supabase;
 
-    const { data: existingRows, error: exErr } = await s
-      .from("interviews")
+    const { data: existingRows, error: exErr } = await (s.from("interviews") as any)
       .select("*")
       .eq("opportunity_id", data.dealId)
       .order("created_at", { ascending: false })
@@ -29,8 +28,7 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
     const existing: any = existingRows?.[0];
     if (existing) {
       if (playbookId && !existing.playbook_id) {
-        const { data: updated } = await s
-          .from("interviews")
+        const { data: updated } = await (s.from("interviews") as any)
           .update({ playbook_id: playbookId } as any)
           .eq("id", existing.id)
           .select("*")
@@ -53,8 +51,7 @@ export const resolveDealWorkspace = createServerFn({ method: "POST" })
     const founderName = d.founder?.name ?? d.name;
     const industry = d.company?.industry ?? d.founder?.sector ?? d.industry ?? null;
 
-    const { data: row, error: insErr } = await s
-      .from("interviews")
+    const { data: row, error: insErr } = await (s.from("interviews") as any)
       .insert({
         opportunity_id: d.id,
         contact_id: d.contact_id ?? null,
