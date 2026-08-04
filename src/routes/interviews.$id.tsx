@@ -12,7 +12,9 @@ import { listToolkits } from "@/lib/toolkits";
 import { analyzeInterview, finalizeInterview } from "@/lib/interviews.functions";
 import { getInterviewVideoSignedUrl, deleteBehavioralSignals } from "@/lib/interview-video-storage";
 import { fetchPlaybookShape, fetchPlaybookStepDetail, type PlaybookShape } from "@/lib/playbook-questions";
-import { DEFAULT_WORKSPACE_LAYOUT } from "@/lib/workspace-layouts";
+import { DEFAULT_WORKSPACE_LAYOUT, DEFAULT_LAYOUT } from "@/lib/workspace-layouts";
+import { WorkspaceGrid, GridBlock } from "@/components/WorkspaceGrid";
+import { DocBox } from "@/components/DocBox";
 import { RoundStepper } from "@/components/RoundStepper";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -161,6 +163,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
   });
   const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
   const workspacePanels = playbook.data?.workspacePanels ?? DEFAULT_WORKSPACE_LAYOUT;
+  // Panel geometry on the 6-column x 10-row canvas, designed in Admin > Workspaces.
+  const layout = playbook.data?.workspaceLayout ?? DEFAULT_LAYOUT;
   // Lets a completed meeting be re-viewed against a different playbook's questions --
   // its own transcript/video/analyses are unaffected, this only changes which reference
   // question set is shown alongside them.
@@ -440,10 +444,10 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
         </Accordion>
       )}
 
-      <div className="grid grid-cols-12 gap-4">
-        {/* Col 1 — playbook questions for the current step */}
-        {workspacePanels.includes("questions") && (
-        <aside className="col-span-3 space-y-3">
+      <WorkspaceGrid>
+        {/* Playbook questions for the current step */}
+        <GridBlock panelKey="questions" layout={layout} className="space-y-3 min-w-0">
+        <aside className="space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
               {stepDetail.data?.step.title ?? "Questions"}
@@ -496,12 +500,21 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             </CardContent></Card>
           )}
         </aside>
-        )}
+        </GridBlock>
 
+        {/* DocBox — drop documents; AI files them against the right step and syncs to Drive */}
+        <GridBlock panelKey="docbox" layout={layout} className="min-w-0">
+          <DocBox
+            interviewId={id}
+            playbookId={interview.playbook_id ?? null}
+            companyId={companyId}
+            companyName={companyName}
+            steps={steps.map((s) => ({ key: s.key, title: s.title }))}
+          />
+        </GridBlock>
 
-        {/* Cols 2–3 — transcript on top, live scoring below */}
-        <section className="col-span-6 space-y-3">
-          {workspacePanels.includes("transcript") && (
+        {/* Transcript on top, live scoring below */}
+        <GridBlock panelKey="transcript" layout={layout} className="space-y-3 min-w-0">
           <>
           <Card>
             <CardContent className="p-4">
@@ -580,9 +593,10 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             </Accordion>
           )}
           </>
-          )}
+        </GridBlock>
 
-          {workspacePanels.includes("scoring") && scores && (
+        {scores && (
+          <GridBlock panelKey="scoring" layout={layout} className="min-w-0">
             <Card><CardContent className="p-4">
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Live scoring</div>
               <div className="space-y-2">
@@ -597,12 +611,12 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
                 ))}
               </div>
             </CardContent></Card>
-          )}
-        </section>
+          </GridBlock>
+        )}
 
-        {/* Col 4 — Risk alerts (top), then rest */}
-        {workspacePanels.includes("risk_alerts") && (
-        <aside className="col-span-3 space-y-3">
+        {/* Risk alerts (top), then the rest of the follow-up lists */}
+        <GridBlock panelKey="risk_alerts" layout={layout} className="space-y-3 min-w-0">
+        <aside className="space-y-3">
           <Card><CardContent className="p-4">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Risk alerts</div>
             {risks.length === 0 ? <div className="text-xs text-muted-foreground italic">Nothing flagged yet.</div> : (
@@ -685,8 +699,8 @@ function LiveView({ interview, reportAvailable }: { interview: any; reportAvaila
             ))}
           </CollapsedListCard>
         </aside>
-        )}
-      </div>
+        </GridBlock>
+      </WorkspaceGrid>
 
 
       {/* Manual assessment forms -- orange border marks them as human-supplied,
