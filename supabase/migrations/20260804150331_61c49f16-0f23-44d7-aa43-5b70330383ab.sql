@@ -1,0 +1,1 @@
+DELETE FROM public.interview_analyses WHERE kind = 'behavioral_signals';
