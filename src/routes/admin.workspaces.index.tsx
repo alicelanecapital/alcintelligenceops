@@ -34,12 +34,70 @@ const CELL_H = 56; // editor row height in px
 const GAP = 8;
 
 function WorkspacesAdmin() {
+  const qc = useQueryClient();
   const toolkits = useQuery({ queryKey: ["toolkits"], queryFn: listToolkits });
   const [toolkitId, setToolkitId] = useState<string>("");
+  const [dialog, setDialog] = useState<null | "new" | "rename">(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (!toolkitId && toolkits.data?.length) setToolkitId(toolkits.data[0].id);
   }, [toolkits.data, toolkitId]);
+
+  const current = (toolkits.data ?? []).find((t) => t.id === toolkitId) ?? null;
+
+  const createMut = useMutation({
+    mutationFn: () => createToolkit({ name: name.trim(), description: description.trim() || undefined }),
+    onSuccess: async (t) => {
+      await qc.invalidateQueries({ queryKey: ["toolkits"] });
+      setToolkitId(t.id);
+      setDialog(null);
+      toast.success("Workspace created");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to create workspace"),
+  });
+
+  const renameMut = useMutation({
+    mutationFn: () => updateToolkit(toolkitId, { name: name.trim(), description: description.trim() || null }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["toolkits"] });
+      setDialog(null);
+      toast.success("Workspace updated");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to update workspace"),
+  });
+
+  const duplicateMut = useMutation({
+    mutationFn: () => duplicateToolkit(toolkitId),
+    onSuccess: async (t) => {
+      await qc.invalidateQueries({ queryKey: ["toolkits"] });
+      setToolkitId(t.id);
+      toast.success("Workspace duplicated");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to duplicate workspace"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      const inUse = await countToolkitUsage(toolkitId);
+      if (inUse > 0) throw new Error(`${inUse} meeting${inUse === 1 ? "" : "s"} still use this workspace — reassign them first.`);
+      await deleteToolkit(toolkitId);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["toolkits"] });
+      setToolkitId("");
+      toast.success("Workspace deleted");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to delete workspace"),
+  });
+
+  function openNew() { setName(""); setDescription(""); setDialog("new"); }
+  function openRename() {
+    setName(current?.name ?? "");
+    setDescription(current?.description ?? "");
+    setDialog("rename");
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
@@ -47,23 +105,82 @@ function WorkspacesAdmin() {
         eyebrow="Admin"
         title="Workspaces"
         description="Choose a playbook, then drag its panels around the 6 x 10 canvas to design the Live Workspace shown during a meeting. Every playbook uses the same default layout until you change it here."
+        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> New Workspace</Button>}
       />
 
-      <div className="mt-6 max-w-sm">
-        <Select value={toolkitId} onValueChange={setToolkitId}>
-          <SelectTrigger><SelectValue placeholder="Select a playbook…" /></SelectTrigger>
-          <SelectContent>
-            {(toolkits.data ?? []).map((t) => (
-              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-sm">
+          <Select value={toolkitId} onValueChange={setToolkitId}>
+            <SelectTrigger><SelectValue placeholder="Select a playbook…" /></SelectTrigger>
+            <SelectContent>
+              {(toolkits.data ?? []).map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="sm" disabled={!toolkitId} onClick={openRename}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Rename
+        </Button>
+        <Button variant="outline" size="sm" disabled={!toolkitId || duplicateMut.isPending} onClick={() => duplicateMut.mutate()}>
+          <Copy className="h-3.5 w-3.5 mr-1.5" /> Duplicate
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" size="sm" className="text-destructive" disabled={!toolkitId}>
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this workspace?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes "{current?.name}" and its saved panel layout. Meetings already using it must be
+                reassigned first. This can't be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteMut.mutate()}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
+      {current?.description && <p className="mt-2 text-xs text-muted-foreground">{current.description}</p>}
+
       {toolkitId && <WorkspaceLayoutEditor key={toolkitId} toolkitId={toolkitId} />}
+
+      <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{dialog === "new" ? "New workspace" : "Rename workspace"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-name">Name</Label>
+              <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Series A Deep Dive" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-desc">Description</Label>
+              <Input id="ws-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this workspace is used for" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+            <Button
+              disabled={!name.trim() || createMut.isPending || renameMut.isPending}
+              onClick={() => (dialog === "new" ? createMut.mutate() : renameMut.mutate())}
+            >
+              {dialog === "new" ? "Create" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function WorkspaceLayoutEditor({ toolkitId }: { toolkitId: string }) {
   const qc = useQueryClient();
