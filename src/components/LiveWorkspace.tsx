@@ -636,14 +636,23 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
             )}
             </div>
           </CardContent></Card>
+        </aside>
+        </GridBlock>
 
-
-          {(stepDetail.data?.documents.length ?? 0) > 0 && (
-            <Card className="border-green-900/30"><CardContent className="p-0">
-              <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-green-900 text-white">
-                <div className="text-[10px] uppercase tracking-[0.2em]">Required documents</div>
+        {/* Required documents for the current step — its own panel, placeable from Admin > Workspaces */}
+        <GridBlock panelKey="required_documents" layout={layout} className="min-w-0">
+          <Card className="border-green-900/30"><CardContent className="p-0">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-green-900 text-white">
+              <div className="text-[10px] uppercase tracking-[0.2em]">Required documents</div>
+              {(stepDetail.data?.documents.length ?? 0) > 0 && (
                 <div className="text-[10px] text-white/80">{providedCount} of {(stepDetail.data?.documents ?? []).length} provided</div>
+              )}
+            </div>
+            {(stepDetail.data?.documents.length ?? 0) === 0 ? (
+              <div className="p-4 bg-white text-xs text-muted-foreground italic">
+                No required documents configured for this step.
               </div>
+            ) : (
               <ul className="p-4 space-y-1.5 bg-white">
                 {(stepDetail.data?.documents ?? []).map((d) => {
                   const provided = isDocumentProvided(d.name, workspaceDocs.data ?? []);
@@ -661,11 +670,10 @@ function LiveView({ interview, reportAvailable, isDeal, dealName }: { interview:
                   );
                 })}
               </ul>
-            </CardContent></Card>
-          )}
-
-        </aside>
+            )}
+          </CardContent></Card>
         </GridBlock>
+
 
         {/* DocBox — drop documents; AI files them against the right step and syncs to Drive */}
         <GridBlock panelKey="docbox" layout={layout} className="min-w-0">

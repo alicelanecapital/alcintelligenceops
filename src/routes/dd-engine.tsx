@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Archive, ArchiveRestore, Trash2, User, FileText, CheckCircle2, XCircle, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -59,6 +59,8 @@ function DDEngine() {
   const navigate = useNavigate();
   const [view, setView] = useState<"active" | "approved" | "rejected" | "archived">("active");
   const [displayMode, setDisplayMode] = useViewMode("dd-engine");
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
 
   const all = q.data ?? [];
   const counts = useMemo(() => {
@@ -75,12 +77,22 @@ function DDEngine() {
 
   const opportunities = useMemo(() => {
     return (all as any[]).filter((opp) => {
-      if (view === "archived") return !!opp.archived;
-      if (opp.archived) return false;
-      const s = opp.pipeline_status ?? "active";
-      return s === view;
+      if (view === "archived") { if (!opp.archived) return false; }
+      else {
+        if (opp.archived) return false;
+        const s = opp.pipeline_status ?? "active";
+        if (s !== view) return false;
+      }
+      if (!term) return true;
+      const fields: (string | null | undefined)[] = [
+        opp.dd_company_name, opp.name, opp.founder?.name, opp.industry, opp.sector,
+        opp.current_stage, opp.pipeline_status,
+        ...((opp.dd_key_contacts ?? []) as any[]).map((c) => c?.name),
+      ];
+      return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(term));
     });
-  }, [all, view]);
+  }, [all, view, term]);
+
 
   const handleBegin = (oppId: string, resumeRound?: number) => {
     navigate({ to: `/dd-interview/${oppId}/${resumeRound ?? 1}` });
@@ -146,7 +158,23 @@ function DDEngine() {
         <ViewToggle mode={displayMode} onChange={setDisplayMode} />
       </div>
 
+      <div className="flex items-center gap-3 mt-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search deals by company, contact, sector or stage…"
+            className="pl-9"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap">
+          {opportunities.length} {opportunities.length === 1 ? "deal" : "deals"}
+        </div>
+      </div>
+
       <div className="mt-6 border-t border-border">
+
         {opportunities.map((opp: any) => {
           const currentRound = opp.dd_current_round ?? null;
           const status = opp.pipeline_status ?? "active";

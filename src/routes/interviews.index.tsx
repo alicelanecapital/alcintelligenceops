@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { AddMeetingDialog } from "@/components/AddMeetingDialog";
 import { useMemo, useState } from "react";
-import { Plus, CalendarClock, MapPin, Video } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, CalendarClock, MapPin, Video, Search } from "lucide-react";
+
 import {
   format, startOfDay, endOfDay, startOfWeek, endOfWeek, addWeeks, subYears,
 } from "date-fns";
@@ -109,6 +111,19 @@ function groupPlanned(items: Item[]): Group[] {
   return groups;
 }
 
+/** Free-text search across the fields a user would recognise on a meeting row. */
+function matchesSearch(it: Item, term: string): boolean {
+  const parts: (string | null | undefined)[] = [];
+  if (it.kind === "interview") {
+    parts.push(it.data.founder_name, it.data.business_name, it.data.industry, it.data.title);
+  } else {
+    parts.push(it.data.title, it.data.location, it.data.user_email);
+    const attendees = Array.isArray(it.data.attendees) ? it.data.attendees : [];
+    for (const a of attendees) parts.push(a?.displayName ?? a?.name, a?.email);
+  }
+  return parts.some((p) => typeof p === "string" && p.toLowerCase().includes(term));
+}
+
 
 function InterviewsIndex() {
   const q = useQuery({ queryKey: ["interviews"], queryFn: listInterviews });
@@ -118,6 +133,8 @@ function InterviewsIndex() {
   const memberByEmail = new Map((members.data ?? []).map((m) => [m.email, m]));
   const graduatedMap = graduated.data ?? new Map<string, string>();
   const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
 
   const { plannedGroups, past } = useMemo(() => {
     const items: Item[] = [];
@@ -128,6 +145,7 @@ function InterviewsIndex() {
     const planned: Item[] = [];
     const past: Item[] = [];
     for (const it of items) {
+      if (term && !matchesSearch(it, term)) continue;
       // Graduated meetings (moved to the Deal Pipeline) never sit in the Planned queue --
       // they're done as an Engagement, only their history remains.
       if (it.kind === "interview" && graduatedMap.has(it.data.id)) { past.push(it); continue; }
@@ -138,7 +156,13 @@ function InterviewsIndex() {
     planned.sort((a, b) => a.when.getTime() - b.when.getTime());
     past.sort((a, b) => b.when.getTime() - a.when.getTime());
     return { plannedGroups: groupPlanned(planned), past };
-  }, [q.data, upcoming.data, graduatedMap]);
+  }, [q.data, upcoming.data, graduatedMap, term]);
+
+  // While searching, hide empty groups and open the ones that matched so results aren't
+  // buried inside a collapsed accordion.
+  const visibleGroups = term ? plannedGroups.filter((g) => g.items.length > 0) : plannedGroups;
+  const openPlanned = term ? visibleGroups.map((g) => g.key) : ["today"];
+
 
   const renderRows = (items: Item[]) =>
     items.length === 0 ? (
@@ -171,9 +195,19 @@ function InterviewsIndex() {
       />
       <AddMeetingDialog open={addMeetingOpen} onOpenChange={setAddMeetingOpen} />
 
+      <div className="relative mt-6 max-w-md">
+        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search meetings by name, company or attendee…"
+          className="pl-9"
+        />
+      </div>
+
       <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-8 mb-3">Planned Meetings</h2>
-      <Accordion type="multiple" defaultValue={["today"]} className="space-y-2">
-        {plannedGroups.map((g) => (
+      <Accordion key={`planned-${term}`} type="multiple" defaultValue={openPlanned} className="space-y-2">
+        {visibleGroups.map((g) => (
           <AccordionItem key={g.key} value={g.key} className="border-none">
             <AccordionTrigger className={triggerClass}>
               <span>
@@ -184,10 +218,14 @@ function InterviewsIndex() {
             <AccordionContent className="pt-1">{renderRows(g.items)}</AccordionContent>
           </AccordionItem>
         ))}
+        {term && visibleGroups.length === 0 && (
+          <div className="text-sm text-muted-foreground italic px-1 py-2">No planned meetings match "{search}".</div>
+        )}
       </Accordion>
 
       <h2 className="text-sm uppercase tracking-[0.15em] text-green-800 font-semibold mt-10 mb-3">Past Meetings</h2>
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion key={`past-${term}`} type="multiple" defaultValue={term && past.length ? ["past"] : []} className="space-y-2">
+
         <AccordionItem value="past" className="border-none">
           <AccordionTrigger className={triggerClass}>
             <span>
