@@ -137,9 +137,9 @@ export async function fileDocument(data: FileDocInput) {
       let cached: string | null = null;
       let sector: string | null = null;
       if (data.companyId) {
-        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id, sector, industry").eq("id", data.companyId).maybeSingle();
+        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id, industry").eq("id", data.companyId).maybeSingle();
         cached = (co as any)?.drive_folder_id ?? null;
-        sector = (co as any)?.sector ?? (co as any)?.industry ?? null;
+        sector = (co as any)?.industry ?? null;
       }
       if (!sector) {
         // Fall back to the sector recorded on the meeting's contact.
