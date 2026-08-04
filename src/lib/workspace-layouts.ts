@@ -46,17 +46,20 @@ export type WorkspaceBlock = {
   rowSpan: number;
 };
 
+/** The saved-and-signed-off canvas: Required Documents sits directly under the Playbook
+ * Questions panel, DocBox spans the full width beneath both columns. */
 export const DEFAULT_WORKSPACE_BLOCKS: WorkspaceBlock[] = [
   { key: "stakeholder_brief", col: 1, row: 1, colSpan: 6, rowSpan: 1 },
   { key: "questions", col: 1, row: 2, colSpan: 2, rowSpan: 2 },
   { key: "required_documents", col: 1, row: 4, colSpan: 2, rowSpan: 1 },
-  { key: "docbox", col: 1, row: 5, colSpan: 2, rowSpan: 1 },
   { key: "transcript", col: 3, row: 2, colSpan: 2, rowSpan: 2 },
   { key: "scoring", col: 3, row: 4, colSpan: 2, rowSpan: 1 },
   { key: "risk_alerts", col: 5, row: 2, colSpan: 2, rowSpan: 3 },
+  { key: "docbox", col: 1, row: 5, colSpan: 6, rowSpan: 1 },
   { key: "manual_assessment", col: 1, row: 6, colSpan: 6, rowSpan: 1 },
   { key: "report", col: 1, row: 7, colSpan: 6, rowSpan: 1 },
 ];
+
 
 
 export type WorkspaceLayout = { panels: WorkspacePanelKey[]; blocks: WorkspaceBlock[] };
