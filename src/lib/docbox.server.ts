@@ -135,11 +135,24 @@ export async function fileDocument(data: FileDocInput) {
   if (driveHeaders()) {
     try {
       let cached: string | null = null;
+      let sector: string | null = null;
       if (data.companyId) {
-        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id").eq("id", data.companyId).maybeSingle();
+        const { data: co } = await supabaseAdmin.from("companies").select("drive_folder_id, sector, industry").eq("id", data.companyId).maybeSingle();
         cached = (co as any)?.drive_folder_id ?? null;
+        sector = (co as any)?.sector ?? (co as any)?.industry ?? null;
       }
-      const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", cached);
+      if (!sector) {
+        // Fall back to the sector recorded on the meeting's contact.
+        const { data: c } = await supabaseAdmin
+          .from("contacts")
+          .select("sector")
+          .eq("company_id", data.companyId ?? "00000000-0000-0000-0000-000000000000")
+          .not("sector", "is", null)
+          .limit(1)
+          .maybeSingle();
+        sector = (c as any)?.sector ?? null;
+      }
+      const folderId = await ensureCompanyFolder(data.companyName || "Unfiled", sector, cached);
       if (folderId) {
         if (data.companyId && folderId !== cached) {
           await supabaseAdmin.from("companies").update({ drive_folder_id: folderId } as any).eq("id", data.companyId);
