@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listToolkits } from "@/lib/toolkits";
+import { listToolkits, createToolkit, updateToolkit, deleteToolkit, duplicateToolkit, countToolkitUsage } from "@/lib/toolkits";
 import {
   WORKSPACE_PANELS, DEFAULT_LAYOUT, GRID_COLS, GRID_ROWS,
   fetchToolkitWorkspaceLayout, saveToolkitWorkspaceLayout,
@@ -10,11 +10,19 @@ import {
 } from "@/lib/workspace-layouts";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, RotateCcw, GripVertical } from "lucide-react";
+import { LayoutGrid, RotateCcw, GripVertical, Plus, Pencil, Copy, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/admin/workspaces/")({
   component: () => <AppShell><WorkspacesAdmin /></AppShell>,
