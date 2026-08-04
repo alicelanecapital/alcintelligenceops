@@ -31,7 +31,9 @@ import { companyDriveFolderUrl } from "@/lib/drive-folder";
 
 export const Route = createFileRoute("/contacts/$id")({
   component: () => <AppShell><ContactProfile /></AppShell>,
-  validateSearch: (s: Record<string, unknown>) => ({ tab: typeof s.tab === "string" ? s.tab : undefined }),
+  // ?tab= is optional, so links elsewhere in the app don't have to pass a search object.
+  validateSearch: (s: Record<string, unknown>): { tab?: string } =>
+    typeof s.tab === "string" ? { tab: s.tab } : {},
 });
 
 const DISC_DIMS = [
